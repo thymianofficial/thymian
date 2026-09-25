@@ -1,0 +1,662 @@
+import {
+  createHttpRequest,
+  createHttpResponse,
+  createOkResponse,
+  createThymianFormatWithTransactions,
+} from '@thymian/core-testing';
+import { afterEach, describe, expect, it } from 'vitest';
+
+import { type SamplerHarness, startSampler } from './plugin-harness.js';
+
+/**
+ * #11: the lifecycle beyond `beforeEach` — `defineSample` at generation time,
+ * `afterEach` over the response, and the run-scoped `beforeAll`/`afterAll`
+ * pair. Everything is observed through the request that would be sent, the
+ * response a hook saw, or the order a teardown ran in.
+ */
+describe('hook lifecycle', () => {
+  const harnesses: SamplerHarness[] = [];
+
+  async function sampler(): Promise<SamplerHarness> {
+    const harness = await startSampler();
+    harnesses.push(harness);
+    return harness;
+  }
+
+  afterEach(async () => {
+    await Promise.all(harnesses.splice(0).map((h) => h.dispose()));
+  });
+
+  const format = createThymianFormatWithTransactions([
+    [
+      createHttpRequest({ method: 'GET', path: '/launches' }),
+      createOkResponse(),
+    ],
+    [
+      createHttpRequest({
+        method: 'POST',
+        path: '/astronauts',
+        mediaType: 'application/json',
+      }),
+      createHttpResponse({ statusCode: 201 }),
+    ],
+  ]);
+
+  const LAUNCHES = 'GET /launches -> 200 (application/json)';
+
+  function transactionIdOf(path: string): string {
+    const found = format
+      .getThymianHttpTransactions()
+      .find((t) => t.thymianReq.path === path);
+
+    if (!found) {
+      throw new Error(`fixture has no transaction for ${path}`);
+    }
+
+    return found.transactionId;
+  }
+
+  describe('defineSample', () => {
+    it('shapes the generated request, and shows through sampler show', async () => {
+      const harness = await sampler();
+
+      await harness.writeHook(
+        'sample.ts',
+        `import { defineSample } from '@thymian/hooks';
+
+export const shapeLaunches = defineSample(${JSON.stringify(LAUNCHES)}, (draft) => {
+  draft.query['limit'] = 7;
+  draft.authorize = true;
+});
+`,
+      );
+
+      await harness.loadFormat(format);
+
+      const shown = await harness.show(LAUNCHES);
+
+      expect(shown.request.query['limit']).toBe(7);
+      expect(shown.request.authorize).toBe(true);
+
+      // And the same request is what the tester is handed.
+      const sample = await harness.sample(transactionIdOf('/launches'), format);
+
+      expect(sample.query['limit']).toBe(7);
+    });
+
+    it('reports a second defineSample for one transaction as a conflict', async () => {
+      const harness = await sampler();
+
+      await harness.writeHook(
+        'first.ts',
+        `import { defineSample } from '@thymian/hooks';
+export const one = defineSample(${JSON.stringify(LAUNCHES)}, () => {});
+`,
+      );
+      await harness.writeHook(
+        'second.ts',
+        `import { defineSample } from '@thymian/hooks';
+export const two = defineSample(${JSON.stringify(LAUNCHES)}, () => {});
+`,
+      );
+
+      let error: unknown;
+
+      try {
+        await harness.beginRun(format);
+      } catch (e) {
+        error = e;
+      }
+
+      const suggestions = (
+        (error as { options?: { suggestions?: string[] } }).options
+          ?.suggestions ?? []
+      ).join('\n');
+
+      expect((error as Error | undefined)?.message).toContain(
+        'conflicts with another hook on the same transaction',
+      );
+      expect(suggestions).toContain('defineSample is already defined');
+      // Both sides are named, so the reader knows which two files to open.
+      expect(suggestions).toContain('second.ts');
+      expect(suggestions).toContain('first.ts');
+    });
+
+    it('allows one defineSample per transaction across transactions', async () => {
+      const harness = await sampler();
+
+      await harness.writeHook(
+        'two-transactions.ts',
+        `import { defineSample } from '@thymian/hooks';
+
+export const a = defineSample(${JSON.stringify(LAUNCHES)}, (draft) => {
+  draft.headers['x-which'] = 'launches';
+});
+export const b = defineSample(
+  'POST /astronauts (application/json) -> 201 (application/json)',
+  (draft) => {
+    draft.headers['x-which'] = 'astronauts';
+  },
+);
+`,
+      );
+
+      await harness.loadFormat(format);
+
+      expect((await harness.show(LAUNCHES)).request.headers['x-which']).toBe(
+        'launches',
+      );
+      expect(
+        (
+          await harness.show(
+            'POST /astronauts (application/json) -> 201 (application/json)',
+          )
+        ).request.headers['x-which'],
+      ).toBe('astronauts');
+    });
+
+    it('names its own file and export when it throws, at warn severity', async () => {
+      const harness = await sampler();
+
+      await harness.writeHook(
+        'sample.ts',
+        `import { defineSample } from '@thymian/hooks';
+
+export const shapeLaunches = defineSample(${JSON.stringify(LAUNCHES)}, () => {
+  throw new Error('boom');
+});
+`,
+      );
+
+      await harness.loadFormat(format);
+
+      let error: unknown;
+
+      try {
+        // core.request.sample is the seam a nested request also goes through
+        // to generate its draft, so this is the one path that has to name the
+        // hook correctly everywhere `defineSample` can throw.
+        await harness.sample(transactionIdOf('/launches'), format);
+      } catch (e) {
+        error = e;
+      }
+
+      expect((error as Error | undefined)?.message).toBe(
+        'The defineSample hook exported as "shapeLaunches" from "sample.ts" threw.',
+      );
+      expect((error as { cause?: unknown } | undefined)?.cause).toBeInstanceOf(
+        Error,
+      );
+      expect(
+        (error as { options?: { severity?: string } } | undefined)?.options
+          ?.severity,
+      ).toBe('warn');
+    });
+  });
+
+  describe('afterEach', () => {
+    it('sees the response of its own transaction', async () => {
+      const harness = await sampler();
+
+      await harness.writeHook(
+        'assert.ts',
+        `import { afterEach } from '@thymian/hooks';
+
+export const checkStatus = afterEach(${JSON.stringify(LAUNCHES)}, (response, ctx, utils) => {
+  if (response.statusCode === 200) {
+    utils.assertionSuccess('status was 200', 'statusCode === 200');
+  } else {
+    utils.assertionFailure('unexpected status ' + response.statusCode);
+  }
+});
+`,
+      );
+
+      await harness.loadFormat(format);
+
+      const { testResults } = await harness.afterResponse(
+        transactionIdOf('/launches'),
+        format,
+        { statusCode: 200, headers: {}, body: '{}' } as never,
+      );
+
+      expect(testResults).toEqual([
+        {
+          type: 'assertion-success',
+          message: 'status was 200',
+          assertion: 'statusCode === 200',
+        },
+      ]);
+    });
+  });
+
+  describe('beforeAll and afterAll', () => {
+    it('runs beforeAll exactly once, before the first request', async () => {
+      const harness = await sampler();
+
+      await harness.writeHook(
+        'setup.ts',
+        `import { beforeAll, beforeEach } from '@thymian/hooks';
+
+let runs = 0;
+
+export const setup = beforeAll(() => {
+  runs += 1;
+});
+
+export const record = beforeEach(${JSON.stringify(LAUNCHES)}, (request) => {
+  request.headers['x-before-all-runs'] = String(runs);
+});
+`,
+      );
+
+      await harness.loadFormat(format);
+
+      const first = await harness.beforeRequest(
+        transactionIdOf('/launches'),
+        format,
+      );
+      const second = await harness.beforeRequest(
+        transactionIdOf('/launches'),
+        format,
+      );
+
+      // Already 1 on the very first request: the latch is armed ahead of the
+      // transaction's own beforeEach hooks.
+      expect(first.result.headers['x-before-all-runs']).toBe('1');
+      expect(second.result.headers['x-before-all-runs']).toBe('1');
+    });
+
+    it('sends a beforeAll seed to the run’s target origin, never the server the description names', async () => {
+      const harness = await sampler();
+      const ASTRONAUTS =
+        'POST /astronauts (application/json) -> 201 (application/json)';
+
+      await harness.writeHook(
+        'setup.ts',
+        `import { beforeAll } from '@thymian/hooks';
+
+export const seed = beforeAll(async (utils) => {
+  await utils.request(${JSON.stringify(ASTRONAUTS)}, { body: {} });
+});
+`,
+      );
+
+      harness.responses.push({ statusCode: 201 });
+
+      await harness.loadFormat(format);
+
+      // What `--target-url` does: the run's first request carries the origin
+      // it resolved, captured as the run arms — so the seed that runs while
+      // arming it already goes there too, instead of to whatever origin
+      // generation put on the sample.
+      await harness.beforeRequest(transactionIdOf('/launches'), format, {
+        origin: 'http://localhost:9999',
+      });
+
+      expect(harness.dispatched[0]?.request.origin).toBe(
+        'http://localhost:9999',
+      );
+    });
+
+    it('memoizes an async beforeAll across concurrent before-request calls, so both see it fully complete', async () => {
+      const harness = await sampler();
+
+      await harness.writeHook(
+        'setup.ts',
+        `import { beforeAll, beforeEach } from '@thymian/hooks';
+
+let runs = 0;
+
+export const setup = beforeAll(async () => {
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  runs += 1;
+});
+
+export const record = beforeEach(${JSON.stringify(LAUNCHES)}, (request) => {
+  request.headers['x-before-all-runs'] = String(runs);
+});
+`,
+      );
+
+      await harness.loadFormat(format);
+
+      const transactionId = transactionIdOf('/launches');
+
+      // Fired together, not one-at-a-time: both callers reach the latch while
+      // the async beforeAll is still pending, which is exactly the gap a
+      // sequential suite cannot see.
+      const [first, second] = await Promise.all([
+        harness.beforeRequest(transactionId, format),
+        harness.beforeRequest(transactionId, format),
+      ]);
+
+      // If the second caller had raced past the latch instead of awaiting the
+      // same memoized setup, it would have observed `runs` still at 0.
+      expect(first.result.headers['x-before-all-runs']).toBe('1');
+      expect(second.result.headers['x-before-all-runs']).toBe('1');
+    });
+
+    it('rejects every concurrently raced-in caller when an async beforeAll rejects, and runs it only once', async () => {
+      const harness = await sampler();
+      const log = `${harness.cwd}/runs.log`;
+
+      await harness.writeHook(
+        'setup.ts',
+        `import { beforeAll } from '@thymian/hooks';
+import { appendFileSync } from 'node:fs';
+
+const log = ${JSON.stringify(log)};
+
+export const setup = beforeAll(async () => {
+  appendFileSync(log, 'run\\n');
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  throw new Error('setup failed');
+});
+`,
+      );
+
+      await harness.loadFormat(format);
+
+      const transactionId = transactionIdOf('/launches');
+
+      const results = await Promise.allSettled([
+        harness.beforeRequest(transactionId, format),
+        harness.beforeRequest(transactionId, format),
+        harness.beforeRequest(transactionId, format),
+      ]);
+
+      // Every raced-in caller rejects — not just the one that happened to run
+      // the failing hook — so no caller's request is ever dispatched against a
+      // fixture that was never built.
+      for (const outcome of results) {
+        expect(outcome.status).toBe('rejected');
+        const reason =
+          outcome.status === 'rejected'
+            ? (outcome.reason as Error | undefined)
+            : undefined;
+
+        expect(reason?.message).toMatch(/beforeAll hook exported as "setup"/);
+      }
+
+      const { readFileSync } = await import('node:fs');
+
+      // Three racing callers, one setup run: a memoized promise, not a
+      // test-and-set flag that lets a second caller re-enter while the first
+      // is still awaiting the failing hook.
+      expect(readFileSync(log, 'utf-8')).toBe('run\n');
+    });
+
+    it('resolves a run-scoped hook’s file helpers against the hook file’s own directory', async () => {
+      const harness = await sampler();
+
+      await harness.writeHook(
+        'nested/fixture.json',
+        JSON.stringify({ hello: 'world' }),
+      );
+      await harness.writeHook('nested/fixture.txt', 'plain text fixture');
+      await harness.writeHook(
+        'nested/setup.ts',
+        `import { beforeAll, beforeEach } from '@thymian/hooks';
+
+let json: unknown;
+let text: string;
+let buffer: Buffer;
+
+export const setup = beforeAll((utils) => {
+  json = utils.readJson('./fixture.json');
+  text = utils.readText('./fixture.txt');
+  buffer = utils.readFile('./fixture.txt');
+});
+
+export const record = beforeEach(${JSON.stringify(LAUNCHES)}, (request) => {
+  request.headers['x-fixture-json'] = JSON.stringify(json);
+  request.headers['x-fixture-text'] = text;
+  request.headers['x-fixture-buffer'] = buffer.toString('utf-8');
+});
+`,
+      );
+
+      await harness.loadFormat(format);
+
+      // Before this ticket, a run-scoped hook's file helpers resolved against
+      // \`process.cwd()\` — unrelated to where any hook file lives — so this
+      // would have thrown ENOENT rather than returning the fixtures' content.
+      const { result } = await harness.beforeRequest(
+        transactionIdOf('/launches'),
+        format,
+      );
+
+      expect(JSON.parse(result.headers['x-fixture-json'] as string)).toEqual({
+        hello: 'world',
+      });
+      expect(result.headers['x-fixture-text']).toBe('plain text fixture');
+      expect(result.headers['x-fixture-buffer']).toBe('plain text fixture');
+    });
+
+    it('aborts the run when beforeAll throws, and still tears down', async () => {
+      const harness = await sampler();
+
+      await harness.writeHook(
+        'setup.ts',
+        `import { afterAll, beforeAll } from '@thymian/hooks';
+import { appendFileSync } from 'node:fs';
+
+const log = ${JSON.stringify('LOGPATH')};
+
+export const setup = beforeAll(() => {
+  throw new Error('setup failed');
+});
+
+export const teardown = afterAll(() => {
+  appendFileSync(log, 'afterAll\\n');
+});
+`.replace(
+          JSON.stringify('LOGPATH'),
+          JSON.stringify(`${harness.cwd}/order.log`),
+        ),
+      );
+
+      await harness.loadFormat(format);
+
+      let error: unknown;
+
+      try {
+        await harness.beforeRequest(transactionIdOf('/launches'), format);
+      } catch (e) {
+        error = e;
+      }
+
+      expect((error as Error | undefined)?.message).toMatch(
+        /beforeAll hook exported as "setup"/,
+      );
+      // The same shared wrapper as every other kind, not a hand-rolled copy:
+      // warn severity, so this diagnostic never closes the run through
+      // Thymian.run's error subscription on its own.
+      expect(
+        (error as { options?: { severity?: string } } | undefined)?.options
+          ?.severity,
+      ).toBe('warn');
+
+      await harness.close();
+
+      const { readFileSync } = await import('node:fs');
+
+      expect(readFileSync(`${harness.cwd}/order.log`, 'utf-8')).toBe(
+        'afterAll\n',
+      );
+    });
+
+    it('runs all teardown as one reverse-ordered list on close', async () => {
+      const harness = await sampler();
+      const log = `${harness.cwd}/order.log`;
+
+      await harness.writeHook(
+        'setup.ts',
+        `import { afterAll, beforeAll } from '@thymian/hooks';
+import { appendFileSync } from 'node:fs';
+
+const log = ${JSON.stringify(log)};
+
+export const first = beforeAll(() => () => {
+  appendFileSync(log, 'cleanup-1\\n');
+});
+
+export const second = beforeAll(() => () => {
+  appendFileSync(log, 'cleanup-2\\n');
+});
+
+export const teardownA = afterAll(() => {
+  appendFileSync(log, 'afterAll-A\\n');
+});
+
+export const teardownB = afterAll(() => {
+  appendFileSync(log, 'afterAll-B\\n');
+});
+`,
+      );
+
+      await harness.loadFormat(format);
+      await harness.beforeRequest(transactionIdOf('/launches'), format);
+      await harness.close();
+
+      const { readFileSync } = await import('node:fs');
+
+      // One list, reversed — not "all cleanups, then all afterAll". Both
+      // `afterAll` hooks were registered after both `beforeAll` hooks, so they
+      // run first; within each, the later registration goes first.
+      expect(readFileSync(log, 'utf-8')).toBe(
+        'afterAll-B\nafterAll-A\ncleanup-2\ncleanup-1\n',
+      );
+    });
+
+    it('keeps tearing down after a teardown throws', async () => {
+      const harness = await sampler();
+      const log = `${harness.cwd}/order.log`;
+
+      await harness.writeHook(
+        'setup.ts',
+        `import { afterAll, beforeAll } from '@thymian/hooks';
+import { appendFileSync } from 'node:fs';
+
+const log = ${JSON.stringify(log)};
+
+export const arm = beforeAll(() => () => {
+  appendFileSync(log, 'cleanup\\n');
+});
+
+export const throwing = afterAll(() => {
+  throw new Error('teardown failed');
+});
+
+export const survivor = afterAll(() => {
+  appendFileSync(log, 'survivor\\n');
+});
+`,
+      );
+
+      await harness.loadFormat(format);
+      await harness.beforeRequest(transactionIdOf('/launches'), format);
+
+      // Best-effort: the throw does not propagate out of close.
+      await expect(harness.close()).resolves.toBeUndefined();
+
+      const { readFileSync } = await import('node:fs');
+
+      // `survivor` is registered last, so it runs first in reverse; the
+      // throwing hook is next and is only warned about; the cleanup of the
+      // first-registered `beforeAll` runs last.
+      expect(readFileSync(log, 'utf-8')).toBe('survivor\ncleanup\n');
+    });
+
+    it('interleaves a cleanup with an afterAll registered after it', async () => {
+      const harness = await sampler();
+      const log = `${harness.cwd}/order.log`;
+
+      await harness.writeHook(
+        'setup.ts',
+        `import { afterAll, beforeAll } from '@thymian/hooks';
+import { appendFileSync } from 'node:fs';
+
+const log = ${JSON.stringify(log)};
+
+export const early = beforeAll(() => () => {
+  appendFileSync(log, 'cleanup-early\\n');
+});
+
+export const between = afterAll(() => {
+  appendFileSync(log, 'afterAll-between\\n');
+});
+
+export const late = beforeAll(() => () => {
+  appendFileSync(log, 'cleanup-late\\n');
+});
+`,
+      );
+
+      await harness.loadFormat(format);
+      await harness.beforeRequest(transactionIdOf('/launches'), format);
+      await harness.close();
+
+      const { readFileSync } = await import('node:fs');
+
+      // Reverse of the order things were registered in, whatever kind they are:
+      // the late cleanup, then the afterAll between them, then the early
+      // cleanup. Grouping cleanups apart from afterAll hooks would put
+      // `afterAll-between` first or last instead of in the middle.
+      expect(readFileSync(log, 'utf-8')).toBe(
+        'cleanup-late\nafterAll-between\ncleanup-early\n',
+      );
+    });
+
+    it('runs no teardown when no request was ever sent', async () => {
+      const harness = await sampler();
+      const log = `${harness.cwd}/order.log`;
+
+      await harness.writeHook(
+        'setup.ts',
+        `import { afterAll } from '@thymian/hooks';
+import { appendFileSync } from 'node:fs';
+
+export const teardown = afterAll(() => {
+  appendFileSync(${JSON.stringify(log)}, 'ran\\n');
+});
+`,
+      );
+
+      await harness.loadFormat(format);
+      // A non-test command: the selector was shown, no request was sent.
+      await harness.show(LAUNCHES);
+      await harness.close();
+
+      const { existsSync } = await import('node:fs');
+
+      expect(existsSync(log)).toBe(false);
+    });
+  });
+
+  describe('what the scan ignores', () => {
+    it('skips dot-directories and declaration files', async () => {
+      const harness = await sampler();
+
+      // Both would fail loudly if the scan reached them: the first registers a
+      // hook against a selector that does not exist, the second is not
+      // importable as a module.
+      await harness.writeHook(
+        '.cache/hidden.ts',
+        `import { beforeEach } from '@thymian/hooks';
+export const hidden = beforeEach('GET /gone -> 200 (application/json)', () => {});
+`,
+      );
+      await harness.writeHook(
+        'types.d.ts',
+        `declare module 'nonexistent-module' {
+  export const x: number;
+}
+`,
+      );
+
+      await expect(harness.loadFormat(format)).resolves.toBeUndefined();
+    });
+  });
+});

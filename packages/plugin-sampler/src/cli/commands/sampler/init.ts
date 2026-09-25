@@ -1,81 +1,67 @@
-import { BaseCliRunCommand, oclif, prompts } from '@thymian/common-cli';
+import { join, relative } from 'node:path';
+
+import { BaseCliRunCommand, oclif } from '@thymian/common-cli';
+
+const { colorize } = oclif.ux;
 
 export default class Init extends BaseCliRunCommand<typeof Init> {
+  static override enableJsonFlag = true;
+
   static override description =
-    'Generate initial sampler files for the current API specification.';
+    'Set up the sampler for editor support: generate the committed type surface and scaffold a tsconfig.';
 
-  static override flags = {
-    overwrite: oclif.Flags.boolean({
-      default: false,
-      description: 'Overwrite existing samples.',
-    }),
+  static override examples = ['<%= config.bin %> <%= command.id %>'];
 
-    check: oclif.Flags.boolean({
-      description:
-        'After initialization, run sampler check to verify all transactions can be executed.',
-      allowNo: true,
-      default: false,
-    }),
-  };
-
-  async run(): Promise<void> {
-    await this.thymian.run(async (emitter) => {
-      if (
-        !this.thymian.plugins.find(
-          (p) => p.plugin.name === '@thymian/plugin-sampler',
-        )
-      ) {
-        this.error(
-          'Cannot initialize sampler if sampler plugin is not registered.',
-          {
-            exit: 1,
-          },
-        );
-      }
-
-      const format = await this.thymian.loadFormat(
+  override async run(): Promise<unknown> {
+    return this.thymian.run(async (emitter) => {
+      await this.thymian.loadFormat(
         {
           inputs: this.thymianConfig.specifications ?? [],
           validateSpecs: this.flags['validate-specs'],
         },
-        {
-          emitFormat: true,
-        },
+        // The sampler builds its catalog on `core.format`, and the type surface
+        // is generated from that catalog.
+        { emitFormat: true },
       );
 
-      await emitter.emitAction('sampler.init', {
-        format: format.export(),
-        overwrite: this.flags.overwrite,
-      });
-    });
+      const result = await emitter.emitAction(
+        'sampler.init',
+        {},
+        { strategy: 'first' },
+      );
 
-    this.log(oclif.ux.colorize('green', 'Sampler initialized.'));
+      if (this.jsonEnabled()) {
+        return result;
+      }
 
-    if (this.flags.check) {
-      if (this.config.findCommand('sampler check')) {
+      const root = relative(this.flags.cwd, result.root) || result.root;
+
+      // `result.generated` names files inside the surface directory, so the
+      // segment has to be put back: without it the command reports a path that
+      // does not exist.
+      for (const file of result.generated) {
+        this.log(
+          `${colorize('green', 'created')} ${join(root, 'generated', file)}`,
+        );
+      }
+
+      if (result.tsconfig === 'written') {
+        this.log(
+          `${colorize('green', 'created')} ${join(root, 'tsconfig.json')}`,
+        );
+      }
+
+      if (result.rootExcludeNote.length > 0) {
         this.log();
-        const answer = await prompts.confirm({
-          message: 'Do you want to run this check now?',
-        });
+        this.log('One thing left, which only you can do:');
+        this.log();
 
-        if (answer) {
-          this.log();
-
-          const args = ['--cwd', this.flags.cwd];
-
-          if (this.flags.config) {
-            args.push('-c', this.flags.config);
-          }
-
-          await this.config.runCommand('sampler check', args);
+        for (const line of result.rootExcludeNote) {
+          this.log(`  ${line}`);
         }
       }
-    } else {
-      this.log();
-      this.log('To check if every transaction can be executed, run:');
-      this.log();
-      this.log('$ thymian sampler check');
-      this.log();
-    }
+
+      return result;
+    });
   }
 }

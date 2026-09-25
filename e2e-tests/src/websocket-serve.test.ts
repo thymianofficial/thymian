@@ -3,12 +3,7 @@ import { filter, firstValueFrom, ReplaySubject } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { WebSocket } from 'ws';
 
-import {
-  copyFixturesToTempDir,
-  fixturesDir,
-  renderThymian,
-  useTempDir,
-} from './helpers.js';
+import { renderThymian, useTempDir } from './helpers.js';
 import { getAvailablePort } from './port-utils.js';
 
 describe('thymian serve (websocket)', () => {

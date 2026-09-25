@@ -1,0 +1,856 @@
+import { mkdir, symlink, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
+
+import {
+  createHttpRequest,
+  createHttpResponse,
+  createOkResponse,
+  createThymianFormatWithTransactions,
+} from '@thymian/core-testing';
+import { afterEach, describe, expect, it } from 'vitest';
+
+import { isHookFile } from '../src/hooks/load-user-hooks.js';
+import { type SamplerHarness, startSampler } from './plugin-harness.js';
+
+/**
+ * #10: a user writes a `beforeEach` anchored by a Selector, runs with **no
+ * `init`**, and sees the mutation on the wire. Every assertion here observes
+ * either the outgoing request or the diagnostic a broken hook produces — never
+ * the loader's internals.
+ */
+describe('hook loading', () => {
+  const harnesses: SamplerHarness[] = [];
+
+  async function sampler(): Promise<SamplerHarness> {
+    const harness = await startSampler();
+    harnesses.push(harness);
+    return harness;
+  }
+
+  afterEach(async () => {
+    await Promise.all(harnesses.splice(0).map((h) => h.dispose()));
+  });
+
+  const format = createThymianFormatWithTransactions([
+    [
+      createHttpRequest({ method: 'GET', path: '/launches' }),
+      createOkResponse(),
+    ],
+    [
+      createHttpRequest({
+        method: 'POST',
+        path: '/astronauts',
+        mediaType: 'application/json',
+      }),
+      createHttpResponse({ statusCode: 201 }),
+    ],
+  ]);
+
+  const LAUNCHES = 'GET /launches -> 200 (application/json)';
+  const ASTRONAUTS =
+    'POST /astronauts (application/json) -> 201 (application/json)';
+
+  function transactionIdOf(selector: string): string {
+    const found = format
+      .getThymianHttpTransactions()
+      .find(
+        (t) =>
+          selector.startsWith(`${t.thymianReq.method.toUpperCase()} `) &&
+          selector.includes(t.thymianReq.path),
+      );
+
+    if (!found) {
+      throw new Error(`fixture has no transaction for ${selector}`);
+    }
+
+    return found.transactionId;
+  }
+
+  it('fires a beforeEach on the wire with no init ever run', async () => {
+    const harness = await sampler();
+
+    await harness.writeHook(
+      'auth.ts',
+      `import { beforeEach } from '@thymian/hooks';
+
+export const addTraceHeader = beforeEach(${JSON.stringify(LAUNCHES)}, (request) => {
+  request.headers['x-trace'] = 'from-hook';
+});
+`,
+    );
+
+    await harness.loadFormat(format);
+
+    const { result } = await harness.beforeRequest(
+      transactionIdOf(LAUNCHES),
+      format,
+    );
+
+    expect(result.headers['x-trace']).toBe('from-hook');
+  });
+
+  it('ignores what a hook returns, because a hook mutates in place', async () => {
+    const harness = await sampler();
+
+    // The most ordinary shorthand there is: a concise arrow whose body is an
+    // assignment, so the function returns the assigned value. Honouring that
+    // return would replace the whole request with the string 'from-hook'.
+    await harness.writeHook(
+      'concise.ts',
+      `import { beforeEach } from '@thymian/hooks';
+
+export const concise = beforeEach(
+  ${JSON.stringify(LAUNCHES)},
+  (request) => (request.headers['x-trace'] = 'from-hook'),
+);
+`,
+    );
+
+    await harness.loadFormat(format);
+
+    const { result } = await harness.beforeRequest(
+      transactionIdOf(LAUNCHES),
+      format,
+    );
+
+    expect(result.headers['x-trace']).toBe('from-hook');
+    expect(result.method).toBe('GET');
+    expect(result.path).toBe('/launches');
+  });
+
+  it('leaves other transactions alone', async () => {
+    const harness = await sampler();
+
+    await harness.writeHook(
+      'auth.ts',
+      `import { beforeEach } from '@thymian/hooks';
+
+export default beforeEach(${JSON.stringify(LAUNCHES)}, (request) => {
+  request.headers['x-trace'] = 'from-hook';
+});
+`,
+    );
+
+    await harness.loadFormat(format);
+
+    const { result } = await harness.beforeRequest(
+      transactionIdOf(ASTRONAUTS),
+      format,
+    );
+
+    expect(result.headers['x-trace']).toBeUndefined();
+  });
+
+  it('composes several beforeEach hooks in registration order', async () => {
+    const harness = await sampler();
+
+    // Two files, two hooks each, and in both files the export names run
+    // backwards against the registration order. So neither export order (an ESM
+    // namespace sorts its keys) nor file order alone can produce "1234": the
+    // order has to come from file order on the outside and registration order
+    // inside each file.
+    await harness.writeHook(
+      'b-second.ts',
+      `import { beforeEach } from '@thymian/hooks';
+
+export const zzz = beforeEach(${JSON.stringify(LAUNCHES)}, (request) => {
+  request.headers['x-order'] += '3';
+});
+export const aaa = beforeEach(${JSON.stringify(LAUNCHES)}, (request) => {
+  request.headers['x-order'] += '4';
+});
+`,
+    );
+    await harness.writeHook(
+      'a-first.ts',
+      `import { beforeEach } from '@thymian/hooks';
+
+export const zzz = beforeEach(${JSON.stringify(LAUNCHES)}, (request) => {
+  request.headers['x-order'] = '1';
+});
+export const aaa = beforeEach(${JSON.stringify(LAUNCHES)}, (request) => {
+  request.headers['x-order'] += '2';
+});
+`,
+    );
+
+    await harness.loadFormat(format);
+
+    const { result } = await harness.beforeRequest(
+      transactionIdOf(LAUNCHES),
+      format,
+    );
+
+    expect(result.headers['x-order']).toBe('1234');
+  });
+
+  it('collects registrations from any nesting depth, and a list of them', async () => {
+    const harness = await sampler();
+
+    await harness.writeHook(
+      'deep/nested/again/hooks.ts',
+      `import { beforeEach } from '@thymian/hooks';
+
+export const both = [
+  beforeEach(${JSON.stringify(LAUNCHES)}, (request) => {
+    request.headers['x-one'] = 'yes';
+  }),
+  beforeEach(${JSON.stringify(LAUNCHES)}, (request) => {
+    request.headers['x-two'] = 'yes';
+  }),
+];
+`,
+    );
+
+    await harness.loadFormat(format);
+
+    const { result } = await harness.beforeRequest(
+      transactionIdOf(LAUNCHES),
+      format,
+    );
+
+    expect(result.headers['x-one']).toBe('yes');
+    expect(result.headers['x-two']).toBe('yes');
+  });
+
+  it('targets a list of selectors with one hook', async () => {
+    const harness = await sampler();
+
+    await harness.writeHook(
+      'both.ts',
+      `import { beforeEach } from '@thymian/hooks';
+
+export const shared = beforeEach(
+  [${JSON.stringify(LAUNCHES)}, ${JSON.stringify(ASTRONAUTS)}],
+  (request) => {
+    request.headers['x-shared'] = 'yes';
+  },
+);
+`,
+    );
+
+    await harness.loadFormat(format);
+
+    for (const selector of [LAUNCHES, ASTRONAUTS]) {
+      const { result } = await harness.beforeRequest(
+        transactionIdOf(selector),
+        format,
+      );
+
+      expect(result.headers['x-shared'], selector).toBe('yes');
+    }
+  });
+
+  it('never invokes an exported function to find out whether it is a hook', async () => {
+    const harness = await sampler();
+
+    await harness.writeHook(
+      'not-a-hook.ts',
+      `export function looksInteresting() {
+  throw new Error('discovery invoked an exported function');
+}
+export default function alsoNot() {
+  throw new Error('discovery invoked the default export');
+}
+`,
+    );
+
+    await harness.loadFormat(format);
+
+    await expect(
+      harness.beforeRequest(transactionIdOf(LAUNCHES), format),
+    ).resolves.toBeDefined();
+  });
+
+  it('fails the run fast on a dangling selector, naming the file and near misses', async () => {
+    const harness = await sampler();
+
+    await harness.writeHook(
+      'stale.ts',
+      `import { beforeEach } from '@thymian/hooks';
+
+export const stale = beforeEach('GET /launches -> 418 (application/json)', () => {});
+`,
+    );
+
+    let error: unknown;
+
+    try {
+      await harness.beginRun(format);
+    } catch (e) {
+      error = e;
+    }
+
+    expect((error as Error | undefined)?.message).toContain(
+      'does not resolve against the loaded API description',
+    );
+
+    const suggestions = (
+      (error as { options?: { suggestions?: string[] } }).options
+        ?.suggestions ?? []
+    ).join('\n');
+
+    expect(suggestions).toContain('stale.ts');
+    expect(suggestions).toContain('export "stale"');
+    expect(suggestions).toContain('Did you mean one of these selectors?');
+    expect(suggestions).toContain(`"${LAUNCHES}"`);
+  });
+
+  it('records a malformed selector target as a diagnostic, with a grammar hint, instead of throwing', async () => {
+    const harness = await sampler();
+
+    await harness.writeHook(
+      'malformed.ts',
+      `import { beforeEach } from '@thymian/hooks';
+
+export const oops = beforeEach('this is not a selector at all', () => {});
+`,
+    );
+
+    let error: unknown;
+
+    try {
+      await harness.beginRun(format);
+    } catch (e) {
+      error = e;
+    }
+
+    expect((error as Error | undefined)?.message).toContain(
+      'does not resolve against the loaded API description',
+    );
+
+    const suggestions = (
+      (error as { options?: { suggestions?: string[] } }).options
+        ?.suggestions ?? []
+    ).join('\n');
+
+    expect(suggestions).toContain('malformed.ts');
+    expect(suggestions).toContain('which is not a valid transaction selector');
+    expect(suggestions).toContain('METHOD SP path');
+    expect(suggestions).toContain('For example:');
+  });
+
+  it('lets validate, show and sync survive a malformed selector target instead of crashing', async () => {
+    const harness = await sampler();
+
+    await harness.writeHook(
+      'malformed.ts',
+      `import { beforeEach } from '@thymian/hooks';
+
+export const oops = beforeEach('this is not a selector at all', () => {});
+`,
+    );
+
+    await harness.loadFormat(format);
+
+    const report = await harness.validate();
+
+    expect(report.unresolved).toHaveLength(1);
+    expect(report.unresolved[0]?.reason).toContain(
+      'which is not a valid transaction selector',
+    );
+
+    await expect(harness.show(LAUNCHES)).resolves.toBeDefined();
+    await expect(harness.sync()).resolves.toBeDefined();
+    // Three real operations against a real compiler — `validate` typechecks the
+    // hooks, and `show` and `sync` each regenerate the surface — where the
+    // tests around it do one. It is the slowest case in the package and sat
+    // just under vitest's 5s default, so it timed out on whichever runner was
+    // busiest rather than on any particular platform.
+  }, 20_000);
+
+  it('reports every unresolved hook, not just the first', async () => {
+    const harness = await sampler();
+
+    await harness.writeHook(
+      'one.ts',
+      `import { beforeEach } from '@thymian/hooks';
+export const a = beforeEach('GET /gone -> 200 (application/json)', () => {});
+`,
+    );
+    await harness.writeHook(
+      'two.ts',
+      `import { beforeEach } from '@thymian/hooks';
+export const b = beforeEach('GET /also-gone -> 200 (application/json)', () => {});
+`,
+    );
+
+    let error: unknown;
+
+    try {
+      await harness.beginRun(format);
+    } catch (e) {
+      error = e;
+    }
+
+    expect((error as Error | undefined)?.message).toContain('2 sampler hooks');
+
+    const suggestions = (
+      (error as { options?: { suggestions?: string[] } }).options
+        ?.suggestions ?? []
+    ).join('\n');
+
+    expect(suggestions).toContain('one.ts');
+    expect(suggestions).toContain('two.ts');
+  });
+
+  it('skips a symlinked hook file with a warning, and never runs it', async () => {
+    const harness = await sampler();
+
+    await harness.writeHook(
+      'real.ts',
+      `import { beforeEach } from '@thymian/hooks';
+
+export const real = beforeEach(${JSON.stringify(LAUNCHES)}, (request) => {
+  request.headers['x-real'] = 'yes';
+});
+`,
+    );
+
+    await symlink(
+      join(harness.hooksDir, 'real.ts'),
+      join(harness.hooksDir, 'alias.ts'),
+      'file',
+    );
+
+    await harness.loadFormat(format);
+
+    const warnings = harness.warnings.join('\n');
+
+    expect(warnings).toContain('alias.ts');
+    expect(warnings).toContain('symlink');
+
+    // The real file still loads normally: a symlink elsewhere in the tree
+    // does not take the rest of the scan down with it.
+    const { result } = await harness.beforeRequest(
+      transactionIdOf(LAUNCHES),
+      format,
+    );
+
+    expect(result.headers['x-real']).toBe('yes');
+  });
+
+  it('skips a symlinked hooks subdirectory with a warning, and never walks into it', async () => {
+    const harness = await sampler();
+    const outside = join(harness.cwd, 'outside-hooks');
+
+    await mkdir(outside, { recursive: true });
+    await writeFile(
+      join(outside, 'nested.ts'),
+      `import { beforeEach } from '@thymian/hooks';
+
+export const nested = beforeEach(${JSON.stringify(LAUNCHES)}, (request) => {
+  request.headers['x-nested'] = 'yes';
+});
+`,
+      'utf-8',
+    );
+    await mkdir(harness.hooksDir, { recursive: true });
+    await symlink(outside, join(harness.hooksDir, 'linked-dir'), 'dir');
+
+    await harness.loadFormat(format);
+
+    const warnings = harness.warnings.join('\n');
+
+    expect(warnings).toContain('linked-dir');
+    expect(warnings).toContain('symlink');
+
+    const { result } = await harness.beforeRequest(
+      transactionIdOf(LAUNCHES),
+      format,
+    );
+
+    expect(result.headers['x-nested']).toBeUndefined();
+  });
+
+  it('never imports a node_modules directory inside the hooks tree', async () => {
+    const harness = await sampler();
+
+    // Content that proves the file was never even opened: importing it would
+    // throw, and the hooks it would have registered would show up on the
+    // wire.
+    await harness.writeHook(
+      'node_modules/rogue-pkg/index.ts',
+      `import { beforeEach } from '@thymian/hooks';
+
+if (true) {
+  throw new Error('node_modules inside the hooks directory must never be imported');
+}
+
+export const rogue = beforeEach(${JSON.stringify(LAUNCHES)}, (request) => {
+  request.headers['x-rogue'] = 'yes';
+});
+`,
+    );
+
+    await harness.loadFormat(format);
+
+    const { result } = await harness.beforeRequest(
+      transactionIdOf(LAUNCHES),
+      format,
+    );
+
+    expect(result.headers['x-rogue']).toBeUndefined();
+  });
+
+  it('runs with no hooks directory at all', async () => {
+    const harness = await sampler();
+
+    await harness.loadFormat(format);
+
+    await expect(
+      harness.beforeRequest(transactionIdOf(LAUNCHES), format),
+    ).resolves.toBeDefined();
+  });
+
+  it('refuses a hook that was created but never exported', async () => {
+    const harness = await sampler();
+
+    // The one failure mode that used to be silent. Discovery is export-based,
+    // so this hook is created, is unreachable, and never fires — and a hook
+    // that does not fire is indistinguishable from one with nothing to do.
+    await harness.writeHook(
+      'forgot.ts',
+      `import { beforeEach } from '@thymian/hooks';
+
+beforeEach(${JSON.stringify(LAUNCHES)}, (request) => {
+  request.headers['x-forgot'] = 'yes';
+});
+`,
+    );
+
+    await harness.loadFormat(format);
+
+    await expect(
+      harness.beforeRequest(transactionIdOf(LAUNCHES), format),
+    ).rejects.toThrowError(/created but never exported/);
+  });
+
+  it('says how many, and does not accuse a file that exported its own', async () => {
+    const harness = await sampler();
+
+    await harness.writeHook(
+      'forgot.ts',
+      `import { beforeEach, afterEach } from '@thymian/hooks';
+
+beforeEach(${JSON.stringify(LAUNCHES)}, (request) => {
+  request.headers['x-one'] = 'yes';
+});
+afterEach(${JSON.stringify(LAUNCHES)}, () => {
+  void 'two';
+});
+`,
+    );
+    await harness.writeHook(
+      'fine.ts',
+      `import { beforeEach } from '@thymian/hooks';
+
+export const shape = beforeEach(${JSON.stringify(LAUNCHES)}, (request) => {
+  request.headers['x-fine'] = 'yes';
+});
+`,
+    );
+
+    await harness.loadFormat(format);
+
+    const error = await harness
+      .beforeRequest(transactionIdOf(LAUNCHES), format)
+      .then(
+        () => undefined,
+        (thrown: unknown) => thrown as Error,
+      );
+
+    expect(error?.message).toMatch(/2 sampler hooks are created/);
+    expect(String(error)).not.toContain('fine.ts');
+  });
+
+  /**
+   * A re-export is the same binding in ESM, so the hook behind it is one hook
+   * however many files export it. Counted rather than idempotent: an
+   * idempotent header hid that the hook was bound once per exporting file and
+   * ran twice per request.
+   */
+  it('binds a hook re-exported from a shared module exactly once', async () => {
+    const harness = await sampler();
+
+    await harness.writeHook(
+      'shared.ts',
+      `import { beforeEach } from '@thymian/hooks';
+
+export const shared = beforeEach(${JSON.stringify(LAUNCHES)}, (request) => {
+  request.headers['x-n'] = String(Number(request.headers['x-n'] ?? 0) + 1);
+});
+`,
+    );
+    await harness.writeHook(
+      're-export.ts',
+      `export { shared } from './shared.js';
+`,
+    );
+
+    await harness.loadFormat(format);
+
+    const { result } = await harness.beforeRequest(
+      transactionIdOf(LAUNCHES),
+      format,
+    );
+
+    expect(result.headers['x-n']).toBe('1');
+  });
+
+  /**
+   * `hooks/index.ts` re-exporting the other files is an ordinary layout. A
+   * `defineSample` reached through it used to be collected twice and reported
+   * as a conflict against itself.
+   */
+  it('does not report a re-exported defineSample as a conflict with itself', async () => {
+    const harness = await sampler();
+
+    await harness.writeHook(
+      'launches.ts',
+      `import { defineSample } from '@thymian/hooks';
+
+export const launches = defineSample(${JSON.stringify(LAUNCHES)}, () => {});
+`,
+    );
+    await harness.writeHook(
+      'index.ts',
+      `export * from './launches.js';
+`,
+    );
+
+    await expect(harness.beginRun(format)).resolves.toBeUndefined();
+  });
+
+  /**
+   * The other side of one evaluation per scan: a module two hook files import
+   * is one instance, so state one hook writes is state another reads. The
+   * guide promises this, and it used to promise the opposite.
+   */
+  it('shares a module imported by two hook files within one run', async () => {
+    const harness = await sampler();
+
+    await harness.writeHook(
+      'state.ts',
+      `export const fixtures: { userId?: number } = {};
+`,
+    );
+    await harness.writeHook(
+      'a-writes.ts',
+      `import { beforeEach } from '@thymian/hooks';
+import { fixtures } from './state.js';
+
+export const writes = beforeEach(${JSON.stringify(LAUNCHES)}, () => {
+  fixtures.userId = 42;
+});
+`,
+    );
+    await harness.writeHook(
+      'b-reads.ts',
+      `import { beforeEach } from '@thymian/hooks';
+import { fixtures } from './state.js';
+
+export const reads = beforeEach(${JSON.stringify(LAUNCHES)}, (request) => {
+  request.headers['x-user'] = String(fixtures.userId);
+});
+`,
+    );
+
+    await harness.loadFormat(format);
+
+    const { result } = await harness.beforeRequest(
+      transactionIdOf(LAUNCHES),
+      format,
+    );
+
+    expect(result.headers['x-user']).toBe('42');
+  });
+
+  /**
+   * Identity, not shape: an unexported hook is unreachable whether or not an
+   * exported hook happens to have the same source.
+   */
+  it('reports an unexported hook even when an exported twin exists', async () => {
+    const harness = await sampler();
+
+    for (const file of ['exported.ts', 'forgot.ts']) {
+      await harness.writeHook(
+        file,
+        `import { beforeEach } from '@thymian/hooks';
+
+${file === 'exported.ts' ? 'export const shape = ' : ''}beforeEach(${JSON.stringify(LAUNCHES)}, (request) => {
+  request.headers['x-twin'] = 'yes';
+});
+`,
+      );
+    }
+
+    await harness.loadFormat(format);
+
+    const error = await harness
+      .beforeRequest(transactionIdOf(LAUNCHES), format)
+      .then(
+        () => undefined,
+        (thrown: unknown) => thrown as Error,
+      );
+
+    const suggestions = (
+      (error as { options?: { suggestions?: string[] } } | undefined)?.options
+        ?.suggestions ?? []
+    ).join('\n');
+
+    expect(error?.message).toMatch(/1 sampler hook is created/);
+    expect(suggestions).toContain('forgot.ts');
+    expect(suggestions).not.toContain('exported.ts');
+  });
+
+  /**
+   * Modules are cached for the span of one scan and no longer. A long-lived
+   * process — `thymian serve` dispatching `validate` after every edit — must
+   * see the hook file as it is now, including a shared module no hook file
+   * of its own but one that others import.
+   */
+  it('re-evaluates an edited hook file, and an edited shared module, on the next scan', async () => {
+    const harness = await sampler();
+
+    const write = async (version: string): Promise<void> => {
+      await harness.writeHook(
+        'shared.ts',
+        `export const version = ${JSON.stringify(version)};
+`,
+      );
+      await harness.writeHook(
+        'stamp.ts',
+        `import { beforeEach } from '@thymian/hooks';
+import { version } from './shared.js';
+
+export const stamp = beforeEach(${JSON.stringify(LAUNCHES)}, (request) => {
+  request.headers['x-version'] = version;
+});
+`,
+      );
+    };
+
+    for (const version of ['v1', 'v2']) {
+      await write(version);
+      await harness.loadFormat(format);
+
+      const { result } = await harness.beforeRequest(
+        transactionIdOf(LAUNCHES),
+        format,
+      );
+
+      expect(result.headers['x-version']).toBe(version);
+    }
+  });
+
+  /**
+   * Composing lists is the ordinary way to build a target, and one transaction
+   * present in both halves is a duplicate the author cannot see.
+   */
+  it('binds a selector named twice in one target exactly once', async () => {
+    const harness = await sampler();
+
+    await harness.writeHook(
+      'twice.ts',
+      `import { beforeEach } from '@thymian/hooks';
+
+export const shared = beforeEach(
+  [${JSON.stringify(LAUNCHES)}, ${JSON.stringify(LAUNCHES)}],
+  (request) => {
+    request.headers['x-n'] = String(Number(request.headers['x-n'] ?? 0) + 1);
+  },
+);
+`,
+    );
+
+    await harness.loadFormat(format);
+
+    const { result } = await harness.beforeRequest(
+      transactionIdOf(LAUNCHES),
+      format,
+    );
+
+    expect(result.headers['x-n']).toBe('1');
+  });
+
+  it('loads a hook whose imports form a cycle', async () => {
+    const harness = await sampler();
+
+    // A cycle is ordinary in user code — two helper modules that reference each
+    // other — and the transpiler, not the sampler, is what has to survive it.
+    await harness.writeHook(
+      'cycle-a.ts',
+      `import { beforeEach } from '@thymian/hooks';
+import { headerName } from './cycle-b.js';
+
+export const label = 'a';
+export const shape = beforeEach(${JSON.stringify(LAUNCHES)}, (request) => {
+  request.headers[headerName] = 'yes';
+});
+`,
+    );
+    await harness.writeHook(
+      'cycle-b.ts',
+      `import { label } from './cycle-a.js';
+
+export const headerName = \`x-cycle-\${label ?? 'unset'}\`;
+`,
+    );
+
+    await harness.loadFormat(format);
+
+    const { result } = await harness.beforeRequest(
+      transactionIdOf(LAUNCHES),
+      format,
+    );
+
+    // Whichever way the cycle resolves, the hook fired and the run did not
+    // crash — the property worth pinning, since the resolution order of a
+    // cycle is the transpiler's business.
+    expect(
+      Object.keys(result.headers).some((name) => name.startsWith('x-cycle-')),
+    ).toBe(true);
+  });
+
+  it('surfaces a hook file that cannot be imported, naming the file', async () => {
+    const harness = await sampler();
+
+    await harness.writeHook('broken.ts', 'this is not typescript(((\n');
+
+    // A file that cannot be imported is not a hook that fails to resolve: the
+    // scan itself could not finish, so it fails when the format is published
+    // rather than when a run starts.
+    await expect(harness.loadFormat(format)).rejects.toThrowError(
+      /"broken\.ts" could not be imported/,
+    );
+  });
+});
+
+describe('which files the loader keeps', () => {
+  it('keeps the six module extensions and skips declaration files', () => {
+    for (const name of [
+      'hook.ts',
+      'hook.js',
+      'hook.mjs',
+      'hook.cjs',
+      'hook.mts',
+      'hook.cts',
+    ]) {
+      expect(isHookFile(name), name).toBe(true);
+    }
+
+    for (const name of [
+      'types.d.ts',
+      // Case-insensitively, because a hand-written declaration file handed to
+      // the transpiler fails on its own `declare module` syntax.
+      'types.D.ts',
+      'types.d.mts',
+      'hook.tsx',
+      'notes.md',
+      'schema.json',
+    ]) {
+      expect(isHookFile(name), name).toBe(false);
+    }
+  });
+});
