@@ -62,13 +62,13 @@ export default httpRule(
   )
   .appliesTo('server')
   .rule((ctx) =>
-    ctx.validateGroupedCommonHttpTransactions(
-      and(
+    ctx.validateGroupedCommonHttpTransactions({
+      appliesTo: and(
         or(method('GET'), method('HEAD')),
         or(statusCode(304), statusCode(200)),
       ),
-      url(),
-      (_, transactions) => {
+      groupBy: url(),
+      violatedWhen: (_, transactions) => {
         const [okResponse] =
           transactions.find(([, res]) => res.statusCode === 200) ?? [];
 
@@ -93,7 +93,7 @@ export default httpRule(
 
         return [];
       },
-    ),
+    }),
   )
   .overrideTest(async (testContext) => {
     const results: RuleFnResult[] = [];

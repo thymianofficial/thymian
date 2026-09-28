@@ -18,6 +18,9 @@ export default httpRule(
   )
   .appliesTo('server')
   .rule((ctx) =>
-    ctx.validateCommonHttpTransactions(statusCode(505), not(hasResponseBody())),
+    ctx.validateCommonHttpTransactions({
+      appliesTo: statusCode(505),
+      violatedWhen: not(hasResponseBody()),
+    }),
   )
   .done();

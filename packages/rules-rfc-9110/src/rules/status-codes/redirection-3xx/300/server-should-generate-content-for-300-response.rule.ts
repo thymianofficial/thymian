@@ -16,9 +16,9 @@ export default httpRule(
   )
   .appliesTo('server')
   .rule((ctx) =>
-    ctx.validateCommonHttpTransactions(
-      and(not(method('HEAD')), statusCode(300)),
-      not(hasResponseBody()),
-    ),
+    ctx.validateCommonHttpTransactions({
+      appliesTo: and(not(method('HEAD')), statusCode(300)),
+      violatedWhen: not(hasResponseBody()),
+    }),
   )
   .done();

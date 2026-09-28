@@ -56,13 +56,13 @@ export default httpRule(
     'Since the goal of a 304 response is to minimize information transfer when the recipient already has one or more cached representations, a sender SHOULD NOT generate representation metadata other than the above listed fields unless said metadata exists for the purpose of guiding cache updates (e.g., Last-Modified might be useful if the response does not have an ETag field).',
   )
   .rule((ctx) =>
-    ctx.validateCommonHttpTransactions(
-      and(or(method('GET'), method('HEAD')), statusCode(304)),
-      (req, res, location) => {
+    ctx.validateCommonHttpTransactions({
+      appliesTo: and(or(method('GET'), method('HEAD')), statusCode(304)),
+      violatedWhen: (req, res, location) => {
         const result = checkHeaders(res.headers);
         return result ? [{ location, violation: result, findings: [] }] : [];
       },
-    ),
+    }),
   )
   .overrideTest(async (testContext) => {
     const results: RuleFnResult[] = [];

@@ -16,6 +16,9 @@ export default httpRule(
   )
   .appliesTo('server')
   .rule((ctx) =>
-    ctx.validateCommonHttpTransactions(statusCode(406), not(hasResponseBody())),
+    ctx.validateCommonHttpTransactions({
+      appliesTo: statusCode(406),
+      violatedWhen: not(hasResponseBody()),
+    }),
   )
   .done();

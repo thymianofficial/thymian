@@ -22,13 +22,13 @@ export default httpRule(
   )
   .appliesTo('server')
   .rule((ctx) =>
-    ctx.validateCommonHttpTransactions(
-      and(
+    ctx.validateCommonHttpTransactions({
+      appliesTo: and(
         method('GET'),
         statusCode(206),
         responseMediaType('multipart/byteranges'),
       ),
-      responseHeader('content-range'),
-    ),
+      violatedWhen: responseHeader('content-range'),
+    }),
   )
   .done();

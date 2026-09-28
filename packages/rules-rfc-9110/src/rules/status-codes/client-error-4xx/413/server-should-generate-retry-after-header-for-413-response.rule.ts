@@ -16,9 +16,9 @@ export default httpRule(
   )
   .appliesTo('server')
   .rule((ctx) =>
-    ctx.validateCommonHttpTransactions(
-      statusCode(413),
-      not(responseHeader('retry-after')),
-    ),
+    ctx.validateCommonHttpTransactions({
+      appliesTo: statusCode(413),
+      violatedWhen: not(responseHeader('retry-after')),
+    }),
   )
   .done();

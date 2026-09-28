@@ -40,15 +40,19 @@ export default httpRule(
   // read the VALUE to catch an empty "Allow:" that satisfies presence but
   // lists zero methods (still a MUST violation).
   .rule((ctx) =>
-    ctx.validateCommonHttpTransactions(
-      statusCode(405),
-      not(responseHeader('allow')),
-    ),
+    ctx.validateCommonHttpTransactions({
+      appliesTo: statusCode(405),
+      violatedWhen: not(responseHeader('allow')),
+    }),
   )
   .overrideTest((ctx) =>
-    ctx.validateHttpTransactions(
-      statusCode(405),
-      (_req, res: HttpResponse, location: RuleViolationLocation) => {
+    ctx.validateHttpTransactions({
+      appliesTo: statusCode(405),
+      violatedWhen: (
+        _req,
+        res: HttpResponse,
+        location: RuleViolationLocation,
+      ) => {
         const tokens = allowMethodTokens(getHeader(res.headers, 'allow'));
         return tokens.length === 0
           ? [
@@ -60,12 +64,16 @@ export default httpRule(
             ]
           : [];
       },
-    ),
+    }),
   )
   .overrideAnalyticsRule((ctx) =>
-    ctx.validateHttpTransactions(
-      statusCode(405),
-      (_req, res: HttpResponse, location: RuleViolationLocation) => {
+    ctx.validateHttpTransactions({
+      appliesTo: statusCode(405),
+      violatedWhen: (
+        _req,
+        res: HttpResponse,
+        location: RuleViolationLocation,
+      ) => {
         const tokens = allowMethodTokens(getHeader(res.headers, 'allow'));
         return tokens.length === 0
           ? [
@@ -77,6 +85,6 @@ export default httpRule(
             ]
           : [];
       },
-    ),
+    }),
   )
   .done();
