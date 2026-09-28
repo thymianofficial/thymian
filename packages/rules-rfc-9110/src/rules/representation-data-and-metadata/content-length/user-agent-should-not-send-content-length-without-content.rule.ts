@@ -1,12 +1,4 @@
-import {
-  and,
-  getHeader,
-  hasRequestBody,
-  method,
-  not,
-  or,
-  requestHeader,
-} from '@thymian/core';
+import { and, getHeader, hasRequestBody, method, not, or } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
 export default httpRule(
@@ -36,8 +28,8 @@ export default httpRule(
     'When a client sends a request that has no body and whose method does not expect one -- such as GET, HEAD, DELETE, CONNECT, OPTIONS, or TRACE -- it should not attach a non-zero Content-Length header. It matters because a Content-Length on a bodyless request signals data that never arrives, which can confuse servers and intermediaries about message framing and, in the worst case, be leveraged for request smuggling.',
   )
   .overrideAnalyticsRule((ctx) =>
-    ctx.validateHttpTransactions(
-      and(
+    ctx.validateHttpTransactions({
+      appliesTo: and(
         or(
           method('get'),
           method('head'),
@@ -46,10 +38,9 @@ export default httpRule(
           method('options'),
           method('trace'),
         ),
-        requestHeader('content-length'),
         not(hasRequestBody()),
       ),
-      (req, _res, location) => {
+      violatedWhen: (req, _res, location) => {
         const contentLength = getHeader(req.headers, 'content-length');
 
         if (contentLength === undefined) {
@@ -80,6 +71,6 @@ export default httpRule(
           },
         ];
       },
-    ),
+    }),
   )
   .done();

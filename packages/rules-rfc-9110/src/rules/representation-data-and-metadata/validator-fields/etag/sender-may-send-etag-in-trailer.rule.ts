@@ -17,9 +17,9 @@ export default httpRule('rfc9110/sender-may-send-etag-in-trailer')
     'You are allowed to place the ETag in the trailer (the fields sent after the body) instead of the normal header section, which is handy when the tag is computed while streaming the content. Be aware, though, that many recipients ignore trailers entirely, so a tag delivered there may never be seen or used for caching and conditional requests. Prefer sending ETag as a regular header whenever the value is known before the body is sent.',
   )
   .rule((ctx) =>
-    ctx.validateCommonHttpTransactions(
-      statusCodeRange(200, 299),
-      not(responseTrailer('etag')),
-    ),
+    ctx.validateCommonHttpTransactions({
+      appliesTo: statusCodeRange(200, 299),
+      violatedWhen: not(responseTrailer('etag')),
+    }),
   )
   .done();

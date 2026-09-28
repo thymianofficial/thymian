@@ -1,4 +1,4 @@
-import { and, not, responseHeader, statusCodeRange } from '@thymian/core';
+import { not, responseHeader, statusCodeRange } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
 // eslint-disable-next-line thymian-internal/require-rule-tags -- cache-efficiency presence rule, not a concern this vocabulary covers
@@ -19,13 +19,9 @@ export default httpRule('rfc9110/origin-server-should-send-etag')
     'Whenever your server can reasonably tell when a resource has changed, it should attach an ETag validator to the response. Clients and caches use that tag in conditional requests to ask "has this changed since the version I hold?", letting the server answer with a small 304 Not Modified instead of resending the whole body. Providing ETags cuts redundant transfers and improves availability, scalability, and reliability under load.',
   )
   .rule((ctx) =>
-    ctx.validateCommonHttpTransactions(
-      and(
-        // Only for successful responses
-        statusCodeRange(200, 299),
-        // Should have at least one validator
-        not(responseHeader('etag')),
-      ),
-    ),
+    ctx.validateCommonHttpTransactions({
+      appliesTo: statusCodeRange(200, 299),
+      violatedWhen: not(responseHeader('etag')),
+    }),
   )
   .done();

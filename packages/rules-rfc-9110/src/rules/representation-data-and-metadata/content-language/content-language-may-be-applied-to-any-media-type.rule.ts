@@ -1,8 +1,4 @@
-import {
-  getHeader,
-  responseHeader,
-  type RuleViolationLocation,
-} from '@thymian/core';
+import { constant, getHeader, type RuleViolationLocation } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
 /**
@@ -32,12 +28,15 @@ export default httpRule(
     'Content-Language describes the natural language of the intended audience, and you are free to attach it to anything -- an image, an audio file, a PDF -- not just plain text. It matters because the header is about who the content is for, not what format it is in, so restricting it to text/* documents would needlessly hide useful language information from clients that negotiate or filter by language.',
   )
   .rule((ctx) =>
-    ctx.validateHttpTransactions(
-      responseHeader('content-language'),
-      (_req, res, location: RuleViolationLocation) => {
+    ctx.validateHttpTransactions({
+      appliesTo: constant(true),
+      violatedWhen: (_req, res, location: RuleViolationLocation) => {
         const contentType = getHeader(res.headers, 'content-type');
 
-        if (contentType === undefined) {
+        if (
+          getHeader(res.headers, 'content-language') === undefined ||
+          contentType === undefined
+        ) {
           return [];
         }
 
@@ -61,6 +60,6 @@ export default httpRule(
           },
         ];
       },
-    ),
+    }),
   )
   .done();

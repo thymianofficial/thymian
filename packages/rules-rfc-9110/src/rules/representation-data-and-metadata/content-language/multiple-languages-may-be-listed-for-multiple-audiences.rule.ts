@@ -1,4 +1,4 @@
-import { responseHeader } from '@thymian/core';
+import { constant, responseHeader } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
 // eslint-disable-next-line thymian-internal/require-rule-tags -- permissive MAY — no hazard in the permission
@@ -16,6 +16,9 @@ export default httpRule(
     'When content is genuinely meant for several language audiences at once -- for example a document presented side by side in Maori and English -- you may list all of those languages in Content-Language. It matters because listing every audience language lets clients that select or filter by language recognize the content as relevant, whereas naming just one would wrongly exclude the others; note this is only for multi-audience content, not text that merely happens to contain foreign words.',
   )
   .rule((ctx) =>
-    ctx.validateHttpTransactions(responseHeader('content-language')),
+    ctx.validateHttpTransactions({
+      appliesTo: constant(true),
+      violatedWhen: responseHeader('content-language'),
+    }),
   )
   .done();

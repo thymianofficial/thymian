@@ -1,9 +1,4 @@
-import {
-  getHeader,
-  or,
-  responseHeader,
-  type RuleViolationLocation,
-} from '@thymian/core';
+import { constant, getHeader, type RuleViolationLocation } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
 import { createList } from '../../../../utils.js';
@@ -66,9 +61,9 @@ export default httpRule(
     'An HTTP-date must contain only the exact single spaces the grammar prescribes; a sender must not add extra whitespace, such as tabs, doubled spaces, or leading or trailing padding. The date format is deliberately rigid so recipients can parse it with a simple fixed pattern. Even harmless-looking extra spaces can cause a strict parser to reject the timestamp, which then breaks caching and expiration logic that depends on reading these dates.',
   )
   .rule((ctx) =>
-    ctx.validateHttpTransactions(
-      or(...httpDateResponseHeaders.map((name) => responseHeader(name))),
-      (_req, res, location: RuleViolationLocation) => {
+    ctx.validateHttpTransactions({
+      appliesTo: constant(true),
+      violatedWhen: (_req, res, location: RuleViolationLocation) => {
         const offending: string[] = [];
 
         for (const headerName of httpDateResponseHeaders) {
@@ -102,6 +97,6 @@ export default httpRule(
           },
         ];
       },
-    ),
+    }),
   )
   .done();

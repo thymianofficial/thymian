@@ -1,4 +1,4 @@
-import { not, responseHeader, type RuleViolationLocation } from '@thymian/core';
+import { constant, getHeader, type RuleViolationLocation } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
 // A response-side server-behavior SHOULD. The `analytics,test` union infers
@@ -26,12 +26,15 @@ export default httpRule(
     'If you plan to send any trailer fields after the message content, list their names up front in a Trailer header field in the header section. This gives the recipient advance notice of what metadata to expect after the body, so it can prepare to process those fields on the fly (for example, verifying a checksum or signature computed while the content streams in). It also leaves a hint of what was lost if an intermediary drops the trailer section in transit.',
   )
   .rule((ctx) =>
-    ctx.validateHttpTransactions(
-      not(responseHeader('trailer')),
-      (_req, res, location: RuleViolationLocation) => {
+    ctx.validateHttpTransactions({
+      appliesTo: constant(true),
+      violatedWhen: (_req, res, location: RuleViolationLocation) => {
         const trailerKeys = Object.keys(res.trailers);
 
-        if (trailerKeys.length > 0) {
+        if (
+          trailerKeys.length > 0 &&
+          getHeader(res.headers, 'trailer') === undefined
+        ) {
           return [
             {
               location,
@@ -45,6 +48,6 @@ export default httpRule(
 
         return [];
       },
-    ),
+    }),
   )
   .done();

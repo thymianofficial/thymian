@@ -1,9 +1,4 @@
-import {
-  getHeader,
-  or,
-  responseHeader,
-  type RuleViolationLocation,
-} from '@thymian/core';
+import { constant, getHeader, type RuleViolationLocation } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
 import { createList } from '../../../../utils.js';
@@ -84,9 +79,9 @@ export default httpRule(
     "Whenever a sender writes a date in a header defined as HTTP-date (such as Date, Expires, or Last-Modified), it must use exactly one format: IMF-fixdate, for example 'Sun, 06 Nov 1994 08:49:37 GMT'. Two older date formats exist but must never be generated. Pinning senders to this single fixed layout, always in GMT, means every recipient can parse timestamps reliably, which is essential for caching, expiration, and conditional requests to work correctly across implementations.",
   )
   .rule((ctx) =>
-    ctx.validateHttpTransactions(
-      or(...httpDateResponseHeaders.map((name) => responseHeader(name))),
-      (_req, res, location: RuleViolationLocation) => {
+    ctx.validateHttpTransactions({
+      appliesTo: constant(true),
+      violatedWhen: (_req, res, location: RuleViolationLocation) => {
         const malformed: string[] = [];
 
         for (const headerName of httpDateResponseHeaders) {
@@ -126,6 +121,6 @@ export default httpRule(
           },
         ];
       },
-    ),
+    }),
   )
   .done();

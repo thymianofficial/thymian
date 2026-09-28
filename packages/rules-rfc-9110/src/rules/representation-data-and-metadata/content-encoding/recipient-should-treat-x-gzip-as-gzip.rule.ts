@@ -1,4 +1,4 @@
-import { responseHeader } from '@thymian/core';
+import { constant, responseHeader } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
 // eslint-disable-next-line thymian-internal/require-rule-tags -- interop aliasing, not a concern this vocabulary covers
@@ -14,6 +14,9 @@ export default httpRule('rfc9110/recipient-should-treat-x-gzip-as-gzip')
     'When you receive content labeled with the "x-gzip" coding, decode it exactly as if it said "gzip": they are the same compression format, and "x-gzip" is just an older, deprecated alias. Treating them interchangeably means older senders that still emit "x-gzip" keep working, instead of leaving the recipient unable to decompress a body it actually knows how to handle.',
   )
   .rule((ctx) =>
-    ctx.validateHttpTransactions(responseHeader('content-encoding', 'x-gzip')),
+    ctx.validateHttpTransactions({
+      appliesTo: constant(true),
+      violatedWhen: responseHeader('content-encoding', 'x-gzip'),
+    }),
   )
   .done();
