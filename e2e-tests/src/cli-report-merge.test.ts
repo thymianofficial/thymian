@@ -91,9 +91,9 @@ describe('thymian report merge', () => {
     expect(exitCode).toBe(1);
     // Endpoint-resolved location from the persisted format map (the same
     // assertion report-convert e2e uses to prove spec mapping worked).
-    expect(stdout).toContain('200 OK - */*');
+    expect(stdout).toContain('200 (*/*)');
     const markdown = readFileSync(join(getTempDir(), 'merged.md'), 'utf-8');
-    expect(markdown).toContain('200 OK - */*');
+    expect(markdown).toContain('200 (*/*)');
     expect(markdown).toContain('fixture-linter-b1');
     expect(markdown).toContain('fixture-linter-b2');
   }, 90_000);
@@ -166,7 +166,7 @@ describe('thymian report merge', () => {
     // (test.openapi.yaml) matches no node loaded from test2.openapi.yaml —
     // and no location may degrade to the raw `format:<hash>` fallback text.
     const markdown = readFileSync(join(getTempDir(), 'two-hashes.md'), 'utf-8');
-    expect(markdown).toContain('200 OK - */*');
+    expect(markdown).toContain('200 (*/*)');
     expect(markdown).not.toContain('format:');
   }, 90_000);
 

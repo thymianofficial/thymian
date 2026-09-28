@@ -1,180 +1,165 @@
 import { randomBytes } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import { isAbsolute, resolve } from 'node:path';
 
 import {
   getContentType,
-  type HttpRequest,
   type HttpRequestTemplate,
   type HttpResponse,
-  type Logger,
-  type ThymianFormat,
+  type HttpTestCaseResult,
+  ThymianBaseError,
 } from '@thymian/core';
-import { type HttpTestCaseResult, serializeRequest } from '@thymian/core';
 
+import type { Selector } from '../selectors/selector.js';
 import { FailError, SkipError } from './hook-errors.js';
-import type { HookRunner } from './hook-runner.js';
-import type { EndpointRequest, Endpoints, HookUtils } from './hook-utils.js';
+import type {
+  EndpointRequest,
+  EndpointResponse,
+  Endpoints,
+  HookUtils,
+  RequestOptions,
+} from './hook-utils.js';
 
 const charset =
   'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
 
-export function toHttpRequestTemplate(
-  methodAndUrl: string,
-  req: EndpointRequest,
-): HttpRequestTemplate {
-  const [method, url] = methodAndUrl.split(' ');
-
-  if (!method || !url) {
-    throw new Error(
-      `Invalid url format: ${url}. Expected format: <METHOD> <PATH>`,
-    );
-  }
-
-  const urlInstance = new URL(url);
-
-  return {
-    authorize: false,
-    cookies: req.cookies ?? {},
-    headers: req.headers ?? {},
-    method,
-    origin: urlInstance.origin,
-    path: decodeURI(urlInstance.pathname),
-    pathParameters: req.path ?? {},
-    query: req.query ?? {},
-    body: req.body,
-  } satisfies HttpRequestTemplate;
-}
+/** What one hook call needs to know about where it came from and what it shapes. */
+export type HookCallContext = {
+  /** Absolute directory of the hook file, for the file helpers. */
+  dir: string;
+  /** The request this hook is shaping, for the typed setters. */
+  request: HttpRequestTemplate | undefined;
+  /** Where a hook's assertions and messages land. */
+  results: HttpTestCaseResult[];
+  /**
+   * Runs a cross-endpoint request. Absent where there is no pipeline to run one
+   * through — a `defineSample` hook runs before any request exists.
+   */
+  requestOther?: (
+    selector: Selector,
+    args: EndpointRequest,
+    options: RequestOptions,
+  ) => Promise<EndpointResponse>;
+};
 
 export function createHookUtils<E extends Endpoints>(
-  format: ThymianFormat,
-  runRequest: (req: HttpRequest) => Promise<HttpResponse>,
-  hookRunner: HookRunner,
-  urlToTransactionId: Record<string, string>,
-  results: HttpTestCaseResult[],
-  logger: Logger,
+  context: HookCallContext,
 ): HookUtils<E> {
+  const { dir, results } = context;
+
+  /**
+   * The request a setter writes into.
+   *
+   * A hook that has none is one that shapes nothing — the run-scoped pair. A
+   * setter there is a mistake worth naming rather than a silent no-op.
+   */
+  function request(setter: string): HttpRequestTemplate {
+    if (!context.request) {
+      throw new ThymianBaseError(
+        `utils.${setter} needs a request to write into, and this hook has none.`,
+        {
+          name: 'NoRequestToShapeError',
+          suggestions: [
+            'beforeAll and afterAll run once per run rather than per transaction, so there is no request to shape there.',
+          ],
+        },
+      );
+    }
+
+    return context.request;
+  }
+
+  function filePath(path: string): string {
+    return isAbsolute(path) ? path : resolve(dir, path);
+  }
+
   return {
     assertionFailure(message: string, details = {}): void {
-      results.push({
-        type: 'assertion-failure',
-        message,
-        ...details,
-      });
+      results.push({ type: 'assertion-failure', message, ...details });
     },
-    assertionSuccess(message, assertion: string): void {
-      results.push({
-        type: 'assertion-success',
-        message,
-        assertion,
-      });
+    assertionSuccess(message, assertion): void {
+      results.push({ type: 'assertion-success', message, assertion });
     },
     info(message: string): void {
-      results.push({
-        type: 'info',
-        message,
-      });
+      results.push({ type: 'info', message });
     },
     timeout(message, durationMs: number): void {
-      results.push({
-        type: 'timeout',
-        message,
-        durationMs,
-      });
+      results.push({ type: 'timeout', message, durationMs });
     },
     warn(message: string, details?: string): void {
-      results.push({
-        type: 'warning',
-        message,
-        details,
-      });
+      results.push({ type: 'warning', message, details });
     },
     randomString(length = 10): string {
       const bytes = randomBytes(length);
-      const result = new Array(length);
+      const result = new Array<string>(length);
 
       for (let i = 0; i < length; i++) {
-        result[i] = charset[bytes[i]! % charset.length];
+        result[i] = charset[bytes[i]! % charset.length] as string;
       }
 
       return result.join('');
     },
-    async request<R extends keyof E>(
-      url: R,
-      args: E[R]['req'],
-      _options: {
-        runHooks?: boolean;
-        authorize?: boolean;
-        forStatusCode?: number;
-      } = {},
-    ): Promise<E[R]['res']> {
-      if (typeof url !== 'string') {
-        throw new Error('Invalid url format.');
-      }
 
-      const options = {
-        runHooks: true,
-        ..._options,
-      };
-
-      const key = `${url}${options.forStatusCode ? `->${options.forStatusCode}` : ''}`;
-      const transactionId = urlToTransactionId[key];
-
-      if (!transactionId) {
-        throw new Error(`Could not find transaction ID for ${key}`);
-      }
-
-      const transaction = format.getThymianHttpTransactionById(transactionId);
-
-      let reqTemplate = toHttpRequestTemplate(url, args);
-
-      if (options.runHooks) {
-        logger.debug(`Running beforeEach hooks for ${key}.`);
-
-        const res = await hookRunner.beforeEachRequest({
-          value: reqTemplate,
-          ctx: transaction,
-        });
-
-        reqTemplate = res.result;
-      }
-
-      if (options.runHooks || options.authorize) {
-        logger.debug(`Running authorize hook for ${key}.`);
-
-        const res = await hookRunner.authorize({
-          value: reqTemplate,
-          ctx: transaction,
-        });
-
-        reqTemplate = res.result;
-      }
-
-      const req = serializeRequest({
-        requestTemplate: reqTemplate,
-        source: transaction,
-      });
-
-      let response = await runRequest(req);
-
-      if (options.runHooks) {
-        logger.debug(`Running afterEach hook for ${key}.`);
-
-        const resHookResult = await hookRunner.afterEachResponse({
-          value: response,
-          ctx: {
-            requestTemplate: reqTemplate,
-            request: req,
-          },
-        });
-
-        response = resHookResult.result;
-      }
-
-      return {
-        body: parseResponseBody(response),
-        headers: response.headers,
-        statusCode: response.statusCode,
-      };
+    setHeader(name, value): void {
+      request('setHeader').headers[name] = value;
     },
+    setQuery(name, value): void {
+      request('setQuery').query[name] = value;
+    },
+    setPathParam(name, value): void {
+      request('setPathParam').pathParameters[name] = value;
+    },
+    setCookie(name, value): void {
+      request('setCookie').cookies[name] = value;
+    },
+    setBody(body): void {
+      request('setBody').body = body;
+    },
+    setAuthorize(authorize): void {
+      request('setAuthorize').authorize = authorize;
+    },
+
+    readFile(path): Buffer {
+      return readFileSync(filePath(path));
+    },
+    readText(path, encoding = 'utf-8'): string {
+      return readFileSync(filePath(path), encoding);
+    },
+    readJson<T = unknown>(path: string): T {
+      return JSON.parse(readFileSync(filePath(path), 'utf-8')) as T;
+    },
+
+    async request<R extends keyof E>(
+      selector: R,
+      args: E[R]['req'] = {},
+      options: RequestOptions = {},
+    ): Promise<E[R]['responses']> {
+      if (typeof selector !== 'string') {
+        throw new ThymianBaseError(
+          'utils.request takes a transaction selector as its first argument.',
+          { name: 'MalformedSelectorError' },
+        );
+      }
+
+      if (!context.requestOther) {
+        throw new ThymianBaseError(
+          `Cannot run a cross-endpoint request for "${selector}" from this hook.`,
+          {
+            name: 'NoNestedRequestError',
+            suggestions: [
+              'A defineSample hook runs before any request exists, so there is no pipeline for a nested request to run through. Seed from beforeAll or beforeEach instead.',
+            ],
+          },
+        );
+      }
+
+      return (await context.requestOther(
+        selector,
+        args,
+        options,
+      )) as E[R]['responses'];
+    },
+
     fail(msg: string): never {
       throw new FailError(msg);
     },
@@ -184,15 +169,20 @@ export function createHookUtils<E extends Endpoints>(
   };
 }
 
+/**
+ * The body a hook sees, parsed when the response says it is JSON and left as
+ * the raw string when it does not.
+ */
 export function parseResponseBody(res: HttpResponse): unknown {
-  const ct = getContentType(res.headers);
+  const contentType = getContentType(res.headers);
 
   if (
     typeof res.body === 'string' &&
-    (ct.match(/^application\/json/i) || ct.match(/^.*\/.*\+json/i))
+    (/^application\/json/i.test(contentType) ||
+      /^.*\/.*\+json/i.test(contentType))
   ) {
     return JSON.parse(res.body);
   }
 
-  return res;
+  return res.body;
 }

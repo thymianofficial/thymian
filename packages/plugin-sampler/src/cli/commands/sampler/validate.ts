@@ -1,226 +1,130 @@
 import { BaseCliRunCommand, oclif } from '@thymian/common-cli';
-import {
-  type Severity,
-  SEVERITY_COLORS,
-  SEVERITY_SYMBOLS,
-  successSymbol,
-} from '@thymian/core';
-
-import type {
-  SamplerValidationContentChange,
-  SamplerValidationFinding,
-  SamplerValidationFindingType,
-  SamplerValidationReport,
-} from '../../../validation/validate-sampler-output.js';
-
-const { colorize } = oclif.ux;
-
-// Map each finding to a core report severity so the command reuses the exact
-// colors and symbols of the Thymian report renderer (see report-style.ts)
-// without constructing a Report. A missing/changed artifact is an error; an
-// unexpected extra file is a warning.
-const FINDING_SEVERITY: Record<SamplerValidationFindingType, Severity> = {
-  'missing-artifact': 'error',
-  'changed-artifact': 'error',
-  'stale-root-metadata': 'error',
-  'metadata-out-of-sync': 'error',
-  'invalid-json': 'error',
-  'unexpected-artifact': 'warn',
-};
 
 export default class Validate extends BaseCliRunCommand<typeof Validate> {
   static override enableJsonFlag = true;
 
   static override description =
-    'Validate generated sampler artifacts for the current API specification.';
+    'Check the sampler hooks against the current API description, and the committed types against both.';
 
-  static override flags = {
-    ['full-diffs']: oclif.Flags.boolean({
-      default: false,
-      description:
-        'Show the full diff for every out-of-sync artifact instead of a summary.',
-    }),
-    ['for-path']: oclif.Flags.string({
-      description:
-        'Validate a single generated artifact by its relative path (e.g. meta.json) and show its full diff. Note: the full artifact set is still regenerated internally, so this scopes the output, not the work.',
-    }),
-  };
+  static override examples = ['<%= config.bin %> <%= command.id %>'];
 
-  async run(): Promise<SamplerValidationReport> {
+  override async run(): Promise<unknown> {
     return this.thymian.run(async (emitter) => {
-      if (
-        !this.thymian.plugins.find(
-          (p) => p.plugin.name === '@thymian/plugin-sampler',
-        )
-      ) {
-        this.error(
-          'Cannot validate sampler if sampler plugin is not registered.',
-          {
-            exit: 1,
-          },
-        );
-      }
-
-      const format = await this.thymian.loadFormat(
+      await this.thymian.loadFormat(
         {
           inputs: this.thymianConfig.specifications ?? [],
           validateSpecs: this.flags['validate-specs'],
         },
-        {
-          emitFormat: false,
-        },
+        { emitFormat: true },
       );
-
-      const forPath = this.flags['for-path'];
 
       const report = await emitter.emitAction(
         'sampler.validate',
-        {
-          format: format.export(),
-          ...(forPath !== undefined ? { forPath } : {}),
-        },
-        {
-          strategy: 'first',
-        },
+        {},
+        { strategy: 'first' },
       );
 
-      // A scoped run reports 0 checked artifacts only when the path is not a
-      // known generated artifact — surface that as an error in every mode.
-      if (forPath !== undefined && report.checkedArtifacts === 0) {
-        if (this.jsonEnabled()) {
-          // Keep machine output consistent: emit the (empty) report as JSON and
-          // signal the usage error through the exit code instead of throwing,
-          // which would abort before any JSON is printed.
-          process.exitCode = 2;
-
-          return report;
-        }
-
-        this.error(
-          `No generated sampler artifact found at path "${forPath}".`,
-          {
-            exit: 2,
-          },
-        );
-      }
-
       if (this.jsonEnabled()) {
-        // oclif serializes the returned value as JSON and suppresses `this.log`.
-        // Signal failure through the exit code without throwing, because a throw
-        // would abort before the JSON is printed.
-        if (report.failures.length > 0) {
+        if (report.verdict === 'broken' || report.verdict === 'drifted') {
           process.exitCode = 1;
         }
 
         return report;
       }
 
-      if (report.failures.length === 0) {
+      for (const warning of report.warnings) {
+        this.log(oclif.ux.colorize('yellow', `! ${warning}`));
+      }
+
+      for (const problem of [
+        ...report.unresolved,
+        ...report.conflicts,
+        ...report.unexported,
+      ]) {
+        const where = problem.exportName
+          ? `${problem.file} (export "${problem.exportName}")`
+          : problem.file;
+
+        this.log(oclif.ux.colorize('red', `✖ ${where}: ${problem.reason}`));
+
+        for (const suggestion of problem.suggestions ?? []) {
+          this.log(oclif.ux.colorize('dim', `    ${suggestion}`));
+        }
+      }
+
+      for (const error of report.typeErrors) {
         this.log(
-          `${colorize(SEVERITY_COLORS.info, successSymbol)} ${
-            forPath !== undefined
-              ? `Generated sampler artifact "${forPath}" is in sync.`
-              : `Sampler validation passed: ${report.checkedArtifacts} generated artifacts are in sync.`
-          }`,
+          oclif.ux.colorize(
+            'red',
+            `✖ ${error.file}:${error.line}:${error.column} — TS${error.code}: ${error.message}`,
+          ),
         );
+      }
+
+      // `process.exitCode` rather than `this.exit()` for both verdicts below:
+      // an early exit throws past this run's teardown and routes through
+      // oclif's error path — a feedback prompt and an error-cache record for
+      // what is a legitimate gate verdict, not a crash (mirrors `sampler
+      // check`'s outcome model).
+      if (report.verdict === 'drifted') {
+        this.log();
+        this.log(
+          'Breaking drift: the API description no longer matches these hooks.',
+        );
+        this.log(
+          'Fix them, run "thymian sampler sync", and commit the result.',
+        );
+        process.exitCode = 1;
 
         return report;
       }
 
-      // `--for-path` targets one artifact, so its diff is always shown;
-      // otherwise details are opt-in via `--full-diffs`.
-      const showDiffs = this.flags['full-diffs'] || forPath !== undefined;
+      if (report.verdict === 'broken') {
+        this.log();
+        this.log(
+          'These hooks do not compile against the current API description.',
+        );
+        // Deliberately not "run sync": the committed types already match the
+        // description, so regenerating would rewrite correct files and leave
+        // the real error exactly where it is.
+        this.log(
+          report.surface === 'absent'
+            ? 'Fix them. Nothing is committed, so there is nothing to regenerate.'
+            : 'Fix them. The committed types are already in sync — there is no drift to resolve.',
+        );
+        process.exitCode = 1;
 
-      for (const failure of report.failures) {
-        this.logFailure(failure, showDiffs);
+        return report;
       }
 
-      const checked = report.checkedArtifacts;
-      // `checkedArtifacts` counts only expected (generated) artifacts, so keep
-      // unexpected extras in their own tally — otherwise "N failed" against
-      // "Checked M" reads as "N of M generated artifacts failed" when the extras
-      // were never part of that set.
-      const unexpected = report.failures.filter(
-        (failure) => failure.type === 'unexpected-artifact',
-      ).length;
-      const outOfSync = report.failures.length - unexpected;
+      if (report.verdict === 'stale') {
+        this.log(
+          oclif.ux.colorize(
+            'yellow',
+            '! The committed sampler types are behind this API description, but every hook still compiles:',
+          ),
+        );
 
-      const summaryParts: string[] = [];
-      if (outOfSync > 0) {
-        summaryParts.push(`${outOfSync} out of sync`);
-      }
-      if (unexpected > 0) {
-        summaryParts.push(`${unexpected} unexpected`);
+        for (const file of report.changedFiles) {
+          this.log(oclif.ux.colorize('dim', `    generated/${file}`));
+        }
+
+        this.log();
+        this.log('Run "thymian sampler sync" and commit the result.');
+
+        return report;
       }
 
-      this.log();
       this.log(
-        `Checked ${checked} generated ${checked === 1 ? 'artifact' : 'artifacts'} in ${report.samplePath}. ${colorize(SEVERITY_COLORS.error, `${summaryParts.join(', ')}.`)}`,
+        oclif.ux.colorize(
+          'green',
+          report.surface === 'absent'
+            ? 'Every hook resolves. Run "thymian sampler init" for editor support and a type gate.'
+            : 'Every hook resolves and the committed types match this API description.',
+        ),
       );
 
-      this.exit(1);
+      return report;
     });
-  }
-
-  private logFailure(
-    failure: SamplerValidationFinding,
-    showDiffs: boolean,
-  ): void {
-    const severity = FINDING_SEVERITY[failure.type];
-    const color = SEVERITY_COLORS[severity];
-    const symbol = SEVERITY_SYMBOLS[severity];
-
-    this.log(
-      `${colorize(color, `${symbol} ${failure.type}`)}: ${failure.path}`,
-    );
-
-    if (!showDiffs) {
-      return;
-    }
-
-    this.log(colorize(SEVERITY_COLORS.info, `  ${failure.message}`));
-
-    if (failure.changes && failure.changes.length > 0) {
-      this.logJsonChanges(failure.changes);
-    } else {
-      this.logContentField('expected', failure.expected);
-      this.logContentField('actual', failure.actual);
-    }
-
-    this.log();
-  }
-
-  private logJsonChanges(changes: SamplerValidationContentChange[]): void {
-    this.log(colorize(SEVERITY_COLORS.info, '  JSON changes:'));
-
-    for (const change of changes) {
-      const pointer = change.pointer || '/';
-      let detail: string;
-
-      if (change.type === 'add') {
-        detail = `[add] ${pointer} → ${JSON.stringify(change.actual)}`;
-      } else if (change.type === 'delete') {
-        detail = `[delete] ${pointer} (was ${JSON.stringify(change.expected)})`;
-      } else {
-        detail = `[update] ${pointer}: ${JSON.stringify(change.expected)} → ${JSON.stringify(change.actual)}`;
-      }
-
-      this.log(colorize(SEVERITY_COLORS.info, `    ${detail}`));
-    }
-  }
-
-  private logContentField(
-    label: 'expected' | 'actual',
-    value: string | undefined,
-  ): void {
-    if (value === undefined) {
-      return;
-    }
-
-    this.log(colorize(SEVERITY_COLORS.info, `  ${label}:`));
-
-    for (const line of value.split('\n')) {
-      this.log(colorize(SEVERITY_COLORS.info, `    ${line}`));
-    }
   }
 }

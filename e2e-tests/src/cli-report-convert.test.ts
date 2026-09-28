@@ -33,7 +33,7 @@ describe('thymian report convert', () => {
     // Findings past the operation's source position map onto format nodes
     // (best-effort spec-location mapping) and render under the endpoint
     // group — evidence the --spec payload actually reached the converter.
-    expect(stdout).toContain('200 OK - */*');
+    expect(stdout).toContain('200 (*/*)');
     expect(stdout).toContain('Summary: 1 error, 4 warnings, 2 hints, 0 infos.');
     expect(exitCode).toBe(1);
   }, 90_000);

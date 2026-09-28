@@ -31,6 +31,17 @@ export function isThymianError(value: unknown): value is ThymianError {
   );
 }
 
+/**
+ * The remediation an error brought with it, for a caller that wants to print it
+ * beside its own header.
+ *
+ * `options` is optional on the interface and absent on a plain `Error` — which
+ * {@link isThymianError} accepts, since it asks for a shape rather than a class.
+ */
+export function errorSuggestions(error: unknown): string[] {
+  return isThymianError(error) ? (error.options?.suggestions ?? []) : [];
+}
+
 export class ThymianBaseError extends Error implements ThymianError {
   override cause?: unknown;
 

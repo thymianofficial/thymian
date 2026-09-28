@@ -1,0 +1,171 @@
+import {
+  generateTypeSurface,
+  type TypeSurface,
+} from '../generation/types/generate-type-surface.js';
+import { selfCheckSurface } from '../generation/types/self-check-surface.js';
+import {
+  readGenerated,
+  surfaceAsFiles,
+} from '../generation/types/write-type-surface.js';
+import type { HookDiagnostic } from '../hooks/hook-diagnostics.js';
+import {
+  loadUserHooks,
+  type LoadUserHooksResult,
+} from '../hooks/load-user-hooks.js';
+import type { SamplerPaths } from '../sampler-paths.js';
+import type { TransactionCatalog } from '../selectors/transaction-catalog.js';
+import { sameSurface } from './canonicalize.js';
+import { type HookTypeError, typecheckHooks } from './typecheck-hooks.js';
+
+/**
+ * How the committed surface stands against the description as it is now.
+ *
+ * - `absent` — nothing is committed, so there is nothing to be behind. `init`
+ *   has not been run, which is a legitimate state.
+ * - `in-sync` — canonicalized, the committed files say what a fresh generation
+ *   would say.
+ * - `behind` — they differ. Whether that matters is the type check's answer,
+ *   not this one's.
+ */
+export type SurfaceState = 'absent' | 'in-sync' | 'behind';
+
+export type ValidationReport = {
+  surface: SurfaceState;
+  /** Generated files whose canonical form differs, relative to `generated/`. */
+  changedFiles: string[];
+  /** What `tsc` says about the hooks, against the fresh surface. */
+  typeErrors: HookTypeError[];
+  /** Hooks whose target resolves to nothing. */
+  unresolved: HookDiagnostic[];
+  /** Hooks that resolve but cannot both apply. */
+  conflicts: HookDiagnostic[];
+  /** Hooks created but never exported, so nothing can reach them. */
+  unexported: HookDiagnostic[];
+  /** Non-fatal things the scan could not do. */
+  warnings: string[];
+  /**
+   * What to tell the user, and what to tell them to do about it.
+   *
+   * Named `verdict` rather than `outcome`: an `Outcome` is what one Transaction
+   * earns in a `sampler check` run, and `check --json` emits that under the
+   * name. This is a judgement about the committed surface and the hooks as a
+   * whole, so one word cannot carry both without two `--json` surfaces
+   * disagreeing about what it means.
+   *
+   * - `ok` — nothing to say.
+   * - `stale` — the committed types are behind the description but every hook
+   *   still compiles. A **warning**: run `sync`.
+   * - `drifted` — the committed types are behind **and** a hook no longer fits.
+   *   The description moved: `sync`, then fix the hooks.
+   * - `broken` — a hook does not compile, or a target resolves to nothing,
+   *   while the committed types are in sync. Nothing has drifted, so `sync` is
+   *   *not* the remedy — it would rewrite files that are already correct and
+   *   leave the real error in place. Only the hooks need fixing.
+   *
+   * The last two were one verdict, which meant a plain type error in a hook
+   * was announced as "the API description no longer matches these hooks" and
+   * answered with a command that could not help.
+   */
+  verdict: 'ok' | 'stale' | 'drifted' | 'broken';
+};
+
+/** Which committed files differ from a fresh generation, canonically. */
+export function changedFiles(
+  committed: Record<string, string>,
+  surface: TypeSurface,
+): string[] {
+  const fresh = surfaceAsFiles(surface);
+  const names = [
+    ...new Set([...Object.keys(committed), ...Object.keys(fresh)]),
+  ].sort();
+
+  return names.filter((name) => {
+    const before = committed[name];
+    const after = fresh[name];
+
+    if (before === undefined || after === undefined) {
+      return true;
+    }
+
+    return !sameSurface(before, after);
+  });
+}
+
+/**
+ * The whole gate: is the committed surface current, and do the hooks still fit
+ * the description?
+ *
+ * The two questions are deliberately separate. "Behind" is about a file the
+ * user has to regenerate; "broken" is about a hook the user has to fix. Only
+ * the second can fail a build on its own, which is what makes a generator
+ * change a warning rather than a wall.
+ */
+export async function validateSampler(
+  paths: SamplerPaths,
+  catalog: TransactionCatalog,
+  /**
+   * The hooks the `core.format` handler already loaded.
+   *
+   * Passed through rather than re-loaded: `loadUserHooks` evaluates every hook
+   * file *and everything it imports* afresh per scan. Loading twice per
+   * `validate` ran the user's module side effects twice for no new
+   * information. Optional so a caller with
+   * no loaded result — a test, a future command — still gets a correct report.
+   */
+  loaded?: LoadUserHooksResult,
+): Promise<ValidationReport> {
+  const surface = await generateTypeSurface(catalog);
+
+  // The self-check gate, on `validate`'s own scratch surface. Deliberately
+  // thrown rather than folded into `ValidationReport` — the one place this
+  // function does not hold to "record, don't throw": every other finding
+  // here (`typeErrors`, `unresolved`, `conflicts`, `unexported`) is a
+  // question about the user's hooks or API description, which is exactly
+  // what a `verdict` and its fields exist to describe. A surface that fails
+  // its own self-check is neither — it is a defect in the sampler's
+  // generator, present regardless of what the user wrote, and none of this
+  // report's verdicts (`ok`/`stale`/`drifted`/`broken`) has a sentence for
+  // "the sampler is broken." `init` and `sync` abort the same way at the
+  // same seam, and the gate is only meaningful if it behaves identically
+  // everywhere a fresh surface is produced.
+  await selfCheckSurface(surface);
+
+  const committed = await readGenerated(paths);
+  const hooks = loaded ?? (await loadUserHooks(paths.hooksDir, catalog));
+  const typeErrors = await typecheckHooks(paths, surface, hooks.files);
+
+  // Computed once. The comparison walks every committed file through the
+  // canonicalizer, and the answer is needed twice — for the state and for the
+  // report.
+  const changed = changedFiles(committed, surface);
+
+  const state: SurfaceState =
+    Object.keys(committed).length === 0
+      ? 'absent'
+      : changed.length === 0
+        ? 'in-sync'
+        : 'behind';
+
+  const broken =
+    typeErrors.length > 0 ||
+    hooks.diagnostics.length > 0 ||
+    hooks.conflicts.length > 0 ||
+    hooks.unexported.length > 0;
+
+  return {
+    surface: state,
+    changedFiles: state === 'behind' ? changed : [],
+    typeErrors,
+    unresolved: [...hooks.diagnostics],
+    conflicts: [...hooks.conflicts],
+    unexported: [...hooks.unexported],
+    warnings: [...hooks.warnings],
+    verdict: broken
+      ? state === 'behind'
+        ? 'drifted'
+        : 'broken'
+      : state === 'behind'
+        ? 'stale'
+        : 'ok',
+  };
+}

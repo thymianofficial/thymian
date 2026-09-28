@@ -1,0 +1,61 @@
+openapi: 3.1.0
+info:
+  title: 'Uncheckable Responses API'
+  description: 'One executable operation, one declared redirect, one declared server error — for the sampler check 3xx/5xx skip.'
+  version: '1.0.0'
+servers:
+  - url: http://localhost:3000
+paths:
+  /items:
+    get:
+      summary: 'List items'
+      operationId: 'listItems'
+      responses:
+        '200':
+          description: 'OK'
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/Items'
+  /items/{id}:
+    get:
+      summary: 'Read an item, or be redirected to its canonical location'
+      operationId: 'readItem'
+      parameters:
+        - name: 'id'
+          in: 'path'
+          required: true
+          schema:
+            type: 'string'
+      responses:
+        '302':
+          description: 'Moved to the canonical URL'
+  /broken:
+    get:
+      summary: 'Always broken'
+      operationId: 'readBroken'
+      responses:
+        '503':
+          description: 'Service Unavailable'
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/Problem'
+components:
+  schemas:
+    Items:
+      type: 'object'
+      properties:
+        items:
+          type: 'array'
+          items:
+            type: 'string'
+      required:
+        - 'items'
+    Problem:
+      type: 'object'
+      properties:
+        message:
+          type: 'string'
+      required:
+        - 'message'
