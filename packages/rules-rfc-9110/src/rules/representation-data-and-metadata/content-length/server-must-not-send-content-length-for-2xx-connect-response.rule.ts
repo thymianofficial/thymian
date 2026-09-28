@@ -1,4 +1,4 @@
-import { and, method, responseHeader, statusCodeRange } from '@thymian/core';
+import { and, method, statusCodeRange } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
 export default httpRule(
@@ -20,21 +20,20 @@ export default httpRule(
     'A 2xx response to a CONNECT request switches the connection into a tunnel rather than returning a normal message body, so the server must not include a Content-Length header on it. It matters because after a successful CONNECT everything on the connection is opaque tunnelled data with no HTTP framing; a Content-Length would falsely mark a body boundary and confuse how the tunnelled bytes are interpreted.',
   )
   .rule((ctx) =>
-    ctx.validateCommonHttpTransactions(
-      and(
-        method('connect'),
-        statusCodeRange(200, 299),
-        responseHeader('content-length'),
-      ),
-      (_req, res, location) => [
-        {
-          location,
-          violation: {
-            message: `A ${res.statusCode} response to a CONNECT request includes a Content-Length header field.`,
-          },
-          findings: [],
-        },
-      ],
-    ),
+    ctx.validateCommonHttpTransactions({
+      appliesTo: and(method('connect'), statusCodeRange(200, 299)),
+      violatedWhen: (_req, res, location) =>
+        res.headers.some((header) => header.toLowerCase() === 'content-length')
+          ? [
+              {
+                location,
+                violation: {
+                  message: `A ${res.statusCode} response to a CONNECT request includes a Content-Length header field.`,
+                },
+                findings: [],
+              },
+            ]
+          : [],
+    }),
   )
   .done();
