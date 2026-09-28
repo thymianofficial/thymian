@@ -43,7 +43,7 @@ We will point npm at Verdaccio with the `npm_config_registry` environment variab
 
 The registry URL reaches test files through `THYMIAN_E2E_REGISTRY`, set by the global setup alongside `THYMIAN_E2E_VERSION`, `THYMIAN_E2E_GLOBAL_BIN` and `THYMIAN_E2E_GLOBAL_PREFIX`, and deleted in teardown.
 
-The `@nx/js:verdaccio` executor behind `npm run local-registry` by default writes the registry and an auth token into the developer's `~/.npmrc` and `~/.yarnrc`, restoring them only on a graceful exit that a killed run never reaches. The global setup therefore starts it with `--location none`, which turns those writes off, and gives the local-publish call (npm will not publish without a token, even to an open registry) a throwaway npmrc in the OS temp directory via `npm_config_userconfig`. The developer's user config is never written.
+The `@nx/js:verdaccio` executor behind `npm run local-registry` by default writes the registry and an auth token into the developer's `~/.npmrc` and `~/.yarnrc`, restoring them only on a graceful exit that a killed run never reaches. The global setup therefore starts it with `--location none`, which turns those writes off, and gives the publish call (npm will not publish without a token, even to an open registry) a throwaway npmrc in the OS temp directory via `npm_config_userconfig`. The developer's user config is never written.
 
 ### Publish the committed manifests, never stamp a version
 
@@ -63,7 +63,7 @@ We will start Verdaccio via `spawn()` with `{ detached: true, stdio: 'ignore' }`
 
 ### Use `execSync` with `stdio: 'inherit'` for publish and install steps
 
-We will use `execSync` with `stdio: 'inherit'` for the local-publish and npm-install steps, relying on the non-zero exit code (which causes `execSync` to throw) as the success signal. This avoids the fragile pattern of capturing output and checking for specific success strings, which fails when nested NX commands write to inherited stdio rather than the captured pipe.
+We will use `execSync` with `stdio: 'inherit'` for the publish and npm-install steps, relying on the non-zero exit code (which causes `execSync` to throw) as the success signal. This avoids the fragile pattern of capturing output and checking for specific success strings, which fails when nested NX commands write to inherited stdio rather than the captured pipe.
 
 ### Remove cli-testing-library from global setup
 
