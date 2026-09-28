@@ -1,7 +1,7 @@
 import type { Dirent } from 'node:fs';
 import { readdir, realpath } from 'node:fs/promises';
-import { createRequire } from 'node:module';
-import { dirname, join, relative } from 'node:path';
+import { createRequire, Module } from 'node:module';
+import { dirname, isAbsolute, join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { createJiti } from 'jiti';
@@ -315,10 +315,57 @@ function evictScannedModules(cachedBefore: ReadonlySet<string>): void {
     // An installed package is not edited between scans, and jiti's own
     // transformer is among them: evicting it would re-load the transpiler
     // on every scan for nothing.
-    if (!cachedBefore.has(id) && !id.includes('/node_modules/')) {
+    if (!cachedBefore.has(id) && !/[\\/]node_modules[\\/]/.test(id)) {
       delete cache[id];
     }
   }
+}
+
+type ResolveFilename = (request: string, ...rest: unknown[]) => string;
+
+/**
+ * Make every path jiti resolves under the hooks directory take ONE spelling,
+ * so a file is one module-cache entry however it was reached. Returns the
+ * function that undoes it.
+ *
+ * jiti keys its module cache by the path its resolver returns, and it has two
+ * resolvers that spell a path differently on Windows. A path that exists as
+ * written — every file the scan imports, `./shared.ts`, `./shared` — goes
+ * through exsolve and comes back with forward slashes. `./shared.js` naming a
+ * `.ts` file does not exist as written, so jiti rewrites it to `.ts` and asks
+ * Node's `require.resolve`, which answers with backslashes. `C:/…/shared.ts`
+ * and `C:\…\shared.ts` are two cache entries, so the file was evaluated twice:
+ * a re-exported hook was two objects, a re-exported `defineSample` a conflict
+ * with itself, and an import cycle re-entered its first file and created a
+ * hook nothing exported. On POSIX both spellings are the same string, which is
+ * why only Windows saw it.
+ *
+ * `Module._resolveFilename` is what `require.resolve` calls, so rewriting its
+ * answer to forward slashes aligns the second resolver with the first. It is
+ * scoped to the scan and to paths under `root`, so nothing else in the process
+ * resolves differently, and it is a no-op where the separator already is `/`.
+ */
+function unifyResolvedPathSpelling(root: string): () => void {
+  if (sep === '/') {
+    return () => undefined;
+  }
+
+  // Private Node API, absent from the type declarations.
+  const internals = Module as unknown as { _resolveFilename: ResolveFilename };
+  const original = internals._resolveFilename;
+
+  internals._resolveFilename = function (this: unknown, request, ...rest) {
+    const resolved = original.call(this, request, ...rest);
+    const fromRoot = relative(root, resolved);
+
+    return fromRoot.startsWith('..') || isAbsolute(fromRoot)
+      ? resolved
+      : resolved.replaceAll('\\', '/');
+  };
+
+  return () => {
+    internals._resolveFilename = original;
+  };
 }
 
 function emptyTransactionHooks(): MutableTransactionHooks {
@@ -408,6 +455,8 @@ export async function loadUserHooks(
 
   created.length = 0;
 
+  const restoreResolution = unifyResolvedPathSpelling(root);
+
   try {
     for (const { full, key } of files) {
       const createdBefore = created.length;
@@ -447,6 +496,7 @@ export async function loadUserHooks(
       }
     }
   } finally {
+    restoreResolution();
     evictScannedModules(cachedBefore);
   }
 
