@@ -1,5 +1,5 @@
 import type { RuleViolationLocation } from '@thymian/core';
-import { getHeader, responseHeader } from '@thymian/core';
+import { constant, getHeader } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
 // eslint-disable-next-line thymian-internal/require-rule-tags -- interop/parsing-compat correctness, not a concern this vocabulary covers
@@ -19,9 +19,9 @@ export default httpRule(
     'Do not put backslash characters inside the value of an ETag. Older specifications treated entity tags as quoted strings, so some recipients still try to unescape backslashes; a backslash in your tag can therefore be silently altered by such a recipient. That changes the tag the client stores and later sends back, breaking conditional requests and cache validation. Keeping tags free of backslashes avoids these mismatches across differing implementations.',
   )
   .rule((ctx) =>
-    ctx.validateHttpTransactions(
-      responseHeader('etag'),
-      (_req, res, location: RuleViolationLocation) => {
+    ctx.validateHttpTransactions({
+      appliesTo: constant(true),
+      violatedWhen: (_req, res, location: RuleViolationLocation) => {
         const etag = getHeader(res.headers, 'etag');
 
         if (etag === undefined) {
@@ -44,6 +44,6 @@ export default httpRule(
           },
         ];
       },
-    ),
+    }),
   )
   .done();

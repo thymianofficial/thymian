@@ -1,4 +1,4 @@
-import { and, not, or, responseHeader, statusCodeRange } from '@thymian/core';
+import { not, or, responseHeader, statusCodeRange } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
 // eslint-disable-next-line thymian-internal/require-rule-tags -- no concern-tag member fits this rule's topic
@@ -15,11 +15,9 @@ export default httpRule('rfc9110/origin-server-may-generate-date-for-1xx-5xx')
     'An origin server that knows the current time is permitted, but not required, to include a Date header stating when it produced a 1xx (Informational) or 5xx (Server Error) response. This is optional because these response classes are less useful for caching than 2xx/3xx/4xx, where Date is mandatory. Supplying it anyway gives recipients a timestamp for age and clock-skew calculations, so this rule only hints that the header is absent rather than flagging an error.',
   )
   .rule((ctx) =>
-    ctx.validateHttpTransactions(
-      and(
-        or(statusCodeRange(100, 199), statusCodeRange(500, 599)),
-        not(responseHeader('Date')),
-      ),
-    ),
+    ctx.validateHttpTransactions({
+      appliesTo: or(statusCodeRange(100, 199), statusCodeRange(500, 599)),
+      violatedWhen: not(responseHeader('Date')),
+    }),
   )
   .done();
