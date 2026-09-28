@@ -1,5 +1,5 @@
 import { type ChildProcess, execSync, spawn } from 'node:child_process';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
@@ -10,7 +10,10 @@ import { getCleanEnv } from './env-utils.js';
 
 const rootDir = join(import.meta.dirname, '..', '..');
 
-const thymianVersion = '0.0.1-e2e';
+// The committed placeholder version, published as-is.
+const thymianVersion: string = JSON.parse(
+  readFileSync(join(rootDir, 'packages', 'thymian', 'package.json'), 'utf8'),
+).version;
 const verdaccioPort = 4873;
 const verdaccioUrl = `http://localhost:${verdaccioPort}`;
 
@@ -144,8 +147,10 @@ export default async function setup(_project: TestProject) {
   // Verdaccio gets `npm_config_registry` in its own env. Never set it on this
   // process's `process.env` (ADR-0006).
   try {
+    // Publish the manifests exactly as committed. Stamping a version would
+    // rewrite every packages/*/package.json in the working tree (ADR-0006).
     execSync(
-      `npm run local-publish -- --dist-tag latest --version ${thymianVersion}`,
+      `npx nx release publish --registry ${verdaccioUrl} --tag latest --outputStyle=static`,
       {
         cwd: rootDir,
         stdio: 'inherit',
