@@ -1,4 +1,4 @@
-import { and, hasResponseBody, statusCode } from '@thymian/core';
+import { hasResponseBody, statusCode } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
 export default httpRule(
@@ -21,8 +21,8 @@ export default httpRule(
   )
   .rule((ctx) =>
     ctx.validateCommonHttpTransactions({
-      appliesTo: and(statusCode(205), hasResponseBody()),
-      violatedWhen: and(statusCode(205), hasResponseBody()),
+      appliesTo: statusCode(205),
+      violatedWhen: hasResponseBody(),
     }),
   )
   .done();
