@@ -23,9 +23,9 @@ export default httpRule(
   )
   .appliesTo('server')
   .rule((ctx) =>
-    ctx.validateCommonHttpTransactions(
-      statusCode(503),
-      (_req, res, location: RuleViolationLocation) =>
+    ctx.validateCommonHttpTransactions({
+      appliesTo: statusCode(503),
+      violatedWhen: (_req, res, location: RuleViolationLocation) =>
         res.headers.some((header) => header.toLowerCase() === 'retry-after')
           ? [
               {
@@ -41,6 +41,6 @@ export default httpRule(
               },
             ]
           : [{ location, findings: [] }],
-    ),
+    }),
   )
   .done();

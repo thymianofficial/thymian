@@ -16,9 +16,9 @@ export default httpRule(
   )
   .appliesTo('server')
   .rule((ctx) =>
-    ctx.validateCommonHttpTransactions(
-      statusCode(300),
-      not(responseHeader('location')),
-    ),
+    ctx.validateCommonHttpTransactions({
+      appliesTo: statusCode(300),
+      violatedWhen: not(responseHeader('location')),
+    }),
   )
   .done();

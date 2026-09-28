@@ -25,9 +25,9 @@ export default httpRule(
   )
   .appliesTo('server')
   .rule((ctx) =>
-    ctx.validateCommonHttpTransactions(
-      and(not(method('HEAD')), statusCodeRange(400, 499)),
-      not(hasResponseBody()),
-    ),
+    ctx.validateCommonHttpTransactions({
+      appliesTo: and(not(method('HEAD')), statusCodeRange(400, 499)),
+      violatedWhen: not(hasResponseBody()),
+    }),
   )
   .done();

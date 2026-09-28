@@ -18,9 +18,9 @@ export default httpRule(
   )
   .appliesTo('server')
   .rule((ctx) =>
-    ctx.validateCommonHttpTransactions(
-      statusCode(416),
-      not(responseHeader('content-range')),
-    ),
+    ctx.validateCommonHttpTransactions({
+      appliesTo: statusCode(416),
+      violatedWhen: not(responseHeader('content-range')),
+    }),
   )
   .done();
