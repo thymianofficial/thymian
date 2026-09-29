@@ -26,9 +26,9 @@ export default httpRule(
   )
   .appliesTo('origin server')
   .rule((context) =>
-    context.validateCommonHttpTransactions(
-      and(method('PUT'), statusCodeRange(200, 299)),
-      not(or(statusCode(200), statusCode(201), statusCode(204))),
-    ),
+    context.validateCommonHttpTransactions({
+      appliesTo: and(method('PUT'), statusCodeRange(200, 299)),
+      violatedWhen: not(or(statusCode(200), statusCode(201), statusCode(204))),
+    }),
   )
   .done();

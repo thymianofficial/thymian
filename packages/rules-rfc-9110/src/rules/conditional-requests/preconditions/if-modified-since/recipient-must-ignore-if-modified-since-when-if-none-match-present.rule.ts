@@ -27,9 +27,13 @@ export default httpRule(
     "When a request carries both If-None-Match and If-Modified-Since, the recipient must decide the outcome solely from If-None-Match and disregard the date entirely. Entity-tag comparison is a more precise test of whether a representation changed than a modification timestamp, so it takes precedence; the two are only ever sent together so that older intermediaries that don't understand If-None-Match still have something to evaluate. Letting the date override the tag would produce inconsistent, less accurate cache-validation results.",
   )
   .rule((ctx) =>
-    ctx.validateCommonHttpTransactions(
-      and(requestHeader('if-none-match'), requestHeader('if-modified-since')),
-    ),
+    ctx.validateCommonHttpTransactions({
+      appliesTo: and(
+        requestHeader('if-none-match'),
+        requestHeader('if-modified-since'),
+      ),
+      violatedWhen: constant(true),
+    }),
   )
   .overrideTest(async (ctx) => {
     const results: RuleFnResult[] = [];

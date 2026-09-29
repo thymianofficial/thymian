@@ -15,6 +15,9 @@ export default httpRule(
   )
   .appliesTo('client')
   .rule((ctx) =>
-    ctx.validateCommonHttpTransactions(method('DELETE'), hasRequestBody()),
+    ctx.validateCommonHttpTransactions({
+      appliesTo: method('DELETE'),
+      violatedWhen: hasRequestBody(),
+    }),
   )
   .done();

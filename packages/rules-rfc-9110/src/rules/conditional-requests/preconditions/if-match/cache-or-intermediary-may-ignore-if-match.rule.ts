@@ -1,4 +1,4 @@
-import { requestHeader } from '@thymian/core';
+import { constant, requestHeader } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
 // eslint-disable-next-line thymian-internal/require-rule-tags -- a MAY/SHOULD permission that is neither the mitigation nor the hazard
@@ -14,5 +14,10 @@ export default httpRule('rfc9110/cache-or-intermediary-may-ignore-if-match')
     'A cache or intermediary is permitted, but not required, to skip evaluating an If-Match header and simply pass the request along instead. If-Match exists to protect against lost updates and to abort a request when the target representation has changed, and those guarantees only truly matter at the origin server that holds the authoritative representation. So a middlebox can leave the condition for the origin to enforce without violating the specification.',
   )
   .appliesTo('cache', 'intermediary')
-  .rule((ctx) => ctx.validateHttpTransactions(requestHeader('if-match')))
+  .rule((ctx) =>
+    ctx.validateHttpTransactions({
+      appliesTo: requestHeader('if-match'),
+      violatedWhen: constant(true),
+    }),
+  )
   .done();

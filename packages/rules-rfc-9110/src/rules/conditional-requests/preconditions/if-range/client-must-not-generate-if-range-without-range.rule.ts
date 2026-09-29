@@ -1,7 +1,5 @@
 import {
-  and,
   type CommonHttpRequest,
-  not,
   requestHeader,
   type RuleViolationLocation,
 } from '@thymian/core';
@@ -33,18 +31,25 @@ export default httpRule(
   )
   .appliesTo('client')
   .rule((ctx) =>
-    ctx.validateCommonHttpTransactions(
-      and(requestHeader('if-range'), not(requestHeader('range'))),
-      (_req: CommonHttpRequest, _res, location: RuleViolationLocation) => [
-        {
-          location,
-          violation: {
-            message:
-              'The request carries an If-Range header field but no Range header field.',
-          },
-          findings: [],
-        },
-      ],
-    ),
+    ctx.validateCommonHttpTransactions({
+      appliesTo: requestHeader('if-range'),
+      violatedWhen: (
+        req: CommonHttpRequest,
+        _res,
+        location: RuleViolationLocation,
+      ) =>
+        req.headers.some((header) => header.toLowerCase() === 'range')
+          ? []
+          : [
+              {
+                location,
+                violation: {
+                  message:
+                    'The request carries an If-Range header field but no Range header field.',
+                },
+                findings: [],
+              },
+            ],
+    }),
   )
   .done();
