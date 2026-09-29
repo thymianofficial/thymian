@@ -1,13 +1,5 @@
 import { equalsIgnoreCase } from '@thymian/core';
-import {
-  and,
-  method,
-  or,
-  origin,
-  path,
-  responseWith,
-  statusCode,
-} from '@thymian/core';
+import { and, method, or, origin, path, statusCode } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
 export const requiredHeaders = [
@@ -35,14 +27,19 @@ export default httpRule(
   .explanation(
     'When a server returns 206 Partial Content, any of Date, Cache-Control, ETag, Expires, Content-Location, and Vary that it would have sent on a full 200 OK response for the same request must also appear on the partial response. These headers carry caching, validation, and content-negotiation information that stays true whether the client gets the whole body or just a range, so dropping them on the 206 would leave caches and clients unable to validate, revalidate, or correctly reuse the partial content.',
   )
+  // `appliesTo` can't stay the responseWith()-based dual-status filter: the
+  // live evaluator has no way to ask "does this operation also describe the
+  // other status" of a single observed pair, so `responseWith` degenerates to
+  // checking the same response twice and the (live-rechecked) appliesTo would
+  // never match. Broadening to "this is a 200 or 206 response" keeps the
+  // static result identical (violatedWhen only reports once both members are
+  // actually present in a group) and lets test exercise any 200/206 endpoint,
+  // relying on that same guard to stay silent when only one status shows up.
   .rule((ctx) =>
-    ctx.validateGroupedCommonHttpTransactions(
-      or(
-        and(statusCode(200), responseWith(statusCode(206))),
-        and(statusCode(206), responseWith(statusCode(200))),
-      ),
-      and(method(), origin(), path()),
-      (_, transactions) => {
+    ctx.validateGroupedCommonHttpTransactions({
+      appliesTo: or(statusCode(200), statusCode(206)),
+      groupBy: and(method(), origin(), path()),
+      violatedWhen: (_, transactions) => {
         const okResponse = transactions.find(
           ([, res]) => res.statusCode === 200,
         )?.[1];
@@ -84,16 +81,16 @@ export default httpRule(
 
         return [];
       },
-    ),
+    }),
   )
   .overrideAnalyticsRule((ctx) =>
     // responseWith() cannot be compiled to SQL, so for analytics mode
     // we broaden the filter to fetch both 200 and 206 responses for the
     // same endpoint, then compare required headers in the callback.
-    ctx.validateGroupedCommonHttpTransactions(
-      or(statusCode(200), statusCode(206)),
-      and(method(), origin(), path()),
-      (_, transactions) => {
+    ctx.validateGroupedCommonHttpTransactions({
+      appliesTo: or(statusCode(200), statusCode(206)),
+      groupBy: and(method(), origin(), path()),
+      violatedWhen: (_, transactions) => {
         const okResponse = transactions.find(
           ([, res]) => res.statusCode === 200,
         )?.[1];
@@ -141,6 +138,6 @@ export default httpRule(
 
         return [];
       },
-    ),
+    }),
   )
   .done();

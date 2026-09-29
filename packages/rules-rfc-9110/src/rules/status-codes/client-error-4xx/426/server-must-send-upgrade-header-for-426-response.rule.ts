@@ -28,15 +28,19 @@ export default httpRule(
   // declared. The real-data overrides additionally read the VALUE to catch an
   // empty "Upgrade:" that satisfies presence but names no protocol.
   .rule((ctx) =>
-    ctx.validateCommonHttpTransactions(
-      statusCode(426),
-      not(responseHeader('upgrade')),
-    ),
+    ctx.validateCommonHttpTransactions({
+      appliesTo: statusCode(426),
+      violatedWhen: not(responseHeader('upgrade')),
+    }),
   )
   .overrideTest((ctx) =>
-    ctx.validateHttpTransactions(
-      statusCode(426),
-      (_req, res: HttpResponse, location: RuleViolationLocation) =>
+    ctx.validateHttpTransactions({
+      appliesTo: statusCode(426),
+      violatedWhen: (
+        _req,
+        res: HttpResponse,
+        location: RuleViolationLocation,
+      ) =>
         hasNonEmptyHeaderValue(getHeader(res.headers, 'upgrade'))
           ? []
           : [
@@ -46,12 +50,16 @@ export default httpRule(
                 findings: [],
               },
             ],
-    ),
+    }),
   )
   .overrideAnalyticsRule((ctx) =>
-    ctx.validateHttpTransactions(
-      statusCode(426),
-      (_req, res: HttpResponse, location: RuleViolationLocation) =>
+    ctx.validateHttpTransactions({
+      appliesTo: statusCode(426),
+      violatedWhen: (
+        _req,
+        res: HttpResponse,
+        location: RuleViolationLocation,
+      ) =>
         hasNonEmptyHeaderValue(getHeader(res.headers, 'upgrade'))
           ? []
           : [
@@ -61,6 +69,6 @@ export default httpRule(
                 findings: [],
               },
             ],
-    ),
+    }),
   )
   .done();

@@ -1,4 +1,4 @@
-import { and, hasResponseBody, statusCode } from '@thymian/core';
+import { hasResponseBody, statusCode } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
 export default httpRule(
@@ -20,6 +20,9 @@ export default httpRule(
     'When you return a 205 (Reset Content), you must not include any response body. A 205 tells the user agent to clear the form or input view that triggered the request so the user can start fresh, and by definition it promises no additional content will follow. This matters because a client expecting an empty 205 may not read a body, so sending one risks it being ignored or misframed on the connection, breaking the request that follows. Keep the response header-only.',
   )
   .rule((ctx) =>
-    ctx.validateCommonHttpTransactions(and(statusCode(205), hasResponseBody())),
+    ctx.validateCommonHttpTransactions({
+      appliesTo: statusCode(205),
+      violatedWhen: hasResponseBody(),
+    }),
   )
   .done();

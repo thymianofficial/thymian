@@ -1,4 +1,4 @@
-import { statusCode } from '@thymian/core';
+import { constant, statusCode } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
 // eslint-disable-next-line thymian-internal/require-rule-tags -- no concern-tag member fits this rule's topic
@@ -13,5 +13,10 @@ export default httpRule('rfc9110/status-code-305-is-deprecated')
     'Do not use the 305 (Use Proxy) status code. It was defined in an earlier version of the HTTP specification and is now deprecated, so it is no longer part of the standard set of responses a server should send. Because it is deprecated, clients cannot be relied on to handle it consistently, which makes it unsuitable for directing client behavior.',
   )
   .appliesTo('server')
-  .rule((ctx) => ctx.validateCommonHttpTransactions(statusCode(305)))
+  .rule((ctx) =>
+    ctx.validateCommonHttpTransactions({
+      appliesTo: statusCode(305),
+      violatedWhen: constant(true),
+    }),
+  )
   .done();

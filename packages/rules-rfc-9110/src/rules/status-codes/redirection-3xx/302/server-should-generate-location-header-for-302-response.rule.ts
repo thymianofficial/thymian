@@ -28,15 +28,19 @@ export default httpRule(
   // overrides additionally read the VALUE to catch an empty "Location:" that
   // satisfies presence but carries no URI reference.
   .rule((ctx) =>
-    ctx.validateCommonHttpTransactions(
-      statusCode(302),
-      not(responseHeader('location')),
-    ),
+    ctx.validateCommonHttpTransactions({
+      appliesTo: statusCode(302),
+      violatedWhen: not(responseHeader('location')),
+    }),
   )
   .overrideTest((ctx) =>
-    ctx.validateHttpTransactions(
-      statusCode(302),
-      (_req, res: HttpResponse, location: RuleViolationLocation) =>
+    ctx.validateHttpTransactions({
+      appliesTo: statusCode(302),
+      violatedWhen: (
+        _req,
+        res: HttpResponse,
+        location: RuleViolationLocation,
+      ) =>
         hasNonEmptyHeaderValue(getHeader(res.headers, 'location'))
           ? []
           : [
@@ -46,12 +50,16 @@ export default httpRule(
                 findings: [],
               },
             ],
-    ),
+    }),
   )
   .overrideAnalyticsRule((ctx) =>
-    ctx.validateHttpTransactions(
-      statusCode(302),
-      (_req, res: HttpResponse, location: RuleViolationLocation) =>
+    ctx.validateHttpTransactions({
+      appliesTo: statusCode(302),
+      violatedWhen: (
+        _req,
+        res: HttpResponse,
+        location: RuleViolationLocation,
+      ) =>
         hasNonEmptyHeaderValue(getHeader(res.headers, 'location'))
           ? []
           : [
@@ -61,6 +69,6 @@ export default httpRule(
                 findings: [],
               },
             ],
-    ),
+    }),
   )
   .done();

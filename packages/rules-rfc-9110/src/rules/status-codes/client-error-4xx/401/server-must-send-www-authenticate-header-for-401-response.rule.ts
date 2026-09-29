@@ -28,10 +28,10 @@ export default httpRule(
   )
   .appliesTo('server')
   .rule((ctx) =>
-    ctx.validateCommonHttpTransactions(
-      statusCode(401),
-      not(responseHeader('www-authenticate')),
-    ),
+    ctx.validateCommonHttpTransactions({
+      appliesTo: statusCode(401),
+      violatedWhen: not(responseHeader('www-authenticate')),
+    }),
   )
   .overrideTest((testContext) =>
     testContext.httpTest(
