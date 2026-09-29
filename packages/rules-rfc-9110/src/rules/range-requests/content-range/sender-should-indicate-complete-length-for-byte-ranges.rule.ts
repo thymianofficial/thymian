@@ -33,9 +33,9 @@ export default httpRule(
   )
   .appliesTo('server')
   .rule((ctx) =>
-    ctx.validateHttpTransactions(
-      statusCode(206),
-      (_req, res, location: RuleViolationLocation) => {
+    ctx.validateHttpTransactions({
+      appliesTo: statusCode(206),
+      violatedWhen: (_req, res, location: RuleViolationLocation) => {
         // Multipart 206 responses carry Content-Range per body part, not in the
         // header section, so there is nothing to check at the header level.
         if (isMultipartByteranges(getHeader(res.headers, 'content-type'))) {
@@ -81,6 +81,6 @@ export default httpRule(
               },
             ];
       },
-    ),
+    }),
   )
   .done();

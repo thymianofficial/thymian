@@ -1,5 +1,4 @@
 import {
-  and,
   getHeader,
   requestHeader,
   type RuleViolationLocation,
@@ -24,9 +23,9 @@ export default httpRule(
   )
   .appliesTo('user-agent')
   .rule((ctx) =>
-    ctx.validateHttpTransactions(
-      and(requestHeader('from')),
-      (request, _res, location: RuleViolationLocation) => {
+    ctx.validateHttpTransactions({
+      appliesTo: requestHeader('from'),
+      violatedWhen: (request, _res, location: RuleViolationLocation) => {
         const from = getHeader(request.headers, 'from');
 
         if (typeof from !== 'string') {
@@ -49,6 +48,6 @@ export default httpRule(
             ]
           : [];
       },
-    ),
+    }),
   )
   .done();

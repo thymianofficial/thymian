@@ -1,4 +1,4 @@
-import { requestHeader } from '@thymian/core';
+import { constant, requestHeader } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
 // eslint-disable-next-line thymian-internal/require-rule-tags -- permissive MAY, initiating negotiation — no hazard in the permission
@@ -16,5 +16,10 @@ export default httpRule('rfc9110/client-may-send-upgrade-header')
   .appliesTo('client')
   // Surfaces use of the optional mechanism: the hint fires when a request
   // carries an Upgrade header, never on its absence.
-  .rule((ctx) => ctx.validateHttpTransactions(requestHeader('upgrade')))
+  .rule((ctx) =>
+    ctx.validateHttpTransactions({
+      appliesTo: requestHeader('upgrade'),
+      violatedWhen: constant(true),
+    }),
+  )
   .done();

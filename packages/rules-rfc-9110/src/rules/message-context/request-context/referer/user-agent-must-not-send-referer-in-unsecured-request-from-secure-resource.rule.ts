@@ -27,9 +27,9 @@ export default httpRule(
   .overrideAnalyticsRule((ctx) =>
     // Pre-filter to unsecured (http) requests carrying a Referer; then confirm
     // the Referer itself points at a secure (https) resource before flagging.
-    ctx.validateHttpTransactions(
-      and(requestHeader('referer'), protocol('http')),
-      (request, _res, location: RuleViolationLocation) => {
+    ctx.validateHttpTransactions({
+      appliesTo: and(requestHeader('referer'), protocol('http')),
+      violatedWhen: (request, _res, location: RuleViolationLocation) => {
         const referer = getHeader(request.headers, 'referer');
 
         if (typeof referer !== 'string') {
@@ -53,6 +53,6 @@ export default httpRule(
           },
         ];
       },
-    ),
+    }),
   )
   .done();

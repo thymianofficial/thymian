@@ -1,8 +1,4 @@
-import {
-  getHeader,
-  responseHeader,
-  type RuleViolationLocation,
-} from '@thymian/core';
+import { constant, getHeader, type RuleViolationLocation } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
 import { parseContentRange } from './utils.js';
@@ -28,9 +24,9 @@ export default httpRule(
     'A Content-Range is nonsensical if its range runs backwards (last byte before first byte) or claims a total length that is not bigger than the last byte it reports. When you receive one like that, do not stitch the partial content back into any copy you already hold. Trusting an impossible range would corrupt the reassembled representation, so the safe move is to reject it rather than merge garbage into stored data.',
   )
   .rule((ctx) =>
-    ctx.validateHttpTransactions(
-      responseHeader('content-range'),
-      (_req, res, location: RuleViolationLocation) => {
+    ctx.validateHttpTransactions({
+      appliesTo: constant(true),
+      violatedWhen: (_req, res, location: RuleViolationLocation) => {
         // Read the header case-insensitively (HAR lowercases names; generated
         // traffic may preserve original casing).
         const contentRange = getHeader(res.headers, 'content-range');
@@ -68,6 +64,6 @@ export default httpRule(
           },
         ];
       },
-    ),
+    }),
   )
   .done();

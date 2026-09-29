@@ -35,11 +35,15 @@ export default httpRule(
   )
   .appliesTo('server')
   .overrideAnalyticsRule((ctx) =>
-    ctx.validateHttpTransactions(
+    ctx.validateHttpTransactions({
       // A protocol switch is only signaled by a 101 (Switching Protocols)
       // response; Upgrade headers in other responses merely advertise support.
-      and(requestHeader('upgrade'), statusCode(101)),
-      (req, res: HttpResponse, location: RuleViolationLocation) => {
+      appliesTo: and(requestHeader('upgrade'), statusCode(101)),
+      violatedWhen: (
+        req,
+        res: HttpResponse,
+        location: RuleViolationLocation,
+      ) => {
         const reqUpgradeHeader = getHeader(req.headers, 'upgrade');
         const resUpgradeHeader = getHeader(res.headers, 'upgrade');
 
@@ -67,6 +71,6 @@ export default httpRule(
 
         return [];
       },
-    ),
+    }),
   )
   .done();
