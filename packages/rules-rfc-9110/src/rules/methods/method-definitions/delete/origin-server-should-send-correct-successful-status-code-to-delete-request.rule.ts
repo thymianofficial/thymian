@@ -23,9 +23,9 @@ export default httpRule(
   )
   .appliesTo('origin server')
   .rule((ctx) =>
-    ctx.validateCommonHttpTransactions(
-      and(method('DELETE'), statusCodeRange(200, 299)),
-      not(or(statusCode(204), statusCode(202), statusCode(200))),
-    ),
+    ctx.validateCommonHttpTransactions({
+      appliesTo: and(method('DELETE'), statusCodeRange(200, 299)),
+      violatedWhen: not(or(statusCode(204), statusCode(202), statusCode(200))),
+    }),
   )
   .done();

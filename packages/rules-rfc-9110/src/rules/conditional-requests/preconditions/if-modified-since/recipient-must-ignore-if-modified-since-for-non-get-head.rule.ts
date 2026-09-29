@@ -1,12 +1,12 @@
 import {
   and,
   type CommonHttpRequest,
+  type CommonHttpResponse,
   method,
   not,
   or,
   requestHeader,
   type RuleViolationLocation,
-  statusCode,
 } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
@@ -36,23 +36,29 @@ export default httpRule(
   )
   .appliesTo('server')
   .rule((ctx) =>
-    ctx.validateCommonHttpTransactions(
-      and(
+    ctx.validateCommonHttpTransactions({
+      appliesTo: and(
         requestHeader('if-modified-since'),
         not(or(method('GET'), method('HEAD'))),
+      ),
+      violatedWhen: (
+        req: CommonHttpRequest,
+        res: CommonHttpResponse,
+        location: RuleViolationLocation,
+      ) =>
         // A 304 Not Modified shows the recipient honored If-Modified-Since
         // instead of ignoring it for this non-GET/HEAD method.
-        statusCode(304),
-      ),
-      (req: CommonHttpRequest, _res, location: RuleViolationLocation) => [
-        {
-          location,
-          violation: {
-            message: `A ${req.method} request carrying If-Modified-Since received a 304 Not Modified response.`,
-          },
-          findings: [],
-        },
-      ],
-    ),
+        res.statusCode === 304
+          ? [
+              {
+                location,
+                violation: {
+                  message: `A ${req.method} request carrying If-Modified-Since received a 304 Not Modified response.`,
+                },
+                findings: [],
+              },
+            ]
+          : [],
+    }),
   )
   .done();

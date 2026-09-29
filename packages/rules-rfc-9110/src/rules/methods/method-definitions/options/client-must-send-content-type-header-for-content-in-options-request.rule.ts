@@ -22,9 +22,9 @@ export default httpRule(
   )
   .appliesTo('client')
   .rule((ctx) =>
-    ctx.validateCommonHttpTransactions(
-      and(method('OPTIONS'), hasRequestBody()),
-      not(requestHeader('content-type')),
-    ),
+    ctx.validateCommonHttpTransactions({
+      appliesTo: and(method('OPTIONS'), hasRequestBody()),
+      violatedWhen: not(requestHeader('content-type')),
+    }),
   )
   .done();

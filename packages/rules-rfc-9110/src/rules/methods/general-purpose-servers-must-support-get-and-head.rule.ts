@@ -16,10 +16,10 @@ export default httpRule(
   )
   .appliesTo('server')
   .rule((ctx) =>
-    ctx.validateCommonHttpTransactions(
-      or(method('get'), method('head')),
-      statusCode(501),
-    ),
+    ctx.validateCommonHttpTransactions({
+      appliesTo: or(method('get'), method('head')),
+      violatedWhen: statusCode(501),
+    }),
   )
   .overrideTest((ctx) =>
     ctx.httpTest(

@@ -11,6 +11,9 @@ export default httpRule('rfc9110/client-must-not-send-content-in-trace-request')
   )
   .appliesTo('client')
   .rule((ctx) =>
-    ctx.validateCommonHttpTransactions(method('TRACE'), hasRequestBody()),
+    ctx.validateCommonHttpTransactions({
+      appliesTo: method('TRACE'),
+      violatedWhen: hasRequestBody(),
+    }),
   )
   .done();

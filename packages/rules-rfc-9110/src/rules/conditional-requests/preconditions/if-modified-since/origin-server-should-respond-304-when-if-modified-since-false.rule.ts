@@ -37,12 +37,10 @@ export default httpRule(
   )
   .appliesTo('origin server')
   .rule((ctx) =>
-    ctx.validateCommonHttpTransactions(
-      and(
-        requestHeader('if-modified-since'),
-        not(responseWith(statusCode(304))),
-      ),
-    ),
+    ctx.validateCommonHttpTransactions({
+      appliesTo: requestHeader('if-modified-since'),
+      violatedWhen: not(responseWith(statusCode(304))),
+    }),
   )
   .overrideTest(async (ctx) => {
     const results: RuleFnResult[] = [];

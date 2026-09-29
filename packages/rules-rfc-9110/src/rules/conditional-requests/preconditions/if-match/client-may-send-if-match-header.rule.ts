@@ -1,4 +1,4 @@
-import { and, method, not, requestHeader } from '@thymian/core';
+import { method, not, requestHeader } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
 // eslint-disable-next-line thymian-internal/require-rule-tags -- a MAY/SHOULD permission that is neither the mitigation nor the hazard
@@ -15,8 +15,9 @@ export default httpRule('rfc9110/client-may-send-if-match-header')
   )
   .appliesTo('client')
   .rule((ctx) =>
-    ctx.validateCommonHttpTransactions(
-      and(method('GET'), not(requestHeader('if-match'))),
-    ),
+    ctx.validateCommonHttpTransactions({
+      appliesTo: method('GET'),
+      violatedWhen: not(requestHeader('if-match')),
+    }),
   )
   .done();

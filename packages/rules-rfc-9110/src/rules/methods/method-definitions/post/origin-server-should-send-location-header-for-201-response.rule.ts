@@ -19,9 +19,9 @@ export default httpRule(
   )
   .appliesTo('origin server')
   .rule((context) =>
-    context.validateCommonHttpTransactions(
-      and(method('POST'), statusCode(201)),
-      not(responseHeader('location')),
-    ),
+    context.validateCommonHttpTransactions({
+      appliesTo: and(method('POST'), statusCode(201)),
+      violatedWhen: not(responseHeader('location')),
+    }),
   )
   .done();

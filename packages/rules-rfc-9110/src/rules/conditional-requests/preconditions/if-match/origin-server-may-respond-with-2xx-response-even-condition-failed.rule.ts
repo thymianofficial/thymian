@@ -1,4 +1,11 @@
-import { and, method, or, requestHeader, statusCode } from '@thymian/core';
+import {
+  and,
+  constant,
+  method,
+  or,
+  requestHeader,
+  statusCode,
+} from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
 // eslint-disable-next-line thymian-internal/require-rule-tags -- a MAY/SHOULD permission that is neither the mitigation nor the hazard
@@ -19,12 +26,13 @@ export default httpRule(
   )
   .appliesTo('origin server')
   .rule((ctx) =>
-    ctx.validateCommonHttpTransactions(
-      and(
+    ctx.validateCommonHttpTransactions({
+      appliesTo: and(
         requestHeader('if-match'),
         statusCode(412),
         or(method('DELETE'), method('POST'), method('PATCH'), method('PUT')),
       ),
-    ),
+      violatedWhen: constant(true),
+    }),
   )
   .done();

@@ -25,10 +25,10 @@ export default httpRule(
   )
   .appliesTo('origin server')
   .rule((ctx) =>
-    ctx.validateCommonHttpTransactions(
-      requestHeader('if-match'),
-      not(responseWith(statusCode(412))),
-    ),
+    ctx.validateCommonHttpTransactions({
+      appliesTo: requestHeader('if-match'),
+      violatedWhen: not(responseWith(statusCode(412))),
+    }),
   )
   .overrideTest((ctx) =>
     ctx.httpTest(
