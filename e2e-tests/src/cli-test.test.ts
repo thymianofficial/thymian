@@ -176,10 +176,21 @@ describe('thymian test', () => {
     expect(result.exitCode).toBe(2);
   }, 180_000);
 
-  it('should exit 1 when violations are found', async () => {
+  it('should exit 1 when the live response violates a rule', async () => {
     const { server, targetUrl } = await setupTestEnvironment(
       'dynamic-test',
       getTempDir(),
+      (s) => {
+        // Send content without a Content-Type header, so
+        // rfc9110/sender-should-generate-content-type-for-message-with-content
+        // is violated by the live response. Hijacking bypasses fastify, which
+        // would otherwise add the header itself.
+        s.get('/api/hello', (_req, reply) => {
+          reply.hijack();
+          reply.raw.writeHead(200, { 'content-length': '2' });
+          reply.raw.end('{}');
+        });
+      },
     );
 
     try {
@@ -197,6 +208,9 @@ describe('thymian test', () => {
       );
 
       expect(result.exitCode).toBe(1);
+      expect(result.stdout).toContain(
+        'rfc9110/sender-should-generate-content-type-for-message-with-content',
+      );
       expect(result.stdout).toContain('Summary:');
     } finally {
       await server.close();
