@@ -1,4 +1,4 @@
-import { and, method, not, or, requestHeader } from '@thymian/core';
+import { getHeader, method, or } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
 // eslint-disable-next-line thymian-internal/require-rule-tags -- establishes framing exists (so the request completes); the framing-integrity surface is the mismatch/forwarding rules above
@@ -17,21 +17,21 @@ export default httpRule(
     'When a client uses a method that carries a body -- like POST, PUT, or PATCH -- and it is not using Transfer-Encoding, it should include a Content-Length header giving the body size (even 0 for an empty body). It matters because the server needs to know how many bytes to read to delimit the request body; without either Content-Length or Transfer-Encoding the server cannot tell where the body ends, which stalls or breaks the request.',
   )
   .overrideAnalyticsRule((ctx) =>
-    ctx.validateHttpTransactions(
-      and(
-        or(method('post'), method('put'), method('patch')),
-        not(requestHeader('transfer-encoding')),
-        not(requestHeader('content-length')),
-      ),
-      (req, _res, location) => [
-        {
-          location,
-          violation: {
-            message: `A ${req.method} request sends neither Transfer-Encoding nor Content-Length.`,
-          },
-          findings: [],
-        },
-      ],
-    ),
+    ctx.validateHttpTransactions({
+      appliesTo: or(method('post'), method('put'), method('patch')),
+      violatedWhen: (req, _res, location) =>
+        getHeader(req.headers, 'transfer-encoding') === undefined &&
+        getHeader(req.headers, 'content-length') === undefined
+          ? [
+              {
+                location,
+                violation: {
+                  message: `A ${req.method} request sends neither Transfer-Encoding nor Content-Length.`,
+                },
+                findings: [],
+              },
+            ]
+          : [],
+    }),
   )
   .done();

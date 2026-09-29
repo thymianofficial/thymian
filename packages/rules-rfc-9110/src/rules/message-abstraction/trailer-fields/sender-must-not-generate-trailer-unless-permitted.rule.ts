@@ -1,4 +1,4 @@
-import { or, responseTrailer } from '@thymian/core';
+import { constant } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
 // Fields that are forbidden in trailers per RFC 9110
@@ -47,9 +47,9 @@ export default httpRule(
     "Only put a field in the trailer section (after the content) if that field's definition actually allows it there. Many fields must be read before the content arrives because they govern framing, routing, authentication, request modifiers, response controls, or content format, so placing them in trailers is too late to be useful. This matters because recipients and intermediaries often discard trailers or cannot safely act on a field that arrives after the body, so a field sent as a trailer that belongs in the header section will simply be ignored or mishandled.",
   )
   .rule((ctx) =>
-    ctx.validateCommonHttpTransactions(
-      or(...[...FORBIDDEN_TRAILER_FIELDS].map((name) => responseTrailer(name))),
-      (_req, res, location) => {
+    ctx.validateCommonHttpTransactions({
+      appliesTo: constant(true),
+      violatedWhen: (_req, res, location) => {
         // In the common projection `res.trailers` is the list of trailer field
         // NAMES (string[]); iterate it directly rather than via Object.keys.
         const forbiddenTrailers = (res.trailers ?? []).filter((name) =>
@@ -70,6 +70,6 @@ export default httpRule(
 
         return [];
       },
-    ),
+    }),
   )
   .done();
