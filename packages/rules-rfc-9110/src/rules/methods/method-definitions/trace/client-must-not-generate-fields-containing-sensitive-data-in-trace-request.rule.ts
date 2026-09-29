@@ -17,9 +17,11 @@ export default httpRule(
   )
   .appliesTo('client')
   .rule((ctx) =>
-    ctx.validateCommonHttpTransactions(
-      method('TRACE'),
-      or(...sensitiveHeaders.map((header) => requestHeader(header))),
-    ),
+    ctx.validateCommonHttpTransactions({
+      appliesTo: method('TRACE'),
+      violatedWhen: or(
+        ...sensitiveHeaders.map((header) => requestHeader(header)),
+      ),
+    }),
   )
   .done();

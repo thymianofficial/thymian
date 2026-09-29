@@ -35,9 +35,13 @@ export default httpRule(
   )
   .appliesTo('server')
   .rule((ctx) =>
-    ctx.validateCommonHttpTransactions(
-      and(method('CONNECT'), statusCodeRange(200, 299)),
-      (_req: CommonHttpRequest, res: CommonHttpResponse, location) => {
+    ctx.validateCommonHttpTransactions({
+      appliesTo: and(method('CONNECT'), statusCodeRange(200, 299)),
+      violatedWhen: (
+        _req: CommonHttpRequest,
+        res: CommonHttpResponse,
+        location,
+      ) => {
         const present = presentForbiddenHeaders(res.headers);
 
         if (present.length === 0) {
@@ -56,6 +60,6 @@ export default httpRule(
           },
         ];
       },
-    ),
+    }),
   )
   .done();

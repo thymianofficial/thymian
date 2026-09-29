@@ -29,9 +29,9 @@ export default httpRule(
   )
   .appliesTo('client')
   .rule((ctx) =>
-    ctx.validateHttpTransactions(
-      and(method('OPTIONS'), requestHeader('max-forwards')),
-      (req, _res, location: RuleViolationLocation) => {
+    ctx.validateHttpTransactions({
+      appliesTo: and(method('OPTIONS'), requestHeader('max-forwards')),
+      violatedWhen: (req, _res, location: RuleViolationLocation) => {
         const raw = getHeader(req.headers ?? {}, 'max-forwards');
         const value = Array.isArray(raw) ? raw.join(', ') : raw;
 
@@ -50,6 +50,6 @@ export default httpRule(
           },
         ];
       },
-    ),
+    }),
   )
   .done();

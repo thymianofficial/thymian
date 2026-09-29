@@ -39,9 +39,9 @@ export default httpRule(
   )
   .appliesTo('server')
   .rule((ctx) =>
-    ctx.validateHttpTransactions(
-      and(method('TRACE'), hasResponseBody()),
-      (req, res, location: RuleViolationLocation) => {
+    ctx.validateHttpTransactions({
+      appliesTo: and(method('TRACE'), hasResponseBody()),
+      violatedWhen: (req, res, location: RuleViolationLocation) => {
         const body = res.body;
 
         if (!body) {
@@ -76,6 +76,6 @@ export default httpRule(
           },
         ];
       },
-    ),
+    }),
   )
   .done();

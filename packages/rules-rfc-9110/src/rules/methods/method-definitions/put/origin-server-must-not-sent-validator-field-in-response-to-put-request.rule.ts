@@ -22,9 +22,9 @@ export default httpRule(
   )
   .appliesTo('origin server')
   .rule((ctx) =>
-    ctx.validateCommonHttpTransactions(
-      and(statusCodeRange(200, 299), method('PUT')),
-      or(responseHeader('etag'), responseHeader('last-modified')),
-    ),
+    ctx.validateCommonHttpTransactions({
+      appliesTo: and(statusCodeRange(200, 299), method('PUT')),
+      violatedWhen: or(responseHeader('etag'), responseHeader('last-modified')),
+    }),
   )
   .done();

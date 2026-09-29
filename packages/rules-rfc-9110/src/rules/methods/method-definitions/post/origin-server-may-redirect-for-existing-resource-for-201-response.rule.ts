@@ -1,4 +1,4 @@
-import { and, method, not, statusCode } from '@thymian/core';
+import { and, constant, method, not, statusCode } from '@thymian/core';
 import { httpRule, type RuleFnResult, singleTestCase } from '@thymian/core';
 
 // eslint-disable-next-line thymian-internal/require-rule-tags -- no concern-tag member fits this rule's topic
@@ -16,9 +16,10 @@ export default httpRule(
   )
   .appliesTo('origin server')
   .rule((context) =>
-    context.validateCommonHttpTransactions(
-      and(method('POST'), statusCode(201)),
-    ),
+    context.validateCommonHttpTransactions({
+      appliesTo: and(method('POST'), statusCode(201)),
+      violatedWhen: constant(true),
+    }),
   )
   .overrideTest(async (ctx) => {
     const results: RuleFnResult[] = [];
