@@ -1,13 +1,17 @@
 import {
   type CommonHttpRequest,
   type CommonHttpResponse,
+  type CommonHttpTransactionValidation,
   createRegExpFromOriginWildcard,
+  type GroupedCommonHttpTransactionValidation,
   type HttpFilterExpression,
   type HttpRequest,
   httpRequestToCommonHttpRequest,
   type HttpResponse,
   httpResponseToCommonHttpResponse,
   type HttpTestCaseResult,
+  type HttpTransactionValidation,
+  isHttpValidation,
   type RuleFnResult,
   type RuleViolationLocation,
   type TestContext,
@@ -54,6 +58,12 @@ function isSameLocation(
   }
   return a.elementType === b.elementType && a.elementId === b.elementId;
 }
+
+type EdgeLocation = {
+  elementType: 'node' | 'edge';
+  elementId: string;
+  pointer?: string;
+};
 
 /**
  * Links a single RuleFnResult back to its position in the HTTP test run.
@@ -102,6 +112,15 @@ export class HttpTestApiContext<
     };
   }
 
+  /**
+   * `appliesTo` selects what to send from the specification; this asks it again
+   * of the pair that came back, so a pair it rejects never reaches
+   * `violatedWhen` (ADR-0022). The positional form skips this re-check.
+   */
+  private liveApplicability(appliesTo: HttpFilterExpression) {
+    return httpFilterToTransactionValidationFn(appliesTo, this.format);
+  }
+
   getRuleExecutionDiagnostics(): HttpTesterRuleDiagnostics | undefined {
     return this.diagnosticEntries.length > 0
       ? this.diagnosticEntries
@@ -109,12 +128,33 @@ export class HttpTestApiContext<
   }
 
   async validateGroupedCommonHttpTransactions(
+    validation: GroupedCommonHttpTransactionValidation,
+  ): Promise<RuleFnResult[]>;
+  async validateGroupedCommonHttpTransactions(
     filterExpr: HttpFilterExpression,
     groupByExpression: HttpFilterExpression,
     validationFn: ValidationFn<
       [string, [CommonHttpRequest, CommonHttpResponse, RuleViolationLocation][]]
     >,
+  ): Promise<RuleFnResult[]>;
+  async validateGroupedCommonHttpTransactions(
+    filterOrValidation:
+      HttpFilterExpression | GroupedCommonHttpTransactionValidation,
+    groupByArg?: HttpFilterExpression,
+    validationFnArg?: ValidationFn<
+      [string, [CommonHttpRequest, CommonHttpResponse, RuleViolationLocation][]]
+    >,
   ): Promise<RuleFnResult[]> {
+    const [filterExpr, groupByExpression, validationFn, appliesTo] =
+      isHttpValidation(filterOrValidation)
+        ? [
+            filterOrValidation.appliesTo,
+            filterOrValidation.groupBy,
+            filterOrValidation.violatedWhen,
+            this.liveApplicability(filterOrValidation.appliesTo),
+          ]
+        : // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+          [filterOrValidation, groupByArg!, validationFnArg!, undefined];
     const filterFn = httpFilterExpressionToFilter(filterExpr);
     const groupByFn = httpFilterToGroupByFn(groupByExpression);
 
@@ -142,6 +182,11 @@ export class HttpTestApiContext<
 
       const transactionsToValidate = transactions
         .filter(hasSource)
+        .filter(
+          ({ request, response, source }) =>
+            !appliesTo ||
+            (!!request && !!response && appliesTo(request, response, source)),
+        )
         .map<[CommonHttpRequest, CommonHttpResponse, RuleViolationLocation]>(
           (transaction) => [
             httpRequestToCommonHttpRequest(
@@ -161,6 +206,10 @@ export class HttpTestApiContext<
           ],
         );
 
+      if (appliesTo && transactionsToValidate.length === 0) {
+        return;
+      }
+
       const results = validationFn(source.key, transactionsToValidate);
       callViolations.push(...results);
       for (const result of results) {
@@ -174,13 +223,34 @@ export class HttpTestApiContext<
   }
 
   async validateCommonHttpTransactions(
+    validation: CommonHttpTransactionValidation,
+  ): Promise<RuleFnResult[]>;
+  async validateCommonHttpTransactions(
     filterExpr: HttpFilterExpression,
-    validate:
+    validate?:
       | ValidationFn<
           [CommonHttpRequest, CommonHttpResponse, RuleViolationLocation]
         >
-      | HttpFilterExpression = filterExpr,
+      | HttpFilterExpression,
+  ): Promise<RuleFnResult[]>;
+  async validateCommonHttpTransactions(
+    filterOrValidation: HttpFilterExpression | CommonHttpTransactionValidation,
+    validateArg?:
+      | ValidationFn<
+          [CommonHttpRequest, CommonHttpResponse, RuleViolationLocation]
+        >
+      | HttpFilterExpression,
   ): Promise<RuleFnResult[]> {
+    const [filterExpr, validate, appliesTo] = isHttpValidation(
+      filterOrValidation,
+    )
+      ? [
+          filterOrValidation.appliesTo,
+          filterOrValidation.violatedWhen,
+          this.liveApplicability(filterOrValidation.appliesTo),
+        ]
+      : [filterOrValidation, validateArg ?? filterOrValidation, undefined];
+
     const test = httpTest(
       this.name,
       singleTestCase().forTransactionsWith(filterExpr).run().done(),
@@ -201,6 +271,10 @@ export class HttpTestApiContext<
 
           if (!request || !response || !source) {
             throw new Error('Invalid HTTP test case transaction.');
+          }
+
+          if (appliesTo && !appliesTo(request, response, source)) {
+            continue;
           }
 
           const location: RuleViolationLocation = {
@@ -326,21 +400,30 @@ export class HttpTestApiContext<
   }
 
   async validateHttpTransactions(
+    validation: HttpTransactionValidation,
+  ): Promise<RuleFnResult[]>;
+  async validateHttpTransactions(
     filterExpr: HttpFilterExpression,
-    validation:
-      | ValidationFn<
-          [
-            HttpRequest,
-            HttpResponse,
-            {
-              elementType: 'node' | 'edge';
-              elementId: string;
-              pointer?: string;
-            },
-          ]
-        >
-      | HttpFilterExpression = filterExpr,
+    validation?:
+      | ValidationFn<[HttpRequest, HttpResponse, EdgeLocation]>
+      | HttpFilterExpression,
+  ): Promise<RuleFnResult[]>;
+  async validateHttpTransactions(
+    filterOrValidation: HttpFilterExpression | HttpTransactionValidation,
+    validationArg?:
+      | ValidationFn<[HttpRequest, HttpResponse, EdgeLocation]>
+      | HttpFilterExpression,
   ): Promise<RuleFnResult[]> {
+    const [filterExpr, validation, appliesTo] = isHttpValidation(
+      filterOrValidation,
+    )
+      ? [
+          filterOrValidation.appliesTo,
+          filterOrValidation.violatedWhen,
+          this.liveApplicability(filterOrValidation.appliesTo),
+        ]
+      : [filterOrValidation, validationArg ?? filterOrValidation, undefined];
+
     const test = httpTest(
       this.name,
       singleTestCase().forTransactionsWith(filterExpr).run().done(),
@@ -363,6 +446,10 @@ export class HttpTestApiContext<
             throw new ThymianBaseError(
               'Invalid HTTP test case transaction: missing request, response, or source.',
             );
+          }
+
+          if (appliesTo && !appliesTo(request, response, source)) {
+            continue;
           }
 
           const location: RuleViolationLocation = {

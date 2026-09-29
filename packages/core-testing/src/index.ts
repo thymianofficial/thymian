@@ -108,3 +108,16 @@ export {
   generateExampleParameters,
   identityHookRunner,
 } from './http-testing-utils.js';
+
+// ============================================================================
+// Rule-context scenarios
+// ============================================================================
+
+export {
+  describeRuleContextScenarios,
+  type RuleContextDriver,
+  type RuleContextMethod,
+  type RuleContextScenarioSetup,
+  type ScenarioTransaction,
+  type ViolatedWhenForm,
+} from './rule-context-scenarios.js';
