@@ -35,23 +35,26 @@ export default httpRule('rfc9110/server-must-ignore-if-range-without-range')
   )
   .appliesTo('server')
   .rule((ctx) =>
-    ctx.validateCommonHttpTransactions(
-      and(
-        requestHeader('if-range'),
-        not(requestHeader('range')),
-        statusCode(206),
-      ),
-      (_req: CommonHttpRequest, _res, location: RuleViolationLocation) => [
-        {
-          location,
-          violation: {
-            message:
-              'The request carried an If-Range header field but no Range header field, yet the server returned 206 Partial Content.',
-          },
-          findings: [],
-        },
-      ],
-    ),
+    ctx.validateCommonHttpTransactions({
+      appliesTo: and(requestHeader('if-range'), not(requestHeader('range'))),
+      violatedWhen: (
+        _req: CommonHttpRequest,
+        res,
+        location: RuleViolationLocation,
+      ) =>
+        res.statusCode === 206
+          ? [
+              {
+                location,
+                violation: {
+                  message:
+                    'The request carried an If-Range header field but no Range header field, yet the server returned 206 Partial Content.',
+                },
+                findings: [],
+              },
+            ]
+          : [],
+    }),
   )
   .overrideTest((ctx) =>
     ctx.httpTest(
