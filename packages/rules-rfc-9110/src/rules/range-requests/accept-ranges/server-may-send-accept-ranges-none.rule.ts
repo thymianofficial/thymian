@@ -1,8 +1,4 @@
-import {
-  getHeader,
-  responseHeader,
-  type RuleViolationLocation,
-} from '@thymian/core';
+import { constant, getHeader, type RuleViolationLocation } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
 // eslint-disable-next-line thymian-internal/require-rule-tags -- no concern-tag member fits this rule's topic
@@ -25,15 +21,18 @@ export default httpRule('rfc9110/server-may-send-accept-ranges-none')
   // "none" (i.e. the server did not opt out of range requests), rather than
   // reporting a violation.
   .rule((ctx) =>
-    ctx.validateHttpTransactions(
-      responseHeader('accept-ranges'),
-      (_req, res, location: RuleViolationLocation) => {
+    ctx.validateHttpTransactions({
+      appliesTo: constant(true),
+      violatedWhen: (_req, res, location: RuleViolationLocation) => {
         const acceptRanges = getHeader(res.headers, 'accept-ranges');
+
+        if (acceptRanges == null) {
+          return [];
+        }
+
         const values = Array.isArray(acceptRanges)
           ? acceptRanges
-          : acceptRanges != null
-            ? [acceptRanges]
-            : [];
+          : [acceptRanges];
 
         return values.some((value) => value.trim().toLowerCase() === 'none')
           ? [{ location, findings: [] }]
@@ -51,6 +50,6 @@ export default httpRule('rfc9110/server-may-send-accept-ranges-none')
               },
             ];
       },
-    ),
+    }),
   )
   .done();

@@ -1,4 +1,4 @@
-import { requestHeader } from '@thymian/core';
+import { constant, requestHeader } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
 export default httpRule(
@@ -15,5 +15,10 @@ export default httpRule(
     "Do not attach a From header (a human user's email address) to requests unless the user has explicitly configured you to do so. The From value is expected to be visible to anyone observing the request and is routinely written to logs and error reports without any expectation of privacy, so sending it automatically leaks a personal identifier and can violate the user's privacy interests or their site's security policy.",
   )
   .appliesTo('user-agent')
-  .rule((ctx) => ctx.validateCommonHttpTransactions(requestHeader('from')))
+  .rule((ctx) =>
+    ctx.validateCommonHttpTransactions({
+      appliesTo: requestHeader('from'),
+      violatedWhen: constant(true),
+    }),
+  )
   .done();

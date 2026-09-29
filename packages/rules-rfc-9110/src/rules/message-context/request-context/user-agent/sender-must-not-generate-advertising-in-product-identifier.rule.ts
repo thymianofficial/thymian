@@ -1,5 +1,4 @@
 import {
-  and,
   getHeader,
   requestHeader,
   type RuleViolationLocation,
@@ -20,9 +19,9 @@ export default httpRule(
     'Keep the product identifiers in your User-Agent limited to what actually names the software and its significant components. Do not stuff in marketing slogans, promotional URLs, or other nonessential text. Servers rely on the User-Agent to identify clients, tailor responses, and drive analytics, so padding it with advertising pollutes those signals, bloats every request, and increases both latency and the risk of fingerprinting the user.',
   )
   .overrideAnalyticsRule((ctx) =>
-    ctx.validateHttpTransactions(
-      and(requestHeader('user-agent')),
-      (request, _res, location: RuleViolationLocation) => {
+    ctx.validateHttpTransactions({
+      appliesTo: requestHeader('user-agent'),
+      violatedWhen: (request, _res, location: RuleViolationLocation) => {
         const userAgent = getHeader(request.headers, 'user-agent');
         if (typeof userAgent !== 'string') {
           return [];
@@ -53,6 +52,6 @@ export default httpRule(
             ]
           : [];
       },
-    ),
+    }),
   )
   .done();

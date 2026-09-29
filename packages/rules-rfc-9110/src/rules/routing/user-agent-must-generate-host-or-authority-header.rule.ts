@@ -1,4 +1,4 @@
-import { and, not, requestHeader } from '@thymian/core';
+import { and, constant, not, requestHeader } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
 // eslint-disable-next-line thymian-internal/require-rule-tags -- basic request-routing requirement, not a concern this vocabulary covers
@@ -17,8 +17,12 @@ export default httpRule(
   )
   .appliesTo('user-agent')
   .rule((ctx) =>
-    ctx.validateHttpTransactions(
-      and(not(requestHeader('host')), not(requestHeader(':authority'))),
-    ),
+    ctx.validateHttpTransactions({
+      appliesTo: constant(true),
+      violatedWhen: and(
+        not(requestHeader('host')),
+        not(requestHeader(':authority')),
+      ),
+    }),
   )
   .done();

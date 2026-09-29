@@ -23,9 +23,9 @@ export default httpRule(
   )
   .appliesTo('client')
   .overrideAnalyticsRule((ctx) =>
-    ctx.validateHttpTransactions(
-      and(requestHeader('expect'), not(hasRequestBody())),
-      (request, _res, location: RuleViolationLocation) => {
+    ctx.validateHttpTransactions({
+      appliesTo: and(requestHeader('expect'), not(hasRequestBody())),
+      violatedWhen: (request, _res, location: RuleViolationLocation) => {
         const expect = getHeader(request.headers, 'expect');
         // Expectation names are compared case-insensitively and the Expect
         // field is a comma-separated list, so the value cannot be matched
@@ -49,6 +49,6 @@ export default httpRule(
             ]
           : [];
       },
-    ),
+    }),
   )
   .done();

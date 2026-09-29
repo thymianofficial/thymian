@@ -2,6 +2,7 @@ import {
   and,
   getHeader,
   type HttpResponse,
+  type HttpRuleCriteria,
   requestHeader,
   type RuleViolationLocation,
   statusCode,
@@ -54,6 +55,11 @@ function evaluate(res: HttpResponse, location: RuleViolationLocation) {
   ];
 }
 
+const validation: HttpRuleCriteria = {
+  appliesTo: and(statusCode(416), requestHeader('range')),
+  violatedWhen: (_req, res, location) => evaluate(res, location),
+};
+
 // eslint-disable-next-line thymian-internal/require-rule-tags -- no concern-tag member fits this rule's topic
 export default httpRule(
   'rfc9110/server-should-send-content-range-in-416-response',
@@ -74,16 +80,6 @@ export default httpRule(
     'When you reject a byte-range request as unsatisfiable with 416, include a Content-Range of the form "bytes */complete-length" that reports the resource\'s current total size. That size tells the client why its range did not fit and lets it retry with a valid range instead of giving up or looping, which keeps range-based downloads recoverable rather than leaving the client blind to how big the resource actually is.',
   )
   .appliesTo('server')
-  .overrideTest((ctx) =>
-    ctx.validateHttpTransactions(
-      and(statusCode(416), requestHeader('range')),
-      (_req, res, location) => evaluate(res, location),
-    ),
-  )
-  .overrideAnalyticsRule((ctx) =>
-    ctx.validateHttpTransactions(
-      and(statusCode(416), requestHeader('range')),
-      (_req, res, location) => evaluate(res, location),
-    ),
-  )
+  .overrideTest((ctx) => ctx.validateHttpTransactions(validation))
+  .overrideAnalyticsRule((ctx) => ctx.validateHttpTransactions(validation))
   .done();

@@ -16,12 +16,12 @@ export default httpRule(
   )
   .appliesTo('server')
   .rule((ctx) =>
-    ctx.validateHttpTransactions(
-      and(
+    ctx.validateHttpTransactions({
+      appliesTo: and(
         requestHeader('expect'),
         not(requestHeader('expect', '100-continue')),
-        not(statusCode(417)),
       ),
-    ),
+      violatedWhen: not(statusCode(417)),
+    }),
   )
   .done();

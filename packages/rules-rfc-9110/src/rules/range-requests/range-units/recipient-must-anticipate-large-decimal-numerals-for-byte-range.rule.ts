@@ -19,9 +19,13 @@ export default httpRule(
     'Byte-range positions can be arbitrarily large numbers because there is no fixed cap on how big content may be, so parse them in a way that handles values beyond a normal integer without overflowing or wrapping around. If your code assumes a small integer type, a huge but perfectly legal range value could crash the parser or produce a wrong position, breaking range handling exactly when it is needed for very large resources.',
   )
   .rule((ctx, _, logger) =>
-    ctx.validateHttpTransactions(
-      requestHeader('range'),
-      (req, _res: HttpResponse, location: RuleViolationLocation) => {
+    ctx.validateHttpTransactions({
+      appliesTo: requestHeader('range'),
+      violatedWhen: (
+        req,
+        _res: HttpResponse,
+        location: RuleViolationLocation,
+      ) => {
         const rangeHeaders = getHeader(req.headers, 'range');
 
         if (!rangeHeaders) {
@@ -55,6 +59,6 @@ export default httpRule(
           ? [{ location, violation: {}, findings: [] }]
           : [];
       },
-    ),
+    }),
   )
   .done();

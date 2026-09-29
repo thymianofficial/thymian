@@ -20,12 +20,9 @@ export default httpRule(
   // response other than 101/426 (those carry Upgrade per their own MUST rules)
   // carries an Upgrade header, never on its absence.
   .rule((ctx) =>
-    ctx.validateCommonHttpTransactions(
-      and(
-        responseHeader('upgrade'),
-        not(statusCode(101)),
-        not(statusCode(426)),
-      ),
-    ),
+    ctx.validateCommonHttpTransactions({
+      appliesTo: and(not(statusCode(101)), not(statusCode(426))),
+      violatedWhen: responseHeader('upgrade'),
+    }),
   )
   .done();

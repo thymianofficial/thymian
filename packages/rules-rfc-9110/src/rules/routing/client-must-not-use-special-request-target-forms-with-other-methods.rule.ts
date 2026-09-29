@@ -20,38 +20,41 @@ export default httpRule(
     'Two request targets have special meaning tied to specific methods: a bare host:port (the authority form) is only for CONNECT to name a tunnel destination, and a lone asterisk ("*") is only for OPTIONS to mean "the server as a whole". You must not use either form with any other method. These shapes are not normal paths, so pairing them with, say, a GET leaves the server unable to reliably determine which resource you meant, causing misrouting or rejection.',
   )
   .rule((ctx) =>
-    ctx.validateHttpTransactions(constant(true), (req, _res, location) => {
-      const method = req.method.toUpperCase();
-      const target = (req.target ?? req.path).trim();
+    ctx.validateHttpTransactions({
+      appliesTo: constant(true),
+      violatedWhen: (req, _res, location) => {
+        const method = req.method.toUpperCase();
+        const target = (req.target ?? req.path).trim();
 
-      // Asterisk-form: a request-target of exactly "*" is reserved for OPTIONS.
-      if (target === '*' && method !== 'OPTIONS') {
-        return [
-          {
-            location,
-            violation: {
-              message: `The asterisk-form request target ("*") was used with method ${req.method}.`,
+        // Asterisk-form: a request-target of exactly "*" is reserved for OPTIONS.
+        if (target === '*' && method !== 'OPTIONS') {
+          return [
+            {
+              location,
+              violation: {
+                message: `The asterisk-form request target ("*") was used with method ${req.method}.`,
+              },
+              findings: [],
             },
-            findings: [],
-          },
-        ];
-      }
+          ];
+        }
 
-      // Authority-form (host:port without path, query or scheme) is reserved
-      // for CONNECT.
-      if (/^[^/?#]+:\d+$/.test(target) && method !== 'CONNECT') {
-        return [
-          {
-            location,
-            violation: {
-              message: `The authority-form request target ("${target}") was used with method ${req.method}.`,
+        // Authority-form (host:port without path, query or scheme) is reserved
+        // for CONNECT.
+        if (/^[^/?#]+:\d+$/.test(target) && method !== 'CONNECT') {
+          return [
+            {
+              location,
+              violation: {
+                message: `The authority-form request target ("${target}") was used with method ${req.method}.`,
+              },
+              findings: [],
             },
-            findings: [],
-          },
-        ];
-      }
+          ];
+        }
 
-      return [];
+        return [];
+      },
     }),
   )
   .done();

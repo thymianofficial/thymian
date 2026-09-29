@@ -1,12 +1,8 @@
 import {
-  and,
   type CommonHttpRequest,
   type CommonHttpResponse,
   method,
   not,
-  or,
-  responseHeader,
-  statusCode,
 } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
@@ -37,12 +33,13 @@ export default httpRule(
   )
   .appliesTo('server')
   .rule((ctx) =>
-    ctx.validateCommonHttpTransactions(
-      and(
-        not(method('GET')),
-        or(statusCode(206), responseHeader('content-range')),
-      ),
-      (req: CommonHttpRequest, res: CommonHttpResponse, location) => {
+    ctx.validateCommonHttpTransactions({
+      appliesTo: not(method('GET')),
+      violatedWhen: (
+        req: CommonHttpRequest,
+        res: CommonHttpResponse,
+        location,
+      ) => {
         const partialEvidence: string[] = [];
 
         if (res.statusCode === 206) {
@@ -69,6 +66,6 @@ export default httpRule(
           },
         ];
       },
-    ),
+    }),
   )
   .done();
