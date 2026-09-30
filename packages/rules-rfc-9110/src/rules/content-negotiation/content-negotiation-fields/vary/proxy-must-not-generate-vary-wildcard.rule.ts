@@ -1,8 +1,4 @@
-import {
-  getHeader,
-  responseHeader,
-  type RuleViolationLocation,
-} from '@thymian/core';
+import { constant, getHeader, type RuleViolationLocation } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
 // eslint-disable-next-line thymian-internal/require-rule-tags -- no concern-tag member fits this rule's topic
@@ -19,9 +15,9 @@ export default httpRule('rfc9110/proxy-must-not-generate-vary-wildcard')
   )
   .appliesTo('proxy')
   .rule((ctx) =>
-    ctx.validateHttpTransactions(
-      responseHeader('vary'),
-      (_req, res, location: RuleViolationLocation) => {
+    ctx.validateHttpTransactions({
+      appliesTo: constant(true),
+      violatedWhen: (_req, res, location: RuleViolationLocation) => {
         const varyHeader = getHeader(res.headers, 'vary');
 
         if (!varyHeader) {
@@ -37,6 +33,6 @@ export default httpRule('rfc9110/proxy-must-not-generate-vary-wildcard')
           .includes('*');
         return isViolation ? [{ location, violation: {}, findings: [] }] : [];
       },
-    ),
+    }),
   )
   .done();

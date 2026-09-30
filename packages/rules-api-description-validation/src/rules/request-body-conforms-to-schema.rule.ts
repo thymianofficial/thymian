@@ -15,9 +15,9 @@ export default httpRule('thymian/request-body-must-conform-to-schema')
   .type('analytics')
   .description('Request body must conform to the API description schema.')
   .rule(async (ctx) => {
-    return ctx.validateHttpTransactions(
-      constant(true),
-      (
+    return ctx.validateHttpTransactions({
+      appliesTo: constant(true),
+      violatedWhen: (
         request: HttpRequest,
         _response: HttpResponse,
         location: RuleViolationLocation,
@@ -84,6 +84,6 @@ export default httpRule('thymian/request-body-must-conform-to-schema')
 
         return [{ location, findings: httpTestResultToRuleFindings(results) }];
       },
-    );
+    });
   })
   .done();

@@ -22,9 +22,9 @@ export default httpRule(
   )
   .appliesTo('server')
   .rule((ctx, opts, logger) =>
-    ctx.validateHttpTransactions(
-      or(protocol('http'), protocol('https')),
-      (req, res, location) => {
+    ctx.validateHttpTransactions({
+      appliesTo: or(protocol('http'), protocol('https')),
+      violatedWhen: (req, res, location) => {
         try {
           const url = new URL(req.target ?? req.path, req.origin);
 
@@ -37,6 +37,6 @@ export default httpRule(
           return [];
         }
       },
-    ),
+    }),
   )
   .done();

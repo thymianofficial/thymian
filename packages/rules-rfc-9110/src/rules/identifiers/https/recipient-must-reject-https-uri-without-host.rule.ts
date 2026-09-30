@@ -15,9 +15,9 @@ export default httpRule('rfc9110/recipient-must-reject-https-uri-without-host')
   )
   .appliesTo('server')
   .rule((ctx, opts, logger) =>
-    ctx.validateHttpTransactions(
-      protocol('https'),
-      (req, res, location: RuleViolationLocation) => {
+    ctx.validateHttpTransactions({
+      appliesTo: protocol('https'),
+      violatedWhen: (req, res, location: RuleViolationLocation) => {
         try {
           const hasEmptyHost =
             req.target !== undefined
@@ -31,6 +31,6 @@ export default httpRule('rfc9110/recipient-must-reject-https-uri-without-host')
           return [];
         }
       },
-    ),
+    }),
   )
   .done();

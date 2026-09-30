@@ -21,9 +21,9 @@ export default httpRule('thymian/response-headers-must-conform-to-schema')
   )
   .summary('Response headers must conform to the API description schema')
   .rule(async (ctx) => {
-    return ctx.validateHttpTransactions(
-      or(successfulStatusCode(), statusCodeRange(400, 499)),
-      (
+    return ctx.validateHttpTransactions({
+      appliesTo: or(successfulStatusCode(), statusCodeRange(400, 499)),
+      violatedWhen: (
         _request: HttpRequest,
         response: HttpResponse,
         location: RuleViolationLocation,
@@ -82,7 +82,7 @@ export default httpRule('thymian/response-headers-must-conform-to-schema')
 
         return [{ location, findings: httpTestResultToRuleFindings(results) }];
       },
-    );
+    });
   })
   .overrideTest((ctx) =>
     ctx.httpTest(
