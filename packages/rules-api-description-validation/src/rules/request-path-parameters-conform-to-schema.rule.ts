@@ -20,9 +20,9 @@ export default httpRule(
   )
   .summary('Request path parameters must conform to the API description schema')
   .rule(async (ctx) => {
-    return ctx.validateHttpTransactions(
-      constant(true),
-      (
+    return ctx.validateHttpTransactions({
+      appliesTo: constant(true),
+      violatedWhen: (
         request: HttpRequest,
         _response: HttpResponse,
         location: RuleViolationLocation,
@@ -83,6 +83,6 @@ export default httpRule(
 
         return [{ location, findings: httpTestResultToRuleFindings(results) }];
       },
-    );
+    });
   })
   .done();

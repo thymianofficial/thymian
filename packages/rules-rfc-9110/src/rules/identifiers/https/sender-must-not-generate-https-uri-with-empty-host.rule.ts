@@ -17,9 +17,9 @@ export default httpRule(
   )
   .appliesTo('client')
   .rule((ctx, opts, logger) =>
-    ctx.validateHttpTransactions(
-      protocol('https'),
-      (req, _res, location: RuleViolationLocation) => {
+    ctx.validateHttpTransactions({
+      appliesTo: protocol('https'),
+      violatedWhen: (req, _res, location: RuleViolationLocation) => {
         try {
           const isViolation =
             req.target !== undefined
@@ -31,6 +31,6 @@ export default httpRule(
           return [];
         }
       },
-    ),
+    }),
   )
   .done();

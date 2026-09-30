@@ -15,24 +15,27 @@ export default httpRule(
   )
   .appliesTo('server')
   .rule((ctx, opts, logger) =>
-    ctx.validateHttpTransactions(statusCode(414), (req, _res, location) => {
-      try {
-        const url = new URL(req.path, req.origin);
+    ctx.validateHttpTransactions({
+      appliesTo: statusCode(414),
+      violatedWhen: (req, _res, location) => {
+        try {
+          const url = new URL(req.path, req.origin);
 
-        if (new TextEncoder().encode(url.toString()).length <= 8000) {
-          return [
-            {
-              location,
-              violation: { message: 'URI length is less than 8000 octets' },
-              findings: [],
-            },
-          ];
+          if (new TextEncoder().encode(url.toString()).length <= 8000) {
+            return [
+              {
+                location,
+                violation: { message: 'URI length is less than 8000 octets' },
+                findings: [],
+              },
+            ];
+          }
+        } catch (e) {
+          logger.error('Cannot run rule because of invalid URL:', e);
         }
-      } catch (e) {
-        logger.error('Cannot run rule because of invalid URL:', e);
-      }
 
-      return [];
+        return [];
+      },
     }),
   )
   .done();
