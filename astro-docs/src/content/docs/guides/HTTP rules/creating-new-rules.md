@@ -74,21 +74,42 @@ export default httpRule('ensure-location-on-201').severity('error').type('static
 
 ### Step 3: Add Validation Logic
 
-Add the validation logic using the common interface:
+Add the validation logic using the common interface. Every validation call names two roles with separate keys:
 
 ```typescript
   .rule((ctx) =>
-    ctx.validateCommonHttpTransactions(
-      statusCode(201),
-      not(responseHeader('location'))
-    )
+    ctx.validateCommonHttpTransactions({
+      appliesTo: statusCode(201),
+      violatedWhen: not(responseHeader('location')),
+    })
   )
 ```
 
 This rule:
 
-1. Finds all transactions with status 201
-2. Reports violations when the `Location` header is missing
+1. Applies to all transactions with status 201 (`appliesTo`)
+2. Reports a violation when the `Location` header is missing (`violatedWhen`)
+
+### Applicability and Violation Condition
+
+- **`appliesTo`** is the rule's **Applicability**: which transactions the rule speaks about, such as "responses with status 201". It is required.
+- **`violatedWhen`** is the rule's **Violation Condition**: what is wrong with an applicable transaction, such as "no `Location` header". It is required too. It is either a filter expression (the rule is violated when it matches) or a function that returns results. It runs only on transactions that `appliesTo` accepts.
+
+A transaction outside the rule's applicability is never a violation. An object that leaves out either key does not compile.
+
+Both keys are evaluated against whatever the command observes:
+
+| Command   | `appliesTo` is checked against                                                                                       | `violatedWhen` is checked against |
+| --------- | -------------------------------------------------------------------------------------------------------------------- | --------------------------------- |
+| `lint`    | the API specification                                                                                                | the same described transaction    |
+| `analyze` | the recorded request and response                                                                                    | the same recorded pair            |
+| `test`    | the specification, to choose which requests to send, **and then again** against the response that actually came back | the response that came back       |
+
+In `test`, `appliesTo` therefore acts twice. A rule for 405 responses sends requests to operations the specification describes as answering 405, but stays silent when the server answers 204.
+
+:::caution
+Put a fact that only live traffic carries in `violatedWhen`, not in `appliesTo`. A header such as `Content-Length` or `Content-Type` is never declared in an OpenAPI description, so a specification cannot answer `responseHeader('content-length')`. In `appliesTo` it would select nothing in `test`, and no request would be sent. Select the transactions by what the specification does know, such as status code and method, and state the live-only part in `violatedWhen`.
+:::
 
 ### Step 4: Complete the Rule
 
@@ -104,7 +125,7 @@ Here's a complete rule that enforces API versioning through custom headers:
 
 ```typescript
 import { httpRule } from '@thymian/core';
-import { not, requestHeader } from '@thymian/core';
+import { constant, not, requestHeader } from '@thymian/core';
 
 export default httpRule('require-api-version-header')
   .severity('error')
@@ -112,57 +133,74 @@ export default httpRule('require-api-version-header')
   .url('https://api-guidelines.mycompany.com/versioning')
   .description('All API requests must include X-API-Version header')
   .appliesTo('client')
-  .rule((ctx) => ctx.validateCommonHttpTransactions(not(requestHeader('x-api-version'))))
+  .rule((ctx) => ctx.validateCommonHttpTransactions({ appliesTo: constant(true), violatedWhen: not(requestHeader('x-api-version')) }))
   .done();
 ```
 
 ## Validation Patterns
 
-There are three main patterns for writing validation logic:
+There are three main patterns for writing the Violation Condition. `appliesTo` is an expression (a function in a lint-only rule, which works on the specification directly); what changes is the form of `violatedWhen`.
 
-### Pattern 1: Transaction + Violation Filters
+### Pattern 1: Expression Condition
 
-Use two filters—one to select transactions, another to find violations:
-
-```typescript
-.rule((ctx) =>
-  ctx.validateCommonHttpTransactions(
-    method('DELETE'),           // Select DELETE requests
-    not(statusCodeRange(200, 204))  // Flag if status not 200-204
-  )
-)
-```
-
-### Pattern 2: Single Violation Filter
-
-Use one filter when matching it is itself the violation:
+Use a filter expression when a simple match says what is wrong:
 
 ```typescript
 .rule((ctx) =>
-  ctx.validateCommonHttpTransactions(
-    and(method('GET'), statusCode(200), hasRequestBody()), // GET should not have request body
-  )
+  ctx.validateCommonHttpTransactions({
+    appliesTo: method('DELETE'),                   // Select DELETE requests
+    violatedWhen: not(statusCodeRange(200, 204)),  // Flag if status not 200-204
+  })
 )
 ```
 
-### Pattern 3: Custom Validation Function
+Every applicable transaction that matches `violatedWhen` produces one violation.
 
-Use a function for complex logic that requires examining the transaction details:
+### Pattern 2: Function Condition
+
+Use a function for conditions an expression can't express, such as parsing a header value, comparing dates or diffing two responses. The function runs only on transactions that `appliesTo` accepts and returns the violations it finds:
 
 ```typescript
 import { getHeader } from '@thymian/core';
 
-.
-rule((ctx) =>
-  ctx.validateHttpTransactions(
-    responseHeader('www-authenticate'),
-    (request, response) => {
+.rule((ctx) =>
+  ctx.validateHttpTransactions({
+    appliesTo: statusCode(401),
+    violatedWhen: (request, response, location) => {
       const authHeader = getHeader(response.headers, 'www-authenticate');
 
-      // Custom validation logic
-      return !isValidAuthHeader(authHeader);
-    }
-  )
+      // A live-only fact, checked on the response that actually came back
+      return typeof authHeader === 'undefined' || !isValidAuthHeader(authHeader)
+        ? [{ location, violation: { message: 'Invalid WWW-Authenticate header' }, findings: [] }]
+        : [];
+    },
+  })
+)
+```
+
+### Pattern 3: Grouped Transactions
+
+Use the grouped variant when a violation depends on several transactions together, such as the same URL answered to `GET` and `HEAD`. It takes the same `appliesTo` and `violatedWhen` keys, plus a `groupBy` expression. `violatedWhen` is a function that receives each group, and only applicable transactions reach it:
+
+```typescript
+.rule((ctx) =>
+  ctx.validateGroupedCommonHttpTransactions({
+    appliesTo: and(statusCode(200), or(method('GET'), method('HEAD'))),
+    groupBy: url(),
+    violatedWhen: (_group, transactions) => {
+      const head = transactions.find(([req]) => equalsIgnoreCase(req.method, 'head'));
+      const get = transactions.find(([req]) => equalsIgnoreCase(req.method, 'get'));
+
+      if (!head || !get) return [];
+
+      const [, headResponse, location] = head;
+      const [, getResponse] = get;
+
+      return headResponse.headers.length < getResponse.headers.length
+        ? [{ location, violation: { message: 'HEAD response is missing headers that GET carries' }, findings: [] }]
+        : [];
+    },
+  })
 )
 ```
 
@@ -214,7 +252,7 @@ export default httpRule('errors-use-problem-details')
   .type('static', 'analytics')
   .description('Error responses should use application/problem+json format')
   .appliesTo('server')
-  .rule((ctx) => ctx.validateCommonHttpTransactions(statusCodeRange(400, 599), not(responseMediaType('application/problem+json'))))
+  .rule((ctx) => ctx.validateCommonHttpTransactions({ appliesTo: statusCodeRange(400, 599), violatedWhen: not(responseMediaType('application/problem+json')) }))
   .done();
 ```
 
@@ -224,14 +262,14 @@ Ensure distributed tracing by requiring correlation IDs:
 
 ```typescript
 import { httpRule } from '@thymian/core';
-import { not, requestHeader } from '@thymian/core';
+import { constant, not, requestHeader } from '@thymian/core';
 
 export default httpRule('require-correlation-id')
   .severity('warn')
   .type('static', 'analytics')
   .description('Requests should include X-Correlation-ID for distributed tracing')
   .appliesTo('client')
-  .rule((ctx) => ctx.validateCommonHttpTransactions(not(requestHeader('x-correlation-id'))))
+  .rule((ctx) => ctx.validateCommonHttpTransactions({ appliesTo: constant(true), violatedWhen: not(requestHeader('x-correlation-id')) }))
   .done();
 ```
 
@@ -241,24 +279,24 @@ Ensure deprecated endpoints include proper sunset notices:
 
 ```typescript
 import { httpRule } from '@thymian/core';
-import { and, path, not, responseHeader } from '@thymian/core';
+import { path, not, responseHeader } from '@thymian/core';
 
 export default httpRule('deprecated-endpoints-require-sunset')
   .severity('error')
   .type('static', 'analytics')
   .description('Deprecated API endpoints must include Sunset header')
   .appliesTo('server')
-  .rule((ctx) => ctx.validateCommonHttpTransactions(and(path('/api/v1/*')), not(responseHeader('sunset'))))
+  .rule((ctx) => ctx.validateCommonHttpTransactions({ appliesTo: path('/api/v1/*'), violatedWhen: not(responseHeader('sunset')) }))
   .done();
 ```
 
 ## Advanced: Custom Validation Functions
 
-When filters aren't sufficient, use custom validation functions:
+When an expression isn't sufficient, make `violatedWhen` a function:
 
 ```typescript
 import { httpRule } from '@thymian/core';
-import { responseHeader, getHeader } from '@thymian/core';
+import { statusCode, getHeader } from '@thymian/core';
 
 export default httpRule('validate-cache-control-directives')
   .severity('warn')
@@ -266,14 +304,19 @@ export default httpRule('validate-cache-control-directives')
   .description('Cache-Control header must include valid directives')
   .appliesTo('server')
   .rule((ctx) =>
-    ctx.validateHttpTransactions(responseHeader('cache-control'), (request, response) => {
-      const cacheControl = getHeader(response.headers, 'cache-control');
+    ctx.validateHttpTransactions({
+      appliesTo: statusCode(200), // the specification can't declare Cache-Control, so it is checked below
+      violatedWhen: (request, response, location) => {
+        const cacheControl = getHeader(response.headers, 'cache-control');
 
-      // Custom parsing and validation
-      const directives = parseCacheControl(cacheControl);
+        if (typeof cacheControl === 'undefined') return [];
 
-      // Return true if violation detected
-      return !hasValidDirectives(directives);
+        // Custom parsing and validation
+        const directives = parseCacheControl(cacheControl);
+
+        // Return a result for every violation detected
+        return hasValidDirectives(directives) ? [] : [{ location, violation: { message: 'Invalid Cache-Control directives' }, findings: [] }];
+      },
     }),
   )
   .done();
