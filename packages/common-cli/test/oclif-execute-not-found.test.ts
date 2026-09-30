@@ -67,6 +67,8 @@ describe('oclif.execute (command_not_found suggestion path)', () => {
     return { exitCode, output: stripAnsi(chunks.join('')) };
   };
 
+  // The first execute() pays oclif's cold config load, which exceeds vitest's
+  // 5 s default on the Windows CI runner.
   it('renders clean help for the re-run command with no stack traces', async () => {
     const { output } = await runTyped(['gree']);
 
@@ -79,7 +81,7 @@ describe('oclif.execute (command_not_found suggestion path)', () => {
     expect(output).not.toMatch(/\bat validateArgs\b/);
     expect(output).not.toMatch(/at async Config\.runHook/);
     expect(output).not.toContain('gree not found');
-  });
+  }, 20_000);
 
   it('leaves process.argv unchanged after handling the error', async () => {
     await runTyped(['gree']);
