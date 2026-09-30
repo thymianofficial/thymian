@@ -63,20 +63,20 @@ export default httpRule(
   // Static context can only observe that the request carries Accept-Charset, so
   // it always surfaces the full hint (the MAY plus the deprecation note).
   .rule((ctx) =>
-    ctx.validateCommonHttpTransactions(
-      requestHeader('accept-charset'),
-      (_req, _res, location: RuleViolationLocation) => [
+    ctx.validateCommonHttpTransactions({
+      appliesTo: requestHeader('accept-charset'),
+      violatedWhen: (_req, _res, location: RuleViolationLocation) => [
         { location, violation: { message: fullHint }, findings: [] },
       ],
-    ),
+    }),
   )
   // Analytics has the actual header value. The deprecation note is always
   // surfaced while Accept-Charset is present; the "you may attach a quality
   // value" hint is added only when none of the charsets already carry one.
   .overrideAnalyticsRule((ctx) =>
-    ctx.validateHttpTransactions(
-      requestHeader('accept-charset'),
-      (req, _res, location: RuleViolationLocation) => {
+    ctx.validateHttpTransactions({
+      appliesTo: requestHeader('accept-charset'),
+      violatedWhen: (req, _res, location: RuleViolationLocation) => {
         const acceptCharset = headerToString(
           getHeader(req.headers, 'accept-charset'),
         );
@@ -91,6 +91,6 @@ export default httpRule(
 
         return [{ location, violation: { message }, findings: [] }];
       },
-    ),
+    }),
   )
   .done();

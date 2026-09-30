@@ -149,9 +149,9 @@ export default httpRule('rfc9110/origin-server-should-generate-vary-header')
   // Static context sees only header names (no values), so it can only check
   // that a `Vary` header is present when a negotiation request header is.
   .overrideStaticRule((ctx) =>
-    ctx.validateCommonHttpTransactions(
-      negotiatedCacheableResponse,
-      (
+    ctx.validateCommonHttpTransactions({
+      appliesTo: negotiatedCacheableResponse,
+      violatedWhen: (
         req: CommonHttpRequest,
         res: CommonHttpResponse,
         location: RuleViolationLocation,
@@ -170,20 +170,20 @@ export default httpRule('rfc9110/origin-server-should-generate-vary-header')
           },
         ];
       },
-    ),
+    }),
   )
   // Test and analytics have the actual header values, so they additionally
   // check that the `Vary` value covers a negotiated dimension.
   .overrideTest((ctx) =>
-    ctx.validateHttpTransactions(
-      negotiatedCacheableResponse,
-      validateVaryValue,
-    ),
+    ctx.validateHttpTransactions({
+      appliesTo: negotiatedCacheableResponse,
+      violatedWhen: validateVaryValue,
+    }),
   )
   .overrideAnalyticsRule((ctx) =>
-    ctx.validateHttpTransactions(
-      negotiatedCacheableResponse,
-      validateVaryValue,
-    ),
+    ctx.validateHttpTransactions({
+      appliesTo: negotiatedCacheableResponse,
+      violatedWhen: validateVaryValue,
+    }),
   )
   .done();

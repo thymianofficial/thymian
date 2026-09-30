@@ -11,14 +11,14 @@ import responseHeadersRule from '../src/rules/response-headers-conform-to-schema
 // Minimal stand-in for AnalyzeContext — only the surface these guard branches touch.
 type MinimalAnalyzeCtx = {
   format: { getThymianHttpTransactionById: (id: string) => unknown };
-  validateHttpTransactions: (
-    filter: unknown,
-    fn: (
+  validateHttpTransactions: (options: {
+    appliesTo: unknown;
+    violatedWhen: (
       req: unknown,
       res: unknown,
       location: RuleViolationLocation,
-    ) => RuleFnResult[],
-  ) => RuleFnResult[];
+    ) => RuleFnResult[];
+  }) => RuleFnResult[];
 };
 
 function makeCtx(
@@ -32,7 +32,8 @@ function makeCtx(
     },
     // Invoke the validation function directly with the controlled location.
     // req/res are unused by both guard branches, so empty objects suffice.
-    validateHttpTransactions: (_filter, fn) => fn({}, {}, location),
+    validateHttpTransactions: ({ violatedWhen }) =>
+      violatedWhen({}, {}, location),
   };
 }
 

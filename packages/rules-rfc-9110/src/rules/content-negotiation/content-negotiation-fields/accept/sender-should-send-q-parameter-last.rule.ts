@@ -27,9 +27,9 @@ export default httpRule('rfc9110/sender-should-send-q-parameter-last')
     "When an Accept value uses a q weight to express preference, the sender should put q last, after all of the media range's own parameters such as charset. Everything before q describes the media type; q itself marks the relative weight. Recipients treat any parameter named q as the weight no matter where it appears, so placing it last keeps the real media-range parameters and the weight clearly separated and unambiguous. For the same reason, a media type is not allowed to define its own parameter named q, since it would collide with the weight.",
   )
   .rule((ctx) =>
-    ctx.validateHttpTransactions(
-      requestHeader('accept'),
-      (req, _res, location: RuleViolationLocation) => {
+    ctx.validateHttpTransactions({
+      appliesTo: requestHeader('accept'),
+      violatedWhen: (req, _res, location: RuleViolationLocation) => {
         const accept = getHeader(req.headers, 'accept');
 
         if (!accept) {
@@ -87,6 +87,6 @@ export default httpRule('rfc9110/sender-should-send-q-parameter-last')
 
         return [];
       },
-    ),
+    }),
   )
   .done();
