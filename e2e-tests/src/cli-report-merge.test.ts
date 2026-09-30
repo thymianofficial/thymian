@@ -1,4 +1,10 @@
-import { copyFileSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
+import {
+  copyFileSync,
+  existsSync,
+  readdirSync,
+  readFileSync,
+  writeFileSync,
+} from 'node:fs';
 import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
@@ -23,6 +29,37 @@ const normalize = (value: string) =>
 
 describe('thymian report merge', () => {
   const getTempDir = useTempDir();
+
+  /**
+   * Resolve the run directory a command produced beneath `base`.
+   *
+   * Every report lands in its own directory named after that report, so a step
+   * addresses its output by the base directory it was handed rather than by a
+   * file name it chose — pinning an exact output file name is deliberately no
+   * longer possible. Exactly one command run writes into each base here, so
+   * exactly one run directory must be there to find.
+   */
+  const runDirectory = (base: string): string => {
+    const baseDir = join(getTempDir(), base);
+    const entries = readdirSync(baseDir);
+    expect(entries).toHaveLength(1);
+
+    return join(baseDir, entries[0]!);
+  };
+
+  /** Path of one format's file inside the single run directory under `base`. */
+  const reportPath = (base: string, extension: string): string =>
+    join(runDirectory(base), `report.${extension}`);
+
+  /**
+   * Run directories present under `base`. Reading it (rather than probing for
+   * a fixed file name) is what keeps a "nothing was written" assertion honest:
+   * the base itself is created up front by the reportsDir precondition, so it
+   * exists even on a run that wrote nothing, and an empty listing is a real
+   * observation rather than a missing path.
+   */
+  const runDirectoriesUnder = (base: string): string[] =>
+    readdirSync(join(getTempDir(), base));
 
   it('should merge a thymian report with a converted spectral report into one rendered report and exit 1 (AC 1)', () => {
     copyFixturesToTempDir(join(fixturesDir, 'report-merge'), getTempDir());
@@ -62,12 +99,13 @@ describe('thymian report merge', () => {
         '--spec',
         'openapi:test.openapi.yaml',
         '-o',
-        '@thymian/plugin-reporter.formatters.json.path=converted.json',
+        '@thymian/plugin-reporter.reportsDir=converted',
       ],
       { cwd: getTempDir() },
     );
     expect(convert.exitCode).toBe(1); // findings, not an error
-    expect(existsSync(join(getTempDir(), 'converted.json'))).toBe(true);
+    const convertedReport = reportPath('converted', 'json');
+    expect(existsSync(convertedReport)).toBe(true);
 
     // Step 2: merge the persisted report WITHOUT --spec — and the fixture
     // config deliberately carries no `specifications` entry (merge still
@@ -79,11 +117,11 @@ describe('thymian report merge', () => {
         'report',
         'merge',
         '--report',
-        'thymian:converted.json',
+        `thymian:${convertedReport}`,
         '--report',
         'thymian:thymian-two-reports.json',
         '-o',
-        '@thymian/plugin-reporter.formatters.markdown.path=merged.md',
+        '@thymian/plugin-reporter.reportsDir=merged',
       ],
       { cwd: getTempDir() },
     );
@@ -92,7 +130,7 @@ describe('thymian report merge', () => {
     // Endpoint-resolved location from the persisted format map (the same
     // assertion report-convert e2e uses to prove spec mapping worked).
     expect(stdout).toContain('200 OK - */*');
-    const markdown = readFileSync(join(getTempDir(), 'merged.md'), 'utf-8');
+    const markdown = readFileSync(reportPath('merged', 'md'), 'utf-8');
     expect(markdown).toContain('200 OK - */*');
     expect(markdown).toContain('fixture-linter-b1');
     expect(markdown).toContain('fixture-linter-b2');
@@ -112,7 +150,7 @@ describe('thymian report merge', () => {
         '--spec',
         'openapi:test.openapi.yaml',
         '-o',
-        '@thymian/plugin-reporter.formatters.json.path=c1.json',
+        '@thymian/plugin-reporter.reportsDir=c1',
       ],
       { cwd: getTempDir() },
     );
@@ -125,7 +163,7 @@ describe('thymian report merge', () => {
         '--spec',
         'openapi:test2.openapi.yaml',
         '-o',
-        '@thymian/plugin-reporter.formatters.json.path=c2.json',
+        '@thymian/plugin-reporter.reportsDir=c2',
       ],
       { cwd: getTempDir() },
     );
@@ -135,20 +173,18 @@ describe('thymian report merge', () => {
         'report',
         'merge',
         '--report',
-        'thymian:c1.json',
+        `thymian:${reportPath('c1', 'json')}`,
         '--report',
-        'thymian:c2.json',
+        `thymian:${reportPath('c2', 'json')}`,
         '-o',
-        '@thymian/plugin-reporter.formatters.markdown.path=two-hashes.md',
-        '-o',
-        '@thymian/plugin-reporter.formatters.json.path=two-hashes.json',
+        '@thymian/plugin-reporter.reportsDir=two-hashes',
       ],
       { cwd: getTempDir() },
     );
 
     expect(exitCode).toBe(1);
     const merged = JSON.parse(
-      readFileSync(join(getTempDir(), 'two-hashes.json'), 'utf-8'),
+      readFileSync(reportPath('two-hashes', 'json'), 'utf-8'),
     ) as {
       runs: { thymianFormatVersion?: string }[];
       thymianFormat?: Record<string, unknown>;
@@ -165,7 +201,7 @@ describe('thymian report merge', () => {
     // 2's findings keep file locations because their `source`
     // (test.openapi.yaml) matches no node loaded from test2.openapi.yaml —
     // and no location may degrade to the raw `format:<hash>` fallback text.
-    const markdown = readFileSync(join(getTempDir(), 'two-hashes.md'), 'utf-8');
+    const markdown = readFileSync(reportPath('two-hashes', 'md'), 'utf-8');
     expect(markdown).toContain('200 OK - */*');
     expect(markdown).not.toContain('format:');
   }, 90_000);
@@ -262,7 +298,7 @@ describe('thymian report merge', () => {
     // written report's structure, not on rendered-text occurrence counts.
     expect(stdout).toContain('fixture-linter-a');
     const written = JSON.parse(
-      readFileSync(join(getTempDir(), '.thymian/reports/report.json'), 'utf-8'),
+      readFileSync(reportPath('.thymian/reports', 'json'), 'utf-8'),
     ) as { runs: unknown[] }[];
     expect(written[0]?.runs).toHaveLength(1);
   }, 90_000);
@@ -305,7 +341,7 @@ describe('thymian report merge', () => {
 
     expect(exitCode).toBe(1);
     const written = JSON.parse(
-      readFileSync(join(getTempDir(), '.thymian/reports/report.json'), 'utf-8'),
+      readFileSync(reportPath('.thymian/reports', 'json'), 'utf-8'),
     ) as { runs: { runId: string }[] }[];
     expect(written[0]?.runs).toHaveLength(1);
   }, 90_000);
@@ -333,13 +369,10 @@ describe('thymian report merge', () => {
 
     expect(exitCode).toBe(2);
     expect(stderr).toContain('thymian:broken.json');
-    // The workflow failed before finalize — formatters must not have run.
-    expect(existsSync(join(getTempDir(), '.thymian/reports/report.md'))).toBe(
-      false,
-    );
-    expect(existsSync(join(getTempDir(), '.thymian/reports/report.json'))).toBe(
-      false,
-    );
+    // The workflow failed before finalize — formatters must not have run. The
+    // base directory itself is created up front as a precondition, so what must
+    // be absent is any run directory beneath it.
+    expect(runDirectoriesUnder('.thymian/reports')).toEqual([]);
   }, 90_000);
 
   it('should exit 2 for a valid thymian report that fails schema validation (AC 2)', () => {
@@ -384,18 +417,10 @@ describe('thymian report merge', () => {
     // The config enables the markdown+json+csv formatters, but an unclaimed
     // input withholds the report emission — a truncated merge (only the
     // claimed input's runs) must never be persisted alongside the exit 2.
-    expect(existsSync(join(getTempDir(), '.thymian/reports/report.md'))).toBe(
-      false,
-    );
-    expect(existsSync(join(getTempDir(), '.thymian/reports/report.json'))).toBe(
-      false,
-    );
-    expect(existsSync(join(getTempDir(), '.thymian/reports/report.csv'))).toBe(
-      false,
-    );
+    expect(runDirectoriesUnder('.thymian/reports')).toEqual([]);
   }, 90_000);
 
-  it('should honor an --option formatter path override (AC 5)', () => {
+  it('should honor an --option reportsDir override (AC 5)', () => {
     copyFixturesToTempDir(join(fixturesDir, 'report-merge'), getTempDir());
 
     execThymianResult(
@@ -405,15 +430,13 @@ describe('thymian report merge', () => {
         '--report',
         'thymian:thymian-report.json',
         '-o',
-        '@thymian/plugin-reporter.formatters.markdown.path=out/custom-merged.md',
+        '@thymian/plugin-reporter.reportsDir=out/custom',
       ],
       { cwd: getTempDir() },
     );
 
-    const markdown = readFileSync(
-      join(getTempDir(), 'out/custom-merged.md'),
-      'utf-8',
-    );
+    // The base moves; the file name inside the run directory stays stable.
+    const markdown = readFileSync(reportPath('out/custom', 'md'), 'utf-8');
     expect(markdown).toContain('# Thymian Report');
     expect(markdown).toContain('fixture-linter-a');
   }, 90_000);

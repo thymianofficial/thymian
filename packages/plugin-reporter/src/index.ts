@@ -15,6 +15,16 @@ export type ReporterPluginOptions = {
    * `--sort-reports-by` CLI flag; only the markdown formatter honours it.
    */
   sortReportsBy?: SortReportsBy;
+  /**
+   * Base directory every report's own run directory is created under. A
+   * relative path resolves against the run's `cwd`, an absolute one is used
+   * as-is. Defaults to `.thymian/reports`.
+   *
+   * `null` means unset, exactly like omitting the option: an optional property
+   * in an Ajv `JSONSchemaType` must be declared `nullable: true`, and a YAML
+   * `reportsDir:` with no value parses to `null` rather than to a string.
+   */
+  reportsDir?: string | null;
 };
 
 export const reporterPlugin: ThymianPlugin<ReporterPluginOptions> = {
@@ -32,27 +42,12 @@ export const reporterPlugin: ThymianPlugin<ReporterPluginOptions> = {
             description: 'Configuration for the Markdown formatter',
             nullable: true,
             type: 'object',
-            properties: {
-              path: {
-                description:
-                  'File path where the markdown report will be saved',
-                type: 'string',
-                nullable: true,
-              },
-            },
             additionalProperties: false,
           },
           csv: {
             description: 'Configuration for the CSV formatter',
             nullable: true,
             type: 'object',
-            properties: {
-              path: {
-                description: 'File path where the CSV report will be saved',
-                type: 'string',
-                nullable: true,
-              },
-            },
             additionalProperties: false,
           },
           json: {
@@ -60,13 +55,6 @@ export const reporterPlugin: ThymianPlugin<ReporterPluginOptions> = {
               'Configuration for the JSON formatter, which writes the canonical report payload for machine consumption',
             nullable: true,
             type: 'object',
-            properties: {
-              path: {
-                description: 'File path where the JSON report will be saved',
-                type: 'string',
-                nullable: true,
-              },
-            },
             additionalProperties: false,
           },
         },
@@ -78,6 +66,19 @@ export const reporterPlugin: ThymianPlugin<ReporterPluginOptions> = {
         nullable: true,
         type: 'string',
         enum: [...SORT_REPORTS_BY_VALUES],
+      },
+      reportsDir: {
+        description:
+          'Base directory report output is written under. A relative path resolves against the run working directory, an absolute one is used as-is. Defaults to .thymian/reports. Every report gets its own directory beneath it, named <createdAt>-<reportId prefix>, holding one report.<ext> per configured formatter — so consecutive runs never overwrite each other and every format of one run stays together. CI should glob <reportsDir>/*/report.<ext>.',
+        nullable: true,
+        type: 'string',
+        // A blank base would resolve to the run working directory itself and
+        // scatter timestamped run directories through the user's project, so
+        // it is rejected here rather than silently defaulted. `pattern` covers
+        // the whitespace-only case `minLength` lets through, which the
+        // resolver would otherwise trim to unset and send to the default base.
+        minLength: 1,
+        pattern: '\\S',
       },
     },
   },
@@ -91,7 +92,7 @@ export const reporterPlugin: ThymianPlugin<ReporterPluginOptions> = {
   async plugin(
     emitter,
     logger,
-    { formatters: userFormatters, cwd, sortReportsBy },
+    { formatters: userFormatters, cwd, sortReportsBy, reportsDir },
   ) {
     // Claim native `thymian:` report inputs on core.report.convert
     // (ADR-0017 amendment) — the read/validate logic lives in
@@ -106,21 +107,30 @@ export const reporterPlugin: ThymianPlugin<ReporterPluginOptions> = {
       }).filter(([, options]) => options != null),
     ) as Formatters;
 
-    let hasFlushed = false;
+    // `null` is what a YAML `reportsDir:` with no value parses to, and the
+    // schema has to admit it (an optional property must be `nullable: true`).
+    // It means "unset" — normalized once, here, so nothing downstream has to
+    // know that the option can arrive as anything but a string.
+    const reportsBase = reportsDir ?? undefined;
+
+    // The one flush of this session. Kept as a promise, not a flag: a second
+    // `core.close` (in `serve`, SIGINT and `core.exit` can both close) must
+    // wait for the flush already running, not return before it lands.
+    let flushing: Promise<void> | undefined;
+
+    // One plugin instance serves the whole session, so `serve` keeps a single
+    // set of formatters for every workflow it runs. Each formatter resolves a
+    // destination per `core.report`, so one session still yields one run
+    // directory per report rather than one aggregate named after the first.
     const reporters = await getFormatters(
       formatters,
       cwd,
       logger,
       sortReportsBy,
+      reportsBase,
     );
 
-    const flushReporters = async (): Promise<void> => {
-      if (hasFlushed) {
-        return;
-      }
-
-      hasFlushed = true;
-
+    const flushAll = async (): Promise<void> => {
       // allSettled, not all: one formatter's failure (e.g. an unwritable
       // --csv path) must not cut the sibling flushes short — their writes
       // would otherwise race process exit (#362 review). The first failure
@@ -148,13 +158,31 @@ export const reporterPlugin: ThymianPlugin<ReporterPluginOptions> = {
       }
     };
 
+    const flushReporters = async (): Promise<void> => {
+      if (flushing !== undefined) {
+        // Only the first close reports a failure; a later one just waits.
+        await flushing.catch(() => undefined);
+
+        return;
+      }
+
+      flushing = flushAll();
+      await flushing;
+    };
+
     emitter.on('core.report', async (report: Report) => {
       await Promise.all(reporters.map(async (r) => r.report(report)));
     });
 
     emitter.onAction('core.close', async (_event, ctx) => {
-      await flushReporters();
-      ctx.reply();
+      try {
+        await flushReporters();
+      } finally {
+        // The action must be answered even when a formatter cannot write its
+        // file, otherwise `core.close` waits on a reply that never comes. The
+        // failure still propagates to the emitter's error channel.
+        ctx.reply();
+      }
     });
   },
 };

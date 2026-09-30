@@ -1,4 +1,10 @@
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  readdirSync,
+  readFileSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
 import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
@@ -166,8 +172,30 @@ describe('thymian report convert', () => {
     );
     expect(exitCode).toBe(1);
 
-    const markdownPath = join(getTempDir(), '.thymian', 'reports', 'report.md');
-    const csvPath = join(getTempDir(), '.thymian', 'reports', 'report.csv');
+    // Default output lands in one directory per run, named after the report's
+    // timestamp and id, with a stable basename per format inside it.
+    const reportsDir = join(getTempDir(), '.thymian', 'reports');
+
+    // Assert the directory first: `readdirSync` on a missing path throws a raw
+    // ENOENT that hides *what* the test was checking.
+    expect(existsSync(reportsDir)).toBe(true);
+
+    const runDirectories = readdirSync(reportsDir);
+
+    // Exactly one entry: a stray second run directory is a bug, not noise.
+    expect(runDirectories).toHaveLength(1);
+
+    const [runDirectory = ''] = runDirectories;
+
+    // `<stamp>-<id>`: both parts non-empty, so a degenerate name such as `-`
+    // fails instead of passing a bare shape check.
+    expect(runDirectory).toMatch(/^.+-[A-Za-z0-9]+$/);
+    expect(statSync(join(reportsDir, runDirectory)).isDirectory()).toBe(true);
+
+    // Both formatters saw the same report, so both files sit in that one run
+    // directory.
+    const markdownPath = join(reportsDir, runDirectory, 'report.md');
+    const csvPath = join(reportsDir, runDirectory, 'report.csv');
 
     expect(existsSync(markdownPath)).toBe(true);
     expect(existsSync(csvPath)).toBe(true);
@@ -175,7 +203,7 @@ describe('thymian report convert', () => {
     expect(readFileSync(csvPath, 'utf-8')).toContain('spectral/');
   }, 90_000);
 
-  it('should honor an --option formatter path override', () => {
+  it('should honor an --option reportsDir override', () => {
     copyFixturesToTempDir(join(fixturesDir, 'report-convert'), getTempDir());
 
     const { exitCode } = execThymianResult(
@@ -183,15 +211,29 @@ describe('thymian report convert', () => {
         'report',
         'convert',
         '--option',
-        '@thymian/plugin-reporter.formatters.markdown.path=out.md',
+        '@thymian/plugin-reporter.reportsDir=out',
       ],
       { cwd: getTempDir() },
     );
     expect(exitCode).toBe(1);
 
-    const outPath = join(getTempDir(), 'out.md');
-    expect(existsSync(outPath)).toBe(true);
-    expect(readFileSync(outPath, 'utf-8')).toContain('spectral/');
+    // The base moves, the layout does not: still one run directory per report,
+    // still stable `report.<ext>` basenames inside it.
+    const reportsDir = join(getTempDir(), 'out');
+    expect(existsSync(reportsDir)).toBe(true);
+
+    const runDirectories = readdirSync(reportsDir);
+    expect(runDirectories).toHaveLength(1);
+
+    const [runDirectory = ''] = runDirectories;
+    expect(statSync(join(reportsDir, runDirectory)).isDirectory()).toBe(true);
+
+    const markdownPath = join(reportsDir, runDirectory, 'report.md');
+    expect(existsSync(markdownPath)).toBe(true);
+    expect(readFileSync(markdownPath, 'utf-8')).toContain('spectral/');
+
+    // The custom base takes over completely — nothing lands in the default one.
+    expect(existsSync(join(getTempDir(), '.thymian', 'reports'))).toBe(false);
   }, 90_000);
 
   it('should exit 2 for a missing report file, naming the offending input', () => {

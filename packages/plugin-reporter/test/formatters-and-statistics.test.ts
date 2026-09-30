@@ -155,8 +155,8 @@ describe('CSV flattening', () => {
 describe('MarkdownFormatter rendering', () => {
   it('renders the human layout for lint status rows and test step findings', async () => {
     const formatter = new MarkdownFormatter(new NoopLogger());
-    formatter.init({ path: join(process.cwd(), 'tmp', 'formatters.md') });
-    formatter.report(report);
+    formatter.init({ cwd: join(process.cwd(), 'tmp', 'formatters') });
+    await formatter.report(report);
 
     const output = (await formatter.flush()) ?? '';
 

@@ -14,6 +14,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { JsonFormatter } from '../src/formatters/json.js';
 import { reporterPlugin } from '../src/index.js';
+import { defaultRunDirectoryName } from '../src/report-file-name.js';
 
 function sampleReport(options?: {
   toolName?: string;
@@ -258,14 +259,25 @@ describe('thymian-report-input', () => {
 
   it('round-trips a report written by this package: JSON formatter out, thymian: claim back in', async () => {
     const source = sampleReport({ toolName: 'round-trip-tool', runCount: 2 });
-    const reportPath = join(tmpDir, 'round-trip.json');
+    const cwd = join(tmpDir, 'round-trip');
 
     // Write side: persist through the real JSON formatter — the exact
     // payload the loader is contracted to read back.
     const formatter = new JsonFormatter(new NoopLogger());
-    formatter.init({ path: reportPath });
-    formatter.report(source);
+    formatter.init({ cwd });
+    await formatter.report(source);
     await formatter.flush();
+
+    // The formatter derives its own destination — one run directory per report
+    // — so the location to claim back is derived the same way rather than
+    // pinned to a file name the caller chose.
+    const reportPath = join(
+      cwd,
+      '.thymian',
+      'reports',
+      defaultRunDirectoryName(source),
+      'report.json',
+    );
 
     // Read side: claim the persisted file via core.report.convert.
     const thymian = new Thymian().register(reporterPlugin, { formatters: {} });

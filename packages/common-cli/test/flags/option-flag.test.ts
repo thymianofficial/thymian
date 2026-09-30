@@ -341,12 +341,12 @@ describe('option-flag', () => {
 
     it('should preserve existing sibling properties', () => {
       const obj: Record<string, unknown> = {
-        formatters: { markdown: { path: 'old.txt' } },
+        formatters: { markdown: { verbose: true } },
       };
       deepSet(obj, ['formatters', 'markdown', 'summaryOnly'], true);
 
       expect(obj).toEqual({
-        formatters: { markdown: { path: 'old.txt', summaryOnly: true } },
+        formatters: { markdown: { verbose: true, summaryOnly: true } },
       });
     });
 
@@ -445,7 +445,7 @@ describe('option-flag', () => {
     it('should combine parse + deepSet to build plugin options from multiple flags', () => {
       const flags = [
         '@thymian/plugin-reporter.formatters.markdown.summaryOnly=true',
-        '@thymian/plugin-reporter.formatters.markdown.path=report.md',
+        '@thymian/plugin-reporter.reportsDir=build/reports',
         '@thymian/plugin-websocket-proxy.port=9090',
       ];
 
@@ -462,9 +462,9 @@ describe('option-flag', () => {
           formatters: {
             markdown: {
               summaryOnly: true,
-              path: 'report.md',
             },
           },
+          reportsDir: 'build/reports',
         },
         '@thymian/plugin-websocket-proxy': {
           port: 9090,
