@@ -19,4 +19,12 @@ describe('concern tags', () => {
       }
     }
   }, 30_000);
+
+  it('tags every rule security:transport', async () => {
+    const rules = await loadRules('@thymian/rules-rfc-6797');
+
+    for (const rule of rules) {
+      expect(rule.meta.tags, rule.meta.name).toContain('security:transport');
+    }
+  }, 30_000);
 });
