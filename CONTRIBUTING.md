@@ -59,7 +59,7 @@ Refer to this list when contributing to ensure consistent commit messages.
 | `scope:cli`    | `scope:core`, `scope:cli`, `scope:plugin`, `scope:rules` | CLI packages (the `thymian` app aggregates plugins and rule sets)                                                   |
 | `scope:core`   | `scope:core`                                             | Core framework (contracts, rule system, Thymian format)                                                             |
 | `scope:plugin` | `scope:core`, `scope:cli`, `scope:plugin`                | Plugins (note: plugins may **not** depend on `scope:rules` — rules reach plugins via the core loader, per ADR-0009) |
-| `scope:rules`  | constrained via `type`/`npm` dimensions                  | Rule set packages; depend only on `@thymian/core` in practice                                                       |
+| `scope:rules`  | constrained via `type`/`npm` dimensions                  | Rule set packages; depend only on `@thymian/core` at runtime (ADR-0009 §5)                                          |
 
 ### Dimension "type"
 

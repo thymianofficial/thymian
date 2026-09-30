@@ -20,8 +20,8 @@
 // section's keyword paragraphs, so the id is re-derivable from the counting
 // rule alone.
 //
-// The per-rule entries arrive with the rules; until then every unit renders
-// as not yet covered.
+// The per-rule entries arrive with the rules, grouped by the topic directory
+// the rule lives in; a unit no entry covers renders as not yet covered.
 
 import { defineCoverage } from '@thymian/core';
 
@@ -63,5 +63,11 @@ export default defineCoverage({
     hasKeywordBasis: true,
   },
   units,
-  rules: {},
+  rules: {
+    // §6 — the header field's syntax.
+    'rfc-6797/hsts-host-must-send-max-age-directive': {
+      covers: ['6.1.1/1'],
+      declared: { types: ['static', 'test', 'analytics'], severity: 'error' },
+    },
+  },
 });
