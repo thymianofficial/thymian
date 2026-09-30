@@ -32,15 +32,16 @@ httpRule('rule-name')
 
 ### Core Components
 
-| Component            | Purpose                 | Example                                                |
-| -------------------- | ----------------------- | ------------------------------------------------------ |
-| **Name**             | Unique identifier       | `'no-body-in-get-requests'`                            |
-| **Severity**         | Impact level            | `'error'`, `'warn'`, `'hint'`                          |
-| **Type**             | Validation contexts     | `'static'`, `'analytics'`, `'test'`, `'informational'` |
-| **Description**      | What the rule validates | `'GET requests should not include a body'`             |
-| **Applies To**       | Target participant      | `'client'`, `'server'`, `'proxy'`                      |
-| **Validation Logic** | How to check compliance | Filter expressions or custom functions                 |
-| **URL** (optional)   | Reference documentation | RFC section or internal docs                           |
+| Component               | Purpose                            | Example                                                  |
+| ----------------------- | ---------------------------------- | -------------------------------------------------------- |
+| **Name**                | Unique identifier                  | `'no-body-in-get-requests'`                              |
+| **Severity**            | Impact level                       | `'error'`, `'warn'`, `'hint'`                            |
+| **Type**                | Validation contexts                | `'static'`, `'analytics'`, `'test'`, `'informational'`   |
+| **Description**         | What the rule validates            | `'GET requests should not include a body'`               |
+| **Applies To**          | Target participant                 | `'client'`, `'server'`, `'proxy'`                        |
+| **Applicability**       | Which transactions it speaks about | `appliesTo`: a filter expression                         |
+| **Violation Condition** | What is wrong with them            | `violatedWhen`: a filter expression or a custom function |
+| **URL** (optional)      | Reference documentation            | RFC section or internal docs                             |
 
 ## The Three Validation Contexts
 
@@ -87,10 +88,10 @@ flowchart TB
 .
 type('static')
   .rule((ctx) =>
-    ctx.validateCommonHttpTransactions(
-      and(statusCode(200), path('/api/*/list')),
-      not(responseHeader('link'))
-    )
+    ctx.validateCommonHttpTransactions({
+      appliesTo: and(statusCode(200), path('/api/*/list')),
+      violatedWhen: not(responseHeader('link')),
+    })
   )
 ```
 
@@ -113,10 +114,10 @@ type('static')
 .
 type('test')
   .rule((ctx) =>
-    ctx.validateCommonHttpTransactions(
-      method('GET'),
-      statusCode(501) // Not Implemented
-    )
+    ctx.validateCommonHttpTransactions({
+      appliesTo: method('GET'),
+      violatedWhen: statusCode(501), // Not Implemented
+    })
   )
 ```
 
@@ -139,10 +140,10 @@ type('test')
 .
 type('analytics')
   .rule((ctx) =>
-    ctx.validateCommonHttpTransactions(
-      statusCode(401),
-      not(responseHeader('www-authenticate'))
-    )
+    ctx.validateCommonHttpTransactions({
+      appliesTo: statusCode(401),
+      violatedWhen: not(responseHeader('www-authenticate')),
+    })
   )
 ```
 
@@ -166,7 +167,7 @@ To simplify rule development, Thymian provides a **common interface** that works
 ```typescript
 httpRule('works-everywhere')
   .type('static', 'analytics', 'test') // Same rule, three contexts
-  .rule((ctx) => ctx.validateCommonHttpTransactions(statusCode(500), not(responseHeader('content-type'))))
+  .rule((ctx) => ctx.validateCommonHttpTransactions({ appliesTo: statusCode(500), violatedWhen: not(responseHeader('content-type')) }))
   .done();
 ```
 
@@ -229,7 +230,7 @@ httpRule('consistent-error-responses')
   .severity('error')
   .type('static', 'test') // Both design and implementation
   .description('Error responses must include problem details')
-  .rule((ctx) => ctx.validateCommonHttpTransactions(statusCodeRange(400, 599), not(responseMediaType('application/problem+json'))))
+  .rule((ctx) => ctx.validateCommonHttpTransactions({ appliesTo: statusCodeRange(400, 599), violatedWhen: not(responseMediaType('application/problem+json')) }))
   .done();
 ```
 

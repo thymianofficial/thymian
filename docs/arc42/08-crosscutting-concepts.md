@@ -224,13 +224,23 @@ ApiContext (base)
 - `format` — Access to the ThymianFormat graph
 - `report` — Emit structured reports
 - `reportViolation()` — Report a rule violation
-- `validateCommonHttpTransactions()` — Iterate transactions with a filter and validation function
+- `validateCommonHttpTransactions({ appliesTo, violatedWhen })` — Iterate the transactions a rule applies to and report those its violation condition finds. `validateGroupedCommonHttpTransactions` adds a `groupBy` expression and `validateHttpTransactions` takes the same two keys on the live contexts
 
 **Mode-specific capabilities:**
 
-- `LintContext`: `validateHttpTransactions()` with typed `ThymianHttpRequest`/`ThymianHttpResponse` parameters
+- `LintContext`: `validateHttpTransactions({ appliesTo, violatedWhen })` with typed `ThymianHttpRequest`/`ThymianHttpResponse` parameters
 - `TestContext`: `httpTest()` and `runHttpTest()` for pipeline-based live HTTP testing
 - `AnalyzeContext`: `validateCapturedHttpTransactions()` and `validateCapturedHttpTraces()` for querying captured traffic
+
+**Applicability and Violation Condition** ([ADR-0022](adr/0022-applicability-and-violation-condition.md)):
+every rule-context validation call names its two roles with required keys. `appliesTo` is the
+rule's Applicability, a filter expression saying which transactions it speaks about.
+`violatedWhen` is its Violation Condition, either a filter expression (a match is a violation) or
+a function returning results, and runs only on transactions `appliesTo` accepts. Both are evaluated
+against whatever the context observes: the specification in `Lint`, the recorded pair in `Analyze`,
+and in `Test` `appliesTo` is evaluated twice, against the specification to choose which requests to
+send and against the pair that came back. A fact only live traffic carries, such as
+`Content-Length`, belongs in `violatedWhen`.
 
 ### 8.4.4 Rule Runner Adapter
 

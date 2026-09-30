@@ -17,7 +17,7 @@ export default httpRule('hybrid-rule')
   .type('static', 'analytics', 'test') // All three contexts
   .description('401 responses must include WWW-Authenticate header')
   .appliesTo('server')
-  .rule((ctx) => ctx.validateCommonHttpTransactions(statusCode(401), not(responseHeader('www-authenticate'))))
+  .rule((ctx) => ctx.validateCommonHttpTransactions({ appliesTo: statusCode(401), violatedWhen: not(responseHeader('www-authenticate')) }))
   .done();
 ```
 
@@ -52,6 +52,8 @@ The HTTP linter automatically adapts your rule logic to each context:
 2. **In test mode** — Generates and executes HTTP tests
 3. **In analyze mode** — Queries database and validates transactions
 
+The two keys mean the same thing in every mode. `appliesTo` is the rule's **Applicability**: which transactions it speaks about. `violatedWhen` is its **Violation Condition**: what is wrong with them, checked only on transactions `appliesTo` accepts. In `test`, `appliesTo` is checked twice: against the specification to choose which requests to send, then against the response that came back. A response it rejects is never a violation. A fact only live traffic carries, such as a `Content-Length` header, belongs in `violatedWhen`.
+
 ## When to Use Hybrid Rules
 
 ### Use Case 1: Prevent API Drift
@@ -60,14 +62,14 @@ Validate that your implementation matches your specification:
 
 ```typescript
 import { httpRule } from '@thymian/core';
-import { not, requestHeader } from '@thymian/core';
+import { constant, not, requestHeader } from '@thymian/core';
 
 export default httpRule('require-api-version-header')
   .severity('error')
   .type('static', 'test') // Spec AND implementation
   .description('All API requests must include X-API-Version header')
   .appliesTo('client')
-  .rule((ctx) => ctx.validateCommonHttpTransactions(not(requestHeader('x-api-version'))))
+  .rule((ctx) => ctx.validateCommonHttpTransactions({ appliesTo: constant(true), violatedWhen: not(requestHeader('x-api-version')) }))
   .done();
 ```
 
@@ -90,7 +92,7 @@ export default httpRule('errors-use-problem-details')
   .type('test', 'analytics') // Testing AND production
   .description('Error responses should use application/problem+json')
   .appliesTo('server')
-  .rule((ctx) => ctx.validateCommonHttpTransactions(statusCodeRange(400, 599), not(responseMediaType('application/problem+json'))))
+  .rule((ctx) => ctx.validateCommonHttpTransactions({ appliesTo: statusCodeRange(400, 599), violatedWhen: not(responseMediaType('application/problem+json')) }))
   .done();
 ```
 
@@ -113,7 +115,7 @@ export default httpRule('complete-coverage')
   .type('static', 'test', 'analytics') // Everywhere
   .description('500 responses must include Content-Type header')
   .appliesTo('server')
-  .rule((ctx) => ctx.validateCommonHttpTransactions(statusCode(500), not(responseHeader('content-type'))))
+  .rule((ctx) => ctx.validateCommonHttpTransactions({ appliesTo: statusCode(500), violatedWhen: not(responseHeader('content-type')) }))
   .done();
 ```
 
@@ -137,7 +139,7 @@ export default httpRule('rule-with-overrides')
   .description('Rule with context-specific logic')
   .appliesTo('server')
   // Common logic (optional when overriding)
-  .rule((ctx) => ctx.validateCommonHttpTransactions(statusCode(401), not(responseHeader('www-authenticate'))))
+  .rule((ctx) => ctx.validateCommonHttpTransactions({ appliesTo: statusCode(401), violatedWhen: not(responseHeader('www-authenticate')) }))
   // Override for test context
   .overrideTest((ctx) => {
     // Custom test logic
@@ -167,7 +169,7 @@ export default httpRule('401-with-custom-test')
   .description('401 responses must include WWW-Authenticate header')
   .appliesTo('server')
   // Common logic for static and analytics
-  .rule((ctx) => ctx.validateCommonHttpTransactions(statusCode(401), not(responseHeader('www-authenticate'))))
+  .rule((ctx) => ctx.validateCommonHttpTransactions({ appliesTo: statusCode(401), violatedWhen: not(responseHeader('www-authenticate')) }))
   // Custom test logic
   .overrideTest((testContext) =>
     testContext.httpTest(
@@ -196,10 +198,10 @@ Perfect for validating design and production traffic without active testing:
 ```typescript
 .type('static', 'analytics')
 .rule((ctx) =>
-  ctx.validateCommonHttpTransactions(
-    and(method('DELETE'), statusCodeRange(200, 299)),
-    not(or(statusCode(200), statusCode(204)))
-  )
+  ctx.validateCommonHttpTransactions({
+    appliesTo: and(method('DELETE'), statusCodeRange(200, 299)),
+    violatedWhen: not(or(statusCode(200), statusCode(204))),
+  })
 )
 ```
 
@@ -216,10 +218,10 @@ Ideal for preventing drift between specification and implementation:
 ```typescript
 .type('static', 'test')
 .rule((ctx) =>
-  ctx.validateCommonHttpTransactions(
-    method('TRACE'),
-    hasRequestBody()
-  )
+  ctx.validateCommonHttpTransactions({
+    appliesTo: method('TRACE'),
+    violatedWhen: hasRequestBody(),
+  })
 )
 ```
 
@@ -236,10 +238,10 @@ Best for runtime validation without spec checking:
 ```typescript
 .type('test', 'analytics')
 .rule((ctx) =>
-  ctx.validateCommonHttpTransactions(
-    and(statusCode(200), requestHeader('if-none-match')),
-    not(responseHeader('etag'))
-  )
+  ctx.validateCommonHttpTransactions({
+    appliesTo: and(statusCode(200), requestHeader('if-none-match')),
+    violatedWhen: not(responseHeader('etag')),
+  })
 )
 ```
 
@@ -256,10 +258,10 @@ Maximum coverage across all stages:
 ```typescript
 .type('static', 'test', 'analytics')
 .rule((ctx) =>
-  ctx.validateCommonHttpTransactions(
-    statusCode(201),
-    not(responseHeader('location'))
-  )
+  ctx.validateCommonHttpTransactions({
+    appliesTo: statusCode(201),
+    violatedWhen: not(responseHeader('location')),
+  })
 )
 ```
 
@@ -274,7 +276,7 @@ Maximum coverage across all stages:
 For rules that compare multiple transactions, use grouped validation:
 
 ```typescript
-import { httpRule, type RuleViolation } from '@thymian/core';
+import { httpRule } from '@thymian/core';
 import { and, or, method, statusCode, url, equalsIgnoreCase } from '@thymian/core';
 
 export default httpRule('head-matches-get-headers')
@@ -283,33 +285,33 @@ export default httpRule('head-matches-get-headers')
   .description('HEAD and GET responses should have same headers')
   .appliesTo('server')
   .rule((ctx) =>
-    ctx.validateGroupedCommonHttpTransactions(
-      and(statusCode(200), or(method('GET'), method('HEAD'))),
-      url(), // Group by URL
-      (_, transactions) => {
+    ctx.validateGroupedCommonHttpTransactions({
+      appliesTo: and(statusCode(200), or(method('GET'), method('HEAD'))),
+      groupBy: url(), // Group by URL
+      violatedWhen: (_, transactions) => {
         const getTransaction = transactions.find(([req]) => equalsIgnoreCase(req.method, 'get'));
         const headTransaction = transactions.find(([req]) => equalsIgnoreCase(req.method, 'head'));
 
         if (!getTransaction || !headTransaction) {
-          return undefined;
+          return [];
         }
 
-        const getHeaders = getTransaction[1].headers;
-        const headHeaders = headTransaction[1].headers;
+        const [, getResponse] = getTransaction;
+        const [, headResponse, headLocation] = headTransaction;
 
-        if (arraysEqual(getHeaders, headHeaders)) {
-          return undefined;
+        if (arraysEqual(getResponse.headers, headResponse.headers)) {
+          return [];
         }
 
-        return {
-          location: {
-            elementId: headTransaction[1].id,
-            elementType: 'node',
+        return [
+          {
+            location: headLocation,
+            violation: { message: 'HEAD response headers differ from GET' },
+            findings: [],
           },
-          message: 'HEAD response headers differ from GET',
-        } satisfies RuleViolation;
+        ];
       },
-    ),
+    }),
   )
   .done();
 
@@ -317,6 +319,8 @@ function arraysEqual(a: string[], b: string[]): boolean {
   return a.length === b.length && a.every((val, idx) => val === b[idx]);
 }
 ```
+
+`appliesTo` picks the transactions that are grouped. Only those reach `violatedWhen`, which is called once per group.
 
 This pattern works across all contexts because:
 
@@ -333,7 +337,7 @@ Always start with the common interface:
 ```typescript
 // ✅ Good: Try common interface first
 .rule((ctx) =>
-  ctx.validateCommonHttpTransactions(filter, violation)
+  ctx.validateCommonHttpTransactions({ appliesTo, violatedWhen })
 )
 ```
 

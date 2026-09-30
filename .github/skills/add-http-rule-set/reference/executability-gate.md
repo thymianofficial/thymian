@@ -91,11 +91,19 @@ place a tier-1 reason may appear, and it appears as `.type('informational', reas
 
 ## What each context can see
 
-**The common interface is value-blind.** `validateCommonHttpTransactions` sees header,
-query, cookie and trailer **names**, and the body only as a boolean. Anything needing a
+**The common interface is value-blind.** `validateCommonHttpTransactions({ appliesTo,
+violatedWhen })` sees header, query, cookie and trailer **names**, and the body only as a
+boolean. Anything needing a
 **value**, a **second message**, or a **participant's identity** needs an override — in
 every context, not just the awkward ones. This is the single most useful trigger for
 choosing between `.rule()` and the overrides.
+
+**The two keys see different things in `test`.** `appliesTo` is asked of the specification
+(to choose what to send) and then of the response that came back; a header the specification
+cannot declare, such as `Content-Length` or `Content-Type` on a response, makes it select
+nothing. Such a fact belongs in `violatedWhen`, with `appliesTo` naming what the specification
+does know (status code, method). A rule that puts it in `appliesTo` declares `test` but can
+never be demonstrated in it.
 
 `.rule()` is not a synonym for the common interface. The context it hands you narrows as
 you declare more types, and `('analytics', 'test')` alone yields a `LiveApiContext` tier

@@ -106,10 +106,10 @@ const badgeMeta: Record<string, { classes: string; ringClass: string }> = {
   .<span class="rdp-code-fn">type</span>(<span class="rdp-code-string rdp-code-highlight">'static'</span>, <span class="rdp-code-string rdp-code-highlight">'test'</span>, <span class="rdp-code-string rdp-code-highlight">'analytics'</span>)
   .<span class="rdp-code-fn">description</span>(<span class="rdp-code-string">'Error responses must use problem+json'</span>)
   .<span class="rdp-code-fn">rule</span>(<span class="rdp-code-param">ctx</span> <span class="rdp-code-keyword">=&gt;</span>
-    ctx.<span class="rdp-code-fn">validateCommonHttpTransactions</span>(
-      <span class="rdp-code-fn">statusCodeRange</span>(<span class="rdp-code-number">400</span>, <span class="rdp-code-number">599</span>),
-      <span class="rdp-code-fn">not</span>(<span class="rdp-code-fn">responseMediaType</span>(<span class="rdp-code-string">'application/problem+json'</span>))
-    )
+    ctx.<span class="rdp-code-fn">validateCommonHttpTransactions</span>(&#123;
+      appliesTo: <span class="rdp-code-fn">statusCodeRange</span>(<span class="rdp-code-number">400</span>, <span class="rdp-code-number">599</span>),
+      violatedWhen: <span class="rdp-code-fn">not</span>(<span class="rdp-code-fn">responseMediaType</span>(<span class="rdp-code-string">'application/problem+json'</span>))
+    &#125;)
   )
   .<span class="rdp-code-fn">done</span>();</code></pre>
     <div class="rdp-rule-card-caption">
