@@ -10,7 +10,8 @@ export default defineConfig({
       // Use the globally-installed binary by default.  The global install
       // is performed by the global setup against Verdaccio, so it is
       // always fresh.  npx tends to serve a stale cached package when the
-      // version string (`0.0.1-e2e`) doesn't change between runs.
+      // version string (the committed `0.0.0-PLACEHOLDER`) doesn't change
+      // between runs.
       THYMIAN_E2E_MODE: 'global',
     },
   },

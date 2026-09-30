@@ -8,4 +8,6 @@ This library contains end-to-end tests for Thymian. The tests include:
 
 ## Running E2E tests
 
-Run `nx test e2e-tests` to execute the unit tests via [Vitest](https://vitest.dev/).
+Run `nx e2e e2e-tests` to execute the tests via [Vitest](https://vitest.dev/). It builds
+every published package first, publishes them to a local Verdaccio registry with their
+committed versions, and leaves the working tree untouched.

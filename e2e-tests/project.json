@@ -8,6 +8,7 @@
   "targets": {
     "e2e": {
       "executor": "@nx/vitest:test",
+      "dependsOn": [{ "projects": ["packages/*"], "target": "build" }],
       "options": {
         "configFile": "e2e-tests/vitest.config.ts",
         "watch": false

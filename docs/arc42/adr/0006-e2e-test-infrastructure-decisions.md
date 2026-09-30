@@ -18,6 +18,8 @@ Thymian's e2e test suite verifies the installed CLI tool against a local Verdacc
 
 5. **User config contamination** _(added 2026-09-23)_: npm env vars take precedence over `.npmrc`, so a process-wide `npm_config_registry` redirected every npm call the run forked, and the Verdaccio executor's writes to `~/.npmrc` and `~/.yarnrc` survived any run whose teardown killed it, leaving the developer's npm pointed at a dead registry.
 
+6. **Working tree contamination** _(added 2026-09-28)_: publishing went through `release.ts --local --version 0.0.1-e2e`, whose `nx release version` step rewrote the `version` and every internal `@thymian/*` dependency in all `packages/*/package.json`. Nothing reverted them, so every local run left 16 modified manifests that agents misread and commits swept in.
+
 ## Decision
 
 ### Isolate global installs via `npm_config_prefix`
@@ -41,7 +43,15 @@ We will point npm at Verdaccio with the `npm_config_registry` environment variab
 
 The registry URL reaches test files through `THYMIAN_E2E_REGISTRY`, set by the global setup alongside `THYMIAN_E2E_VERSION`, `THYMIAN_E2E_GLOBAL_BIN` and `THYMIAN_E2E_GLOBAL_PREFIX`, and deleted in teardown.
 
-The `@nx/js:verdaccio` executor behind `npm run local-registry` by default writes the registry and an auth token into the developer's `~/.npmrc` and `~/.yarnrc`, restoring them only on a graceful exit that a killed run never reaches. The global setup therefore starts it with `--location none`, which turns those writes off, and gives the local-publish call (npm will not publish without a token, even to an open registry) a throwaway npmrc in the OS temp directory via `npm_config_userconfig`. The developer's user config is never written.
+The `@nx/js:verdaccio` executor behind `npm run local-registry` by default writes the registry and an auth token into the developer's `~/.npmrc` and `~/.yarnrc`, restoring them only on a graceful exit that a killed run never reaches. The global setup therefore starts it with `--location none`, which turns those writes off, and gives the publish call (npm will not publish without a token, even to an open registry) a throwaway npmrc in the OS temp directory via `npm_config_userconfig`. The developer's user config is never written.
+
+### Publish the committed manifests, never stamp a version
+
+_Added 2026-09-28._
+
+We will publish to Verdaccio with `nx release publish`, which publishes each package at the version on disk, instead of going through `release.ts`, whose version step writes to tracked files. The committed `0.0.0-PLACEHOLDER` is the e2e version: every internal dependency is pinned to that exact string, so the published packages resolve against each other, and the global setup reads it from `packages/thymian/package.json` rather than naming a version of its own. Nothing the run writes is tracked, so a killed or failed run cannot leave the working tree dirty; there is nothing to revert. The `e2e` target depends on `build` of every project under `packages/*` — the set `release.projects` publishes — which the version step's `preVersionCommand` used to do.
+
+This relies on `.verdaccio/config.yml` not proxying `thymian` and `@thymian/*` to npmjs. `0.0.0-PLACEHOLDER` of most `@thymian/*` packages exists on npmjs, and with a proxy the publish step would find it, skip the local build, and the run would test that stale release.
 
 ### Strip environment variables for child processes
 
@@ -53,7 +63,7 @@ We will start Verdaccio via `spawn()` with `{ detached: true, stdio: 'ignore' }`
 
 ### Use `execSync` with `stdio: 'inherit'` for publish and install steps
 
-We will use `execSync` with `stdio: 'inherit'` for the local-publish and npm-install steps, relying on the non-zero exit code (which causes `execSync` to throw) as the success signal. This avoids the fragile pattern of capturing output and checking for specific success strings, which fails when nested NX commands write to inherited stdio rather than the captured pipe.
+We will use `execSync` with `stdio: 'inherit'` for the publish and npm-install steps, relying on the non-zero exit code (which causes `execSync` to throw) as the success signal. This avoids the fragile pattern of capturing output and checking for specific success strings, which fails when nested NX commands write to inherited stdio rather than the captured pipe.
 
 ### Remove cli-testing-library from global setup
 
@@ -75,10 +85,12 @@ We will use OS-assigned ports (binding to port 0 and reading the assigned port) 
 - Verdaccio cleanup is reliable — no orphaned processes holding port 4873.
 - Publish/install verification is robust — not dependent on output parsing.
 - Test isolation is stronger — temp dirs outside workspace, clean env, scoped registry.
+- A run never modifies tracked files, whether it passes, fails or is killed.
 
 **Negative:**
 
 - `stdio: 'inherit'` means publish/install output goes to the terminal but cannot be programmatically inspected for warnings.
+- The e2e run no longer exercises `nx release version` or `release.ts`: a regression in version or dependency-range rewriting is not caught here.
 
 **Neutral:**
 
@@ -98,3 +110,4 @@ We will use OS-assigned ports (binding to port 0 and reading the assigned port) 
 | ---------- | -------- | ------------------------------------------------------------------------------------------ |
 | 2026-03-31 | Accepted | Initial draft                                                                              |
 | 2026-09-23 | Amended  | Registry scoped per call instead of process-wide; Verdaccio started with `--location none` |
+| 2026-09-28 | Amended  | Publish committed manifests with `nx release publish`; no version stamping                 |
