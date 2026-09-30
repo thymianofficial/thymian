@@ -39,7 +39,7 @@ httpRule('rule-name')
 | **Type**                | Validation contexts                | `'static'`, `'analytics'`, `'test'`, `'informational'`   |
 | **Description**         | What the rule validates            | `'GET requests should not include a body'`               |
 | **Applies To**          | Target participant                 | `'client'`, `'server'`, `'proxy'`                        |
-| **Applicability**       | Which transactions it speaks about | `appliesTo`: a filter expression                         |
+| **Applicability**       | Which transactions it speaks about | `appliesTo`: an expression                               |
 | **Violation Condition** | What is wrong with them            | `violatedWhen`: a filter expression or a custom function |
 | **URL** (optional)      | Reference documentation            | RFC section or internal docs                             |
 

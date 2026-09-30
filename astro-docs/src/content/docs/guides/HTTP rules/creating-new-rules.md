@@ -95,7 +95,7 @@ This rule:
 - **`appliesTo`** is the rule's **Applicability**: which transactions the rule speaks about, such as "responses with status 201". It is required.
 - **`violatedWhen`** is the rule's **Violation Condition**: what is wrong with an applicable transaction, such as "no `Location` header". It is required too. It is either a filter expression (the rule is violated when it matches) or a function that returns results. It runs only on transactions that `appliesTo` accepts.
 
-A transaction outside the rule's applicability is never a violation. Leaving out either key is a compile error.
+A transaction outside the rule's applicability is never a violation. An object that leaves out either key does not compile.
 
 Both keys are evaluated against whatever the command observes:
 
@@ -139,7 +139,7 @@ export default httpRule('require-api-version-header')
 
 ## Validation Patterns
 
-There are three main patterns for writing the Violation Condition. `appliesTo` is always a filter expression; what changes is the form of `violatedWhen`.
+There are three main patterns for writing the Violation Condition. `appliesTo` is an expression (a function in a lint-only rule, which works on the specification directly); what changes is the form of `violatedWhen`.
 
 ### Pattern 1: Expression Condition
 
@@ -171,7 +171,7 @@ import { getHeader } from '@thymian/core';
 
       // A live-only fact, checked on the response that actually came back
       return typeof authHeader === 'undefined' || !isValidAuthHeader(authHeader)
-        ? [{ location, violation: {}, findings: [] }]
+        ? [{ location, violation: { message: 'Invalid WWW-Authenticate header' }, findings: [] }]
         : [];
     },
   })
@@ -296,7 +296,7 @@ When an expression isn't sufficient, make `violatedWhen` a function:
 
 ```typescript
 import { httpRule } from '@thymian/core';
-import { responseHeader, getHeader } from '@thymian/core';
+import { statusCode, getHeader } from '@thymian/core';
 
 export default httpRule('validate-cache-control-directives')
   .severity('warn')
@@ -305,15 +305,17 @@ export default httpRule('validate-cache-control-directives')
   .appliesTo('server')
   .rule((ctx) =>
     ctx.validateHttpTransactions({
-      appliesTo: responseHeader('cache-control'),
+      appliesTo: statusCode(200), // the specification can't declare Cache-Control, so it is checked below
       violatedWhen: (request, response, location) => {
         const cacheControl = getHeader(response.headers, 'cache-control');
+
+        if (typeof cacheControl === 'undefined') return [];
 
         // Custom parsing and validation
         const directives = parseCacheControl(cacheControl);
 
         // Return a result for every violation detected
-        return hasValidDirectives(directives) ? [] : [{ location, violation: {}, findings: [] }];
+        return hasValidDirectives(directives) ? [] : [{ location, violation: { message: 'Invalid Cache-Control directives' }, findings: [] }];
       },
     }),
   )

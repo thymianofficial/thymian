@@ -41,7 +41,7 @@ export default httpRule('api-must-include-version-in-path')
   .rule((ctx) =>
     ctx.validateCommonHttpTransactions({
       appliesTo: constant(true), // every transaction
-      violatedWhen: (req, _res, location) => (/api\/v\d+/.test(req.path) ? [] : [{ location, violation: {}, findings: [] }]),
+      violatedWhen: (req, _res, location) => (/api\/v\d+/.test(req.path) ? [] : [{ location, violation: { message: 'Path must include a version such as /v1/' }, findings: [] }]),
     }),
   )
   .done();

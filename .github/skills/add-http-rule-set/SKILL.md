@@ -153,8 +153,8 @@ export default httpRule('<slug>/<actor>-<keyword>-<constraint>')
 - Prefer `ctx.validateCommonHttpTransactions({ appliesTo, violatedWhen })` where the assertion
   is the same in every declared context. `appliesTo` is the rule's Applicability, answerable
   from the specification; `violatedWhen` is its Violation Condition, and carries every fact
-  only live traffic has (a header the specification cannot declare). Both are required. Where the engine differs per context, use
-  `.overrideStaticRule()` / `.overrideTest()` / `.overrideAnalyticsRule()` with helpers shared
+  only live traffic has (a header the specification cannot declare). Both are required. Where the engine differs
+  per context, use `.overrideStaticRule()` / `.overrideTest()` / `.overrideAnalyticsRule()` with helpers shared
   inside the same file. Both are single-source-of-truth; the rule **file** is the source of
   truth, not the common interface.
 
