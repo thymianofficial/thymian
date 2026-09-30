@@ -38,11 +38,16 @@ export default httpRule('api-must-include-version-in-path')
   .type('static', 'analytics')
   .description('All API endpoints must include /v{number}/ in path for versioning')
   .appliesTo('server')
-  .rule((ctx) => ctx.validateCommonHttpTransactions(constant(true), (req) => /api\/v\d+/.test(req.path)))
+  .rule((ctx) =>
+    ctx.validateCommonHttpTransactions({
+      appliesTo: constant(true), // every transaction
+      violatedWhen: (req, _res, location) => (/api\/v\d+/.test(req.path) ? [] : [{ location, violation: {}, findings: [] }]),
+    }),
+  )
   .done();
 ```
 
-This custom organizational rule automatically validates:
+`appliesTo` says which transactions the rule speaks about (here: all of them), and `violatedWhen` says what is wrong with them (here: a path without a version). This custom organizational rule automatically validates:
 
 - **Lint** — Checks OpenAPI definitions during design
 - **Analyze** — Validates recorded HTTP transactions from production
@@ -66,7 +71,7 @@ Create organization-wide rules for consistent API behavior:
 // Ensure all authenticated endpoints include rate limit headers
 httpRule('authenticated-endpoints-must-include-rate-limits')
   .type('analytics', 'test')
-  .rule((ctx) => ctx.validateCommonHttpTransactions(and(authorization(), successfulStatusCode()), not(responseHeader('x-ratelimit-remaining'))))
+  .rule((ctx) => ctx.validateCommonHttpTransactions({ appliesTo: and(authorization(), successfulStatusCode()), violatedWhen: not(responseHeader('x-ratelimit-remaining')) }))
   .done();
 ```
 
