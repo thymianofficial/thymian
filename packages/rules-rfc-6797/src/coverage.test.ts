@@ -1,4 +1,4 @@
-import { checkCoverage, loadRules } from '@thymian/core';
+import { checkCoverage, type CoverageEntry, loadRules } from '@thymian/core';
 import { describe, expect, it } from 'vitest';
 
 import coverage from './coverage.js';
@@ -34,18 +34,59 @@ describe('coverage record', () => {
   // Exact counts, not only "no violations": a checker that skipped every rule
   // would report none too.
   describe('the census', () => {
-    it('loads 1 rule, with one entry per loaded rule', async () => {
+    it('loads 10 rules, with one entry per loaded rule', async () => {
       const rules = await loadBaselineRules();
 
-      expect(rules.length).toBe(1);
+      expect(rules.length).toBe(10);
       expect(Object.keys(coverage.rules).length).toBe(rules.length);
     }, 30_000);
 
-    it('covers 1 of the 14 units, with no cell on any entry', () => {
-      const entries = Object.values(coverage.rules);
+    // Every unit of §6, and 7.1/1's grammar clause through the rule that
+    // discharges 6.1/3.
+    it('covers 8 of the 14 units', () => {
+      const covered = new Set(
+        Object.values(coverage.rules).flatMap((entry) => entry.covers),
+      );
 
-      expect(entries.flatMap((entry) => entry.covers)).toEqual(['6.1.1/1']);
-      expect(entries.every((entry) => entry.contexts === undefined)).toBe(true);
+      expect([...covered].sort()).toEqual([
+        '6.1.1/1',
+        '6.1.1/2',
+        '6.1.2/1',
+        '6.1/1',
+        '6.1/2',
+        '6.1/3',
+        '6.1/4',
+        '7.1/1',
+      ]);
+    });
+
+    it('has 1 informational entry, carrying no cells', () => {
+      // Read as a plain string array: the informational and executable
+      // branches' tuple types leave `includes` no argument type to accept.
+      const informational = Object.values(coverage.rules).filter((entry) =>
+        (entry.declared.types as readonly string[]).includes('informational'),
+      );
+
+      expect(informational.length).toBe(1);
+      expect(informational[0]?.contexts).toBeUndefined();
+    });
+
+    // Every rule declares all three contexts, so no cell is impossible; the
+    // only cells mark the unrecognized-directive rule heuristic.
+    it('carries 3 heuristic cells, all on the unrecognized-directive rule, and no impossible cell', () => {
+      const cells = Object.fromEntries(
+        Object.entries(coverage.rules).flatMap(([name, entry]) =>
+          entry.contexts === undefined ? [] : [[name, entry.contexts]],
+        ),
+      );
+
+      expect(cells).toEqual({
+        'rfc-6797/user-agent-must-ignore-unrecognized-sts-directives': {
+          static: 'heuristic',
+          test: 'heuristic',
+          analytics: 'heuristic',
+        },
+      });
     });
 
     // The ids a recount of the pinned text yields under the counting rule:
@@ -72,4 +113,29 @@ describe('coverage record', () => {
       expect(coverage.source.substituteLabel).toBeUndefined();
     });
   });
+
+  // The recommended profile promotes both (`profiles.test.ts`), so the
+  // zero-violation run above is what proves each carries a tag, is not
+  // heuristic, and has an explanation. That the explanation states its reason
+  // is left to review: ADR-0021 §3 accepts it cannot be tested mechanically.
+  it('ships the two convention rules off, covering no unit', async () => {
+    const rules = await loadBaselineRules();
+    const conventions = rules
+      .filter(
+        (rule) =>
+          rule.meta.severity === 'off' &&
+          !rule.meta.type.includes('informational'),
+      )
+      .map((rule) => rule.meta.name)
+      .sort();
+    const entries: Record<string, CoverageEntry> = coverage.rules;
+
+    expect(conventions).toEqual([
+      'rfc-6797/server-should-send-sts-max-age-of-at-least-one-year',
+      'rfc-6797/server-should-send-sts-preload-directive',
+    ]);
+    for (const name of conventions) {
+      expect(entries[name]?.covers, name).toEqual([]);
+    }
+  }, 30_000);
 });

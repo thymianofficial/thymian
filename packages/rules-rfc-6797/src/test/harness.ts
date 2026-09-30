@@ -52,7 +52,7 @@ export type AnalyticsCase = {
   format?: ThymianFormat;
 };
 
-type CaseOf = {
+export type CaseOf = {
   static: StaticCase;
   test: TestCase;
   analytics: AnalyticsCase;
