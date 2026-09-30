@@ -1,5 +1,4 @@
 import {
-  and,
   getHeader,
   type HttpResponse,
   not,
@@ -30,14 +29,19 @@ export default httpRule(
   // requirement is on the Connection VALUE (it must list the "te" option),
   // which is only checkable against real recorded traffic in analytics below.
   .overrideStaticRule((ctx) =>
-    ctx.validateCommonHttpTransactions(
-      and(requestHeader('te'), not(requestHeader('connection'))),
-    ),
+    ctx.validateCommonHttpTransactions({
+      appliesTo: requestHeader('te'),
+      violatedWhen: not(requestHeader('connection')),
+    }),
   )
   .overrideAnalyticsRule((ctx) =>
-    ctx.validateHttpTransactions(
-      requestHeader('te'),
-      (request, _res: HttpResponse, location: RuleViolationLocation) => {
+    ctx.validateHttpTransactions({
+      appliesTo: requestHeader('te'),
+      violatedWhen: (
+        request,
+        _res: HttpResponse,
+        location: RuleViolationLocation,
+      ) => {
         const connection = getHeader(request.headers, 'connection');
         const tokens = (
           Array.isArray(connection)
@@ -62,6 +66,6 @@ export default httpRule(
               },
             ];
       },
-    ),
+    }),
   )
   .done();

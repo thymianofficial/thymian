@@ -1,5 +1,4 @@
 import {
-  and,
   getHeader,
   requestHeader,
   type RuleViolationLocation,
@@ -20,9 +19,9 @@ export default httpRule(
     'In a User-Agent product token of the form name/version, put only an actual version identifier after the slash, not descriptive words or other free text. The convention is that successive releases of the same product differ solely in that version portion, so servers and analytics can reliably tell versions apart and correlate behavior. Cramming non-version text there makes the field harder to parse and defeats that consistent version comparison.',
   )
   .overrideAnalyticsRule((ctx) =>
-    ctx.validateHttpTransactions(
-      and(requestHeader('user-agent')),
-      (request, _res, location: RuleViolationLocation) => {
+    ctx.validateHttpTransactions({
+      appliesTo: requestHeader('user-agent'),
+      violatedWhen: (request, _res, location: RuleViolationLocation) => {
         const userAgent = getHeader(request.headers, 'user-agent');
         if (typeof userAgent !== 'string') {
           return [];
@@ -72,6 +71,6 @@ export default httpRule(
 
         return [];
       },
-    ),
+    }),
   )
   .done();

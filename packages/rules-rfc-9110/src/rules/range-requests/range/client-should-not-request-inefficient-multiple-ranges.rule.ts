@@ -78,9 +78,13 @@ export default httpRule(
   )
   .appliesTo('client')
   .rule((ctx) =>
-    ctx.validateHttpTransactions(
-      requestHeader('range'),
-      (req, _res: HttpResponse, location: RuleViolationLocation) => {
+    ctx.validateHttpTransactions({
+      appliesTo: requestHeader('range'),
+      violatedWhen: (
+        req,
+        _res: HttpResponse,
+        location: RuleViolationLocation,
+      ) => {
         const rangeHeader = getHeader(req.headers, 'range');
 
         if (!rangeHeader) {
@@ -95,6 +99,6 @@ export default httpRule(
           return [];
         }
       },
-    ),
+    }),
   )
   .done();

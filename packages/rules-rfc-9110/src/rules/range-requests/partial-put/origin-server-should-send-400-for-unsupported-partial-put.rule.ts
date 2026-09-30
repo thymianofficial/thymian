@@ -29,21 +29,21 @@ export default httpRule(
   // case. Anchored on the operation's first declared response so it is flagged
   // at most once.
   .overrideStaticRule((ctx) =>
-    ctx.validateHttpTransactions(
-      (req, res, responses) =>
+    ctx.validateHttpTransactions({
+      appliesTo: (req, res, responses) =>
         req.method.toUpperCase() === 'PUT' &&
         responses.length > 0 &&
         res === responses[0] &&
         !responses.some((response) => response.statusCode === 206) &&
         !responses.some((response) => response.statusCode === 400),
-      () => ({
+      violatedWhen: () => ({
         violation: {
           message:
             'This PUT operation declares no 206 response (no partial-PUT support) and no 400 response. An origin server SHOULD answer a Content-Range PUT it does not support with 400 (Bad Request); declare that response.',
         },
         findings: [],
       }),
-    ),
+    }),
   )
   // Test: probe only PUT operations that do NOT declare a 206 response — i.e.
   // resources that do not advertise partial-PUT support — by replaying with an

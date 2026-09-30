@@ -1,4 +1,4 @@
-import { and, not, responseHeader, statusCode } from '@thymian/core';
+import { not, responseHeader, statusCode } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
 // eslint-disable-next-line thymian-internal/require-rule-tags -- protocol-disclosure the client needs to function, not a concern this vocabulary covers
@@ -19,11 +19,9 @@ export default httpRule(
   )
   .appliesTo('server')
   .rule((ctx) =>
-    ctx.validateCommonHttpTransactions(
-      and(statusCode(101), not(responseHeader('upgrade'))),
-      // The filter already selects 101 responses that lack an Upgrade header,
-      // so every matched transaction is a violation.
-      (_req, _res, location) => [{ location, violation: {}, findings: [] }],
-    ),
+    ctx.validateCommonHttpTransactions({
+      appliesTo: statusCode(101),
+      violatedWhen: not(responseHeader('upgrade')),
+    }),
   )
   .done();

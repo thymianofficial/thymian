@@ -1,4 +1,4 @@
-import { getHeader, or, requestHeader, responseHeader } from '@thymian/core';
+import { constant, getHeader } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
 import { createList } from '../../../../utils.js';
@@ -40,9 +40,9 @@ export default httpRule(
     'The Connection header should only name fields meant for the immediate hop, never fields intended for everyone along the chain. So you must not list something like Cache-Control (or other end-to-end representation fields) as a connection option. Doing so marks an end-to-end field as hop-by-hop, causing intermediaries to strip it before it reaches its intended recipients, which breaks caching directives and other behavior the field was supposed to control across the whole path.',
   )
   .rule((ctx) =>
-    ctx.validateHttpTransactions(
-      or(requestHeader('connection'), responseHeader('connection')),
-      (req, res, location) => {
+    ctx.validateHttpTransactions({
+      appliesTo: constant(true),
+      violatedWhen: (req, res, location) => {
         const offending = [
           ...connectionOptionNames(getHeader(req.headers, 'connection')),
           ...connectionOptionNames(getHeader(res.headers, 'connection')),
@@ -64,6 +64,6 @@ export default httpRule(
           },
         ];
       },
-    ),
+    }),
   )
   .done();

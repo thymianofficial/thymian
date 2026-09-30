@@ -1,10 +1,4 @@
-import {
-  and,
-  httpRule,
-  not,
-  requestHeader,
-  responseTrailer,
-} from '@thymian/core';
+import { httpRule, not, requestHeader, responseTrailer } from '@thymian/core';
 
 // eslint-disable-next-line thymian-internal/require-rule-tags -- no concern-tag member fits this rule's topic
 export default httpRule('rfc9110/accept-ranges-may-be-sent-in-trailer')
@@ -25,11 +19,9 @@ export default httpRule('rfc9110/accept-ranges-may-be-sent-in-trailer')
   // is preferred (a trailer arrives too late to help a client restart a failed
   // transfer). Surfaced as analytics rather than a violation.
   .rule((ctx) =>
-    ctx.validateHttpTransactions(
-      and(
-        requestHeader('accept-ranges'),
-        not(responseTrailer('accept-ranges')),
-      ),
-    ),
+    ctx.validateHttpTransactions({
+      appliesTo: requestHeader('accept-ranges'),
+      violatedWhen: not(responseTrailer('accept-ranges')),
+    }),
   )
   .done();
