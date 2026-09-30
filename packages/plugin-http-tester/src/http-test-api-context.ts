@@ -218,8 +218,11 @@ export class HttpTestApiContext<
               ),
             );
           } else {
-            const filterFn = httpFilterToTransactionValidationFn(validate);
-            if (filterFn(request, response)) {
+            const filterFn = httpFilterToTransactionValidationFn(
+              validate,
+              this.format,
+            );
+            if (filterFn(request, response, source)) {
               results.push({
                 location: { ...location, pointer: '' },
                 violation: {},
@@ -372,8 +375,11 @@ export class HttpTestApiContext<
           if (typeof validation === 'function') {
             results.push(...validation(request, response, location));
           } else {
-            const filterFn = httpFilterToTransactionValidationFn(validation);
-            if (filterFn(request, response)) {
+            const filterFn = httpFilterToTransactionValidationFn(
+              validation,
+              this.format,
+            );
+            if (filterFn(request, response, source)) {
               results.push({ location, violation: {}, findings: [] });
             }
           }

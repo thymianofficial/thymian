@@ -34,46 +34,38 @@ describe('coverage record', () => {
   // Exact counts, not only "no violations": a checker that skipped every rule
   // would report none too.
   describe('the census', () => {
-    it('loads 10 rules, with one entry per loaded rule', async () => {
+    it('loads 19 rules, with one entry per loaded rule', async () => {
       const rules = await loadBaselineRules();
 
-      expect(rules.length).toBe(10);
+      expect(rules.length).toBe(19);
       expect(Object.keys(coverage.rules).length).toBe(rules.length);
     }, 30_000);
 
-    // Every unit of §6, and 7.1/1's grammar clause through the rule that
-    // discharges 6.1/3.
-    it('covers 8 of the 14 units', () => {
+    it('covers all 14 units', () => {
       const covered = new Set(
         Object.values(coverage.rules).flatMap((entry) => entry.covers),
       );
 
-      expect([...covered].sort()).toEqual([
-        '6.1.1/1',
-        '6.1.1/2',
-        '6.1.2/1',
-        '6.1/1',
-        '6.1/2',
-        '6.1/3',
-        '6.1/4',
-        '7.1/1',
-      ]);
+      expect([...covered].sort()).toEqual(Object.keys(coverage.units).sort());
     });
 
-    it('has 1 informational entry, carrying no cells', () => {
+    it('has 4 informational entries, carrying no cells', () => {
       // Read as a plain string array: the informational and executable
       // branches' tuple types leave `includes` no argument type to accept.
       const informational = Object.values(coverage.rules).filter((entry) =>
         (entry.declared.types as readonly string[]).includes('informational'),
       );
 
-      expect(informational.length).toBe(1);
-      expect(informational[0]?.contexts).toBeUndefined();
+      expect(informational.length).toBe(4);
+      for (const entry of informational) {
+        expect(entry.contexts).toBeUndefined();
+      }
     });
 
-    // Every rule declares all three contexts, so no cell is impossible; the
-    // only cells mark the unrecognized-directive rule heuristic.
-    it('carries 3 heuristic cells, all on the unrecognized-directive rule, and no impossible cell', () => {
+    // Heuristic cells mark the two rules whose requirement no single
+    // exchange settles; the one impossible cell is the context an API
+    // description cannot express at all.
+    it('carries 6 heuristic cells on two rules and 1 impossible cell, in static on the only-one-header rule', () => {
       const cells = Object.fromEntries(
         Object.entries(coverage.rules).flatMap(([name, entry]) =>
           entry.contexts === undefined ? [] : [[name, entry.contexts]],
@@ -85,6 +77,18 @@ describe('coverage record', () => {
           static: 'heuristic',
           test: 'heuristic',
           analytics: 'heuristic',
+        },
+        'rfc-6797/hsts-host-should-redirect-insecure-requests-to-https': {
+          static: 'heuristic',
+          test: 'heuristic',
+          analytics: 'heuristic',
+        },
+        'rfc-6797/hsts-host-must-send-only-one-sts-header': {
+          static: {
+            verdict: 'impossible',
+            reason: 'not-representable',
+            note: expect.any(String),
+          },
         },
       });
     });
@@ -114,11 +118,11 @@ describe('coverage record', () => {
     });
   });
 
-  // The recommended profile promotes both (`profiles.test.ts`), so the
+  // The recommended profile promotes all four (`profiles.test.ts`), so the
   // zero-violation run above is what proves each carries a tag, is not
   // heuristic, and has an explanation. That the explanation states its reason
   // is left to review: ADR-0021 §3 accepts it cannot be tested mechanically.
-  it('ships the two convention rules off, covering no unit', async () => {
+  it('ships the four convention rules off, covering no unit', async () => {
     const rules = await loadBaselineRules();
     const conventions = rules
       .filter(
@@ -131,6 +135,8 @@ describe('coverage record', () => {
     const entries: Record<string, CoverageEntry> = coverage.rules;
 
     expect(conventions).toEqual([
+      'rfc-6797/server-should-redirect-insecure-requests-to-https',
+      'rfc-6797/server-should-send-sts-header-over-secure-transport',
       'rfc-6797/server-should-send-sts-max-age-of-at-least-one-year',
       'rfc-6797/server-should-send-sts-preload-directive',
     ]);
