@@ -19,29 +19,33 @@ a roadmap states intent, and this states the present.
 Authored **per rule, not per unit** — the only shape that can carry the declared-type stamp,
 which is what makes a stale reason detectable rather than only a missing row.
 
+Abridged from `packages/rules-rfc-6797/src/coverage.ts`:
+
 ```ts
 import { defineCoverage } from '@thymian/core';
 
 export default defineCoverage({
   source: {
-    revision: 'RFC 6797 (December 2012)',
-    countingRule: 'One unit per BCP 14 keyword addressed to a server or a UA.',
+    revision: 'RFC 6797 (November 2012)',
+    countingRule: 'One unit per paragraph of §6, §7 and §9.2 — the chapters addressed to the host — that contains a BCP 14 keyword.',
     hasKeywordBasis: true, // declared, not derived from countingRule's own prose
     // substituteLabel: '…', // only where the document has no enumerable unit
   },
   units: {
-    '§6.1': 'The Strict-Transport-Security header field…',
+    '6.1/3': 'UAs MUST ignore any STS header field containing directives, or other header field value data, that does not conform to the syntax.',
+    '7.1/1': 'Over secure transport, an HSTS Host SHOULD include an STS header field that MUST satisfy the §6.1 grammar, and MUST include only one.',
+    '7.2/1': 'Over non-secure transport, an HSTS Host SHOULD answer with a permanent redirect whose Location has the https scheme.',
     // …
   },
   rules: {
-    'rfc6797/hsts-host-must-not-send-sts-over-http': {
-      covers: ['§6.1'],
+    'rfc-6797/hsts-host-must-send-sts-header-conforming-to-grammar': {
+      covers: ['6.1/3', '7.1/1'], // one rule, two units…
       declared: { types: ['static', 'test', 'analytics'], severity: 'error' },
       // No `contexts` needed: every context this rule declares defaults to
       // observable, and it declares all three.
     },
-    'rfc6797/sts-max-age-must-be-a-non-negative-integer': {
-      covers: ['§6.1', '§6.1.1'], // one rule, two units
+    'rfc-6797/hsts-host-must-send-only-one-sts-header': {
+      covers: ['7.1/1'], // …and one unit, two rules
       declared: { types: ['test', 'analytics'], severity: 'error' },
       contexts: {
         // A cell exists only for a context this entry does NOT declare
@@ -50,6 +54,15 @@ export default defineCoverage({
         // value that overrides the observable default.
         static: { verdict: 'impossible', reason: 'not-representable', note: '…' },
       },
+    },
+    'rfc-6797/hsts-host-should-redirect-insecure-requests-to-https': {
+      covers: ['7.2/1'],
+      declared: { types: ['static', 'test', 'analytics'], severity: 'warn' },
+      contexts: { static: 'heuristic', test: 'heuristic', analytics: 'heuristic' },
+    },
+    'rfc-6797/server-should-redirect-insecure-requests-to-https': {
+      covers: [], // a convention rule covers no unit
+      declared: { types: ['static', 'test', 'analytics'], severity: 'off' },
     },
   },
 });
@@ -67,6 +80,10 @@ rule without the word "keyword" at all, and a keyword-less source's prose can st
 the word while explaining why it doesn't apply — no regex over text written for a human reader
 can be trusted for the checker's citation-requirement assertion.
 
+Key units by the source's own structure. Where one section holds several units, key each
+`<section>/<n>`, with n its position among that section's units, so the ids stay
+re-derivable from the counting rule alone.
+
 `substituteLabel` names what stands in where units are not statements: for RFC 9110 §17, the
 14–15 sections it cross-references.
 
@@ -74,11 +91,13 @@ can be trusted for the checker's citation-requirement assertion.
 
 Rules and units are **N:M both ways**. All 14 rules on RFC 9110's `#name-expect` discharge
 one unit; one rule can discharge several. Each rule's entry declares `covers`, and the
-headline renders **two numbers**:
+headline renders **two numbers**, as `rules-rfc-6797`'s does:
 
-> 9 of 14 statements, covered by 21 rules
+> **14 of 14** units covered, by **15** rule(s).
 
-not one ratio, which would be dishonest in whichever direction the N:M skews.
+not one ratio, which would be dishonest in whichever direction the N:M skews. The second
+number counts only rules whose `covers` is non-empty, so that package's four convention
+rules are not in it.
 
 `.url()` is not that mapping and was rejected as one: 400 of `rules-rfc-9110`'s 402 rules
 carry a URL, resolving to 105 anchor strings across three conventions. A URL says where a
