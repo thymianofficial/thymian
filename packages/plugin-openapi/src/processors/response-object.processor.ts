@@ -52,10 +52,7 @@ export function processResponseObject(
           return {
             type: 'http-response',
             description: responseObject.description,
-            headers: {
-              ...parameters.headers,
-              ...headerParameters,
-            },
+            headers: headerParameters,
             mediaType,
             statusCode,
             schema,
@@ -66,10 +63,7 @@ export function processResponseObject(
     responses.push({
       type: 'http-response',
       description: responseObject.description,
-      headers: {
-        ...parameters.headers,
-        ...headerParameters,
-      },
+      headers: headerParameters,
       mediaType: '',
       statusCode,
     });
