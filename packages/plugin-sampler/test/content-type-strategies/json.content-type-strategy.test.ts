@@ -57,5 +57,45 @@ describe('JsonContentTypeStrategy', () => {
         $content: 'user1',
       });
     });
+
+    describe('closed objects', () => {
+      // `additionalProperties: false` reaches the strategy as `{ not: {} }`.
+      const closed: ThymianSchema = {
+        type: 'object',
+        properties: { astronaut_id: { type: 'integer' } },
+        required: ['astronaut_id'],
+        additionalProperties: { not: {} },
+      };
+
+      it('should not invent properties the schema forbids', async () => {
+        expect(await generator.generate(closed)).toEqual({
+          $content: { astronaut_id: 0 },
+        });
+      });
+
+      it('should not invent properties behind a $ref', async () => {
+        const schema: ThymianSchema = {
+          $ref: '#/$defs/CrewMember',
+          $defs: { CrewMember: closed },
+        };
+
+        expect(await generator.generate(schema)).toEqual({
+          $content: { astronaut_id: 0 },
+        });
+      });
+
+      it('should leave a `not: {}` outside additionalProperties alone', async () => {
+        const schema: ThymianSchema = {
+          type: 'object',
+          properties: { a: { type: 'integer' } },
+          required: ['a'],
+          propertyNames: { not: {} },
+        };
+
+        expect(await generator.generate(schema)).toEqual({
+          $content: { a: 0 },
+        });
+      });
+    });
   });
 });
