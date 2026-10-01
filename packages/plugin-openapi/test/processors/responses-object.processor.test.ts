@@ -98,4 +98,17 @@ describe('processResponsesObject', () => {
       /Invalid status code/,
     );
   });
+
+  it('should not take response headers from the request parameters', () => {
+    const [{ responses }] = processResponsesObject(
+      { '200': okResponse },
+      {
+        ...parameters,
+        headers: { 'X-Request-Only': { name: 'X-Request-Only' } as never },
+      },
+      document,
+    );
+
+    expect(responses[0]?.headers).toStrictEqual({});
+  });
 });
