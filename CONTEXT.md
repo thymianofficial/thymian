@@ -140,6 +140,15 @@ send HSTS at all, mark a session cookie `HttpOnly`. Lives in its source's own pa
 a package of its own. Ships `.severity('off')` with a real executable `.type()`, which is
 what tells it apart from an `informational` rule; a shipped `Profile` may promote it.
 
+**Media type**:
+The bare, lowercased `type/subtype` of a message's `Content-Type`, with parameters such as
+`charset` removed. Empty when the message has no usable `Content-Type`: missing, or not a
+single `type/subtype`. This is what a rule sees on the common response in `test` and
+`analytics`; the common request and a `Thymian Format` node built from live traffic may still
+carry the raw header value.
+_Avoid_: content type, MIME type
+_In code_: `mediaType` on `CommonHttpResponse`
+
 **Profile**:
 A named set of rule-configuration overrides that a rule set ships with its rules, so adopting
 a curated configuration is one line of `Config` rather than a pasted block. An exception list
