@@ -27,21 +27,16 @@ describe('XmlContentTypeStrategy', () => {
     };
 
     it('should not invent properties the schema forbids', async () => {
-      const xml = await xmlOf(closed);
-
-      expect(xml).toContain('<astronaut_id>');
-      expect(xml).not.toContain('property1');
-      expect(xml).not.toContain('property2');
+      expect(await xmlOf(closed)).toBe('<astronaut_id>0</astronaut_id>\n');
     });
 
     it('should not invent properties behind a $ref', async () => {
-      const xml = await xmlOf({
-        $ref: '#/$defs/CrewMember',
-        $defs: { CrewMember: closed },
-      });
-
-      expect(xml).toContain('<astronaut_id>');
-      expect(xml).not.toContain('property1');
+      expect(
+        await xmlOf({
+          $ref: '#/$defs/CrewMember',
+          $defs: { CrewMember: closed },
+        }),
+      ).toBe('<CrewMember>\n  <astronaut_id>0</astronaut_id>\n</CrewMember>\n');
     });
   });
 });

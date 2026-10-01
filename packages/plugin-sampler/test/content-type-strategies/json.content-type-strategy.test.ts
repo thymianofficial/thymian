@@ -84,15 +84,15 @@ describe('JsonContentTypeStrategy', () => {
         });
       });
 
-      it('should keep a `not: {}` schema elsewhere as it is', async () => {
+      it('should leave a `not: {}` outside additionalProperties alone', async () => {
         const schema: ThymianSchema = {
           type: 'object',
           properties: { a: { type: 'integer' } },
           required: ['a'],
-          additionalProperties: { type: 'string' },
+          propertyNames: { not: {} },
         };
 
-        expect(await generator.generate(schema)).toMatchObject({
+        expect(await generator.generate(schema)).toEqual({
           $content: { a: 0 },
         });
       });
