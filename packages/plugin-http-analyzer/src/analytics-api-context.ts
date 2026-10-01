@@ -196,7 +196,11 @@ export class AnalyticsApiContext implements AnalyzeContext {
       results.push(
         ...validateFn(
           httpRequestToCommonHttpRequest(request.data),
-          httpResponseToCommonHttpResponse(response.data),
+          httpResponseToCommonHttpResponse(
+            response.data,
+            undefined,
+            this.logger,
+          ),
           location,
         ),
       );
@@ -227,7 +231,11 @@ export class AnalyticsApiContext implements AnalyzeContext {
           key,
           transactions.map((t) => [
             httpRequestToCommonHttpRequest(t.request.data),
-            httpResponseToCommonHttpResponse(t.response.data),
+            httpResponseToCommonHttpResponse(
+              t.response.data,
+              undefined,
+              this.logger,
+            ),
             httpTransactionToLabel(t.request.data, t.response.data),
           ]),
         ),
