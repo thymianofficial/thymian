@@ -46,6 +46,16 @@ describe('closedObjectsToBoolean', () => {
     expect(closedObjectsToBoolean(schema)).toEqual(schema);
   });
 
+  it('should rewrite a key named additionalProperties wherever it sits', () => {
+    // Known and accepted: the walk is keyed on the name, not on the position,
+    // and only fires on exactly `{ not: {} }`.
+    expect(
+      closedObjectsToBoolean({
+        properties: { additionalProperties: { not: {} } },
+      }),
+    ).toEqual({ properties: { additionalProperties: false } });
+  });
+
   it('should not mutate its input', () => {
     const schema = { additionalProperties: { not: {} } };
 
