@@ -703,9 +703,65 @@ describe('HttpTransactionRepository', () => {
       );
     });
 
+    it('should filter by hasBody (request) being false', async () => {
+      const results = Array.from(
+        repo.readTransactionsByHttpFilter(hasRequestBody(false)),
+      );
+      expect(results.length).toBe(3);
+      expect(results.every((tx) => tx.request.data.body === undefined)).toBe(
+        true,
+      );
+    });
+
+    it('should treat a hasBody filter without the flag as hasBody true', async () => {
+      const results = Array.from(
+        repo.readTransactionsByHttpFilter({
+          type: 'hasBody',
+          kind: 'request',
+        }),
+      );
+      expect(results.length).toBe(2);
+      expect(results.every((tx) => tx.request.data.body !== undefined)).toBe(
+        true,
+      );
+    });
+
+    it('should keep the hasBody flag under negation', async () => {
+      const results = Array.from(
+        repo.readTransactionsByHttpFilter(not(hasRequestBody(false))),
+      );
+      expect(results.length).toBe(2);
+      expect(results.every((tx) => tx.request.data.body !== undefined)).toBe(
+        true,
+      );
+    });
+
     it('should filter by hasResponseBody', async () => {
       const results = Array.from(
         repo.readTransactionsByHttpFilter(hasResponseBody(true)),
+      );
+      expect(results.length).toBe(2);
+      expect(results.every((tx) => tx.response.data.body !== undefined)).toBe(
+        true,
+      );
+    });
+
+    it('should filter by hasResponseBody being false', async () => {
+      const results = Array.from(
+        repo.readTransactionsByHttpFilter(hasResponseBody(false)),
+      );
+      expect(results.length).toBe(3);
+      expect(results.every((tx) => tx.response.data.body === undefined)).toBe(
+        true,
+      );
+    });
+
+    it('should treat a hasResponseBody filter without the flag as hasBody true', async () => {
+      const results = Array.from(
+        repo.readTransactionsByHttpFilter({
+          type: 'hasResponseBody',
+          kind: 'response',
+        }),
       );
       expect(results.length).toBe(2);
       expect(results.every((tx) => tx.response.data.body !== undefined)).toBe(

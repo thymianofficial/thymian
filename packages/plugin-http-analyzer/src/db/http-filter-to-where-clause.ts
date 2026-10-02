@@ -90,10 +90,16 @@ export function compileHttpFilterToWhereClause(
       };
 
     case 'hasBody':
-      return { sql: `${tableNames.requests}.body IS NOT NULL`, params: [] };
+      return {
+        sql: `${tableNames.requests}.body IS ${(filter.hasBody ?? true) ? 'NOT ' : ''}NULL`,
+        params: [],
+      };
 
     case 'hasResponseBody':
-      return { sql: `${tableNames.responses}.body IS NOT NULL`, params: [] };
+      return {
+        sql: `${tableNames.responses}.body IS ${(filter.hasBody ?? true) ? 'NOT ' : ''}NULL`,
+        params: [],
+      };
 
     case 'requestMediaType': {
       const where = `
