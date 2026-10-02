@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+
 import {
   and,
   authorization,
@@ -32,16 +34,16 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { compileHttpFilterToWhereClause } from '../../src/db/http-filter-to-where-clause.js';
 import { SqliteHttpTransactionRepository } from '../../src/db/sqlite-http-transaction-repository.js';
 
-const A = '/items?page=1&sort=asc';
-const B = '/items?page=2';
-const C = '/other';
+const ITEMS_PAGE_1 = '/items?page=1&sort=asc';
+const ITEMS_PAGE_2 = '/items?page=2';
+const OTHER = '/other';
 
-const transactionA: CapturedTransaction = {
+const itemsPage1Transaction: CapturedTransaction = {
   request: {
     data: {
       method: 'GET',
       origin: 'https://api.example.com',
-      path: A,
+      path: ITEMS_PAGE_1,
       headers: { 'x-req': 'a', 'content-type': 'application/json' },
       body: '{}',
     },
@@ -59,9 +61,13 @@ const transactionA: CapturedTransaction = {
   },
 };
 
-const transactionB: CapturedTransaction = {
+const itemsPage2Transaction: CapturedTransaction = {
   request: {
-    data: { method: 'POST', origin: 'http://other.example.com', path: B },
+    data: {
+      method: 'POST',
+      origin: 'http://other.example.com',
+      path: ITEMS_PAGE_2,
+    },
     meta: { role: 'client' },
   },
   response: {
@@ -70,9 +76,9 @@ const transactionB: CapturedTransaction = {
   },
 };
 
-const transactionC: CapturedTransaction = {
+const otherTransaction: CapturedTransaction = {
   request: {
-    data: { method: 'GET', origin: 'https://api.example.com', path: C },
+    data: { method: 'GET', origin: 'https://api.example.com', path: OTHER },
     meta: { role: 'client' },
   },
   response: {
@@ -101,119 +107,167 @@ const supported: {
     {
       name: 'origin',
       filter: origin('https://api.example.com'),
-      matches: [A, C],
+      matches: [ITEMS_PAGE_1, OTHER],
     },
   ],
-  method: [{ name: 'method', filter: method('GET'), matches: [A, C] }],
-  path: [{ name: 'path', filter: path('/other'), matches: [C] }],
+  method: [
+    { name: 'method', filter: method('GET'), matches: [ITEMS_PAGE_1, OTHER] },
+  ],
+  path: [{ name: 'path', filter: path('/other'), matches: [OTHER] }],
   requestHeader: [
-    { name: 'name only', filter: requestHeader('x-req'), matches: [A] },
+    {
+      name: 'name only',
+      filter: requestHeader('x-req'),
+      matches: [ITEMS_PAGE_1],
+    },
     {
       name: 'name and value',
       filter: requestHeader('x-req', 'a'),
-      matches: [A],
+      matches: [ITEMS_PAGE_1],
     },
   ],
   responseHeader: [
-    { name: 'name only', filter: responseHeader('x-res'), matches: [A] },
+    {
+      name: 'name only',
+      filter: responseHeader('x-res'),
+      matches: [ITEMS_PAGE_1],
+    },
     {
       name: 'name and value',
       filter: responseHeader('x-res', 'r'),
-      matches: [A],
+      matches: [ITEMS_PAGE_1],
     },
   ],
   responseTrailer: [
-    { name: 'name only', filter: responseTrailer('x-trail'), matches: [A] },
+    {
+      name: 'name only',
+      filter: responseTrailer('x-trail'),
+      matches: [ITEMS_PAGE_1],
+    },
     {
       name: 'name and value',
       filter: responseTrailer('x-trail', 't'),
-      matches: [A],
+      matches: [ITEMS_PAGE_1],
     },
   ],
   queryParam: [
     {
       name: 'name and value',
       filter: queryParameter('page', '1'),
-      matches: [A],
+      matches: [ITEMS_PAGE_1],
     },
     {
       name: 'name is case-insensitive',
       filter: queryParameter('PAGE', '1'),
-      matches: [A],
+      matches: [ITEMS_PAGE_1],
     },
-    { name: 'name only', filter: queryParameter('page'), matches: [A, B] },
+    {
+      name: 'name only',
+      filter: queryParameter('page'),
+      matches: [ITEMS_PAGE_1, ITEMS_PAGE_2],
+    },
     {
       name: 'no matching value',
       filter: queryParameter('page', '3'),
       matches: [],
     },
-    { name: 'no param', filter: queryParameter(), matches: [A, B, C] },
+    {
+      name: 'no param',
+      filter: queryParameter(),
+      matches: [ITEMS_PAGE_1, ITEMS_PAGE_2, OTHER],
+    },
   ],
-  statusCode: [{ name: 'statusCode', filter: statusCode(404), matches: [B] }],
+  statusCode: [
+    { name: 'statusCode', filter: statusCode(404), matches: [ITEMS_PAGE_2] },
+  ],
   statusCodeRange: [
     {
       name: 'statusCodeRange',
       filter: statusCodeRange(200, 299),
-      matches: [A, C],
+      matches: [ITEMS_PAGE_1, OTHER],
     },
   ],
-  hasBody: [{ name: 'hasBody', filter: hasRequestBody(), matches: [A] }],
+  hasBody: [
+    { name: 'hasBody', filter: hasRequestBody(), matches: [ITEMS_PAGE_1] },
+  ],
   hasResponseBody: [
-    { name: 'hasResponseBody', filter: hasResponseBody(), matches: [A] },
+    {
+      name: 'hasResponseBody',
+      filter: hasResponseBody(),
+      matches: [ITEMS_PAGE_1],
+    },
   ],
   requestMediaType: [
     {
       name: 'requestMediaType',
       filter: requestMediaType('application/json'),
-      matches: [A],
+      matches: [ITEMS_PAGE_1],
     },
   ],
   responseMediaType: [
     {
       name: 'responseMediaType',
       filter: responseMediaType('text/plain'),
-      matches: [C],
+      matches: [OTHER],
     },
   ],
   constant: [
-    { name: 'true', filter: constant(true), matches: [A, B, C] },
+    {
+      name: 'true',
+      filter: constant(true),
+      matches: [ITEMS_PAGE_1, ITEMS_PAGE_2, OTHER],
+    },
     { name: 'false', filter: constant(false), matches: [] },
   ],
   and: [
     {
       name: 'and',
       filter: and(method('GET'), statusCode(200)),
-      matches: [A, C],
+      matches: [ITEMS_PAGE_1, OTHER],
     },
   ],
   or: [
     {
       name: 'or',
       filter: or(statusCode(404), path('/other')),
-      matches: [B, C],
+      matches: [ITEMS_PAGE_2, OTHER],
     },
   ],
   not: [
-    { name: 'not', filter: not(method('GET')), matches: [B] },
+    { name: 'not', filter: not(method('GET')), matches: [ITEMS_PAGE_2] },
     {
       name: 'not queryParam',
       filter: not(queryParameter('page')),
-      matches: [C],
+      matches: [OTHER],
     },
   ],
   xor: [
     {
       name: 'xor',
       filter: xor(method('GET'), path('/items')),
-      matches: [B, C],
+      matches: [ITEMS_PAGE_2, OTHER],
     },
   ],
   url: [
-    { name: 'url', filter: url('https://api.example.com/other'), matches: [C] },
+    {
+      name: 'url',
+      filter: url('https://api.example.com/other'),
+      matches: [OTHER],
+    },
   ],
-  protocol: [{ name: 'protocol', filter: protocol('https'), matches: [A, C] }],
+  protocol: [
+    {
+      name: 'protocol',
+      filter: protocol('https'),
+      matches: [ITEMS_PAGE_1, OTHER],
+    },
+  ],
   'matches-origin': [
-    { name: 'matches-origin', filter: matchesOrigin('other'), matches: [B] },
+    {
+      name: 'matches-origin',
+      filter: matchesOrigin('other'),
+      matches: [ITEMS_PAGE_2],
+    },
   ],
 };
 
@@ -229,9 +283,9 @@ describe('compileHttpFilterToWhereClause', () => {
   beforeEach(async () => {
     repo = new SqliteHttpTransactionRepository(':memory:', new NoopLogger());
     await repo.init();
-    repo.insertHttpTransaction(transactionA);
-    repo.insertHttpTransaction(transactionB);
-    repo.insertHttpTransaction(transactionC);
+    repo.insertHttpTransaction(itemsPage1Transaction);
+    repo.insertHttpTransaction(itemsPage2Transaction);
+    repo.insertHttpTransaction(otherTransaction);
   });
 
   afterEach(() => repo.close());
@@ -278,5 +332,24 @@ describe('compileHttpFilterToWhereClause', () => {
           .all(...params),
       ).not.toThrow();
     }
+  });
+
+  it('has a case for every filter type declared in @thymian/core', () => {
+    const source = readFileSync(
+      new URL('../../../core/src/http-filter.ts', import.meta.url),
+      'utf-8',
+    );
+    const declared = [
+      ...source
+        .slice(0, source.indexOf('export const methods'))
+        .matchAll(/type: '([^']+)'/g),
+    ].map((m) => m[1]);
+    const covered = [
+      ...Object.keys(supported),
+      ...unsupported.map((filter) => filter.type),
+    ];
+
+    expect(new Set(declared).size).toBeGreaterThan(0);
+    expect(covered.sort()).toEqual([...new Set(declared)].sort());
   });
 });
