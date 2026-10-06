@@ -86,4 +86,53 @@ describe('OpenapiProcessor', () => {
       expect(path).not.toContain('\\');
     }
   });
+  describe('response headers', () => {
+    const headerDocument: OpenApiV31.Document = {
+      openapi: '3.1.0',
+      info: { title: 'Test API', version: '1.0.0' },
+      paths: {
+        '/pets': {
+          get: {
+            parameters: [
+              {
+                name: 'X-Request-Only',
+                in: 'header',
+                schema: { type: 'string' },
+              },
+            ],
+            responses: {
+              '200': {
+                description: 'OK',
+                headers: { 'X-Declared': { schema: { type: 'string' } } },
+              },
+              '204': { description: 'No Content' },
+            },
+          },
+        },
+      },
+    };
+
+    const headerNamesPerTransaction = (): string[][] =>
+      new OpenapiProcessor(
+        new NoopLogger(),
+        serverInfoWithBasePath,
+        new NoopLocMapper(),
+      )
+        .process(headerDocument, constant(true))
+        .getThymianHttpTransactions()
+        .map((transaction) => Object.keys(transaction.thymianRes.headers));
+
+    it('does not put request header parameters into the response node', () => {
+      const namesPerTransaction = headerNamesPerTransaction();
+
+      expect(namesPerTransaction).toHaveLength(2);
+      for (const names of namesPerTransaction) {
+        expect(names).not.toContain('X-Request-Only');
+      }
+    });
+
+    it('keeps the headers the response declares', () => {
+      expect(headerNamesPerTransaction()).toContainEqual(['X-Declared']);
+    });
+  });
 });
