@@ -47,7 +47,7 @@ describe('thymian sampler check', () => {
       expect(result.output).toMatch(/Checked \d+ transactions?\. All passed\./);
       // It answers "can this be executed", and it needs no `sampler init`
       // first — the requests come from the in-memory projection.
-      expect(existsSync(join(getTempDir(), '.thymian'))).toBe(false);
+      expect(existsSync(join(getTempDir(), '.thymian', 'sampler'))).toBe(false);
     } finally {
       await server.close();
     }

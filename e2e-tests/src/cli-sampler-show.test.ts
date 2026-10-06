@@ -26,7 +26,7 @@ describe('thymian sampler show', () => {
     expect(output).toContain('"path": "/api/hello"');
     expect(output).toContain('"accept": "application/json"');
     // Nothing is materialized to show a request.
-    expect(existsSync(join(getTempDir(), '.thymian'))).toBe(false);
+    expect(existsSync(join(getTempDir(), '.thymian', 'sampler'))).toBe(false);
   }, 180_000);
 
   it('emits the request as JSON', () => {
