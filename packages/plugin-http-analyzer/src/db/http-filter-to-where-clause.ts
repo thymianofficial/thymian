@@ -50,7 +50,7 @@ export function compileHttpFilterToWhereClause(
         EXISTS (
           SELECT 1
           FROM http_response_header resHeader
-          WHERE resHeader.response_id = res.id
+          WHERE resHeader.response_id = ${tableNames.responses}.id
           AND resHeader.name = ? COLLATE NOCASE`;
       if (typeof filter.value === 'undefined') {
         return { sql: `${base})`, params: [filter.header] };
@@ -66,7 +66,7 @@ export function compileHttpFilterToWhereClause(
         EXISTS (
           SELECT 1
           FROM http_response_trailer resTrailer
-          WHERE resTrailer.response_id = res.id
+          WHERE resTrailer.response_id = ${tableNames.responses}.id
           AND resTrailer.name = ? COLLATE NOCASE`;
       if (typeof filter.value === 'undefined') {
         return { sql: `${base})`, params: [filter.trailer] };
@@ -106,7 +106,7 @@ export function compileHttpFilterToWhereClause(
         EXISTS (
           SELECT 1
           FROM http_request_header reqHeader
-          WHERE reqHeader.request_id = req.id
+          WHERE reqHeader.request_id = ${tableNames.requests}.id
           AND reqHeader.name = 'content-type' COLLATE NOCASE
           AND LOWER(reqHeader.value) LIKE LOWER(?)
         )`;
@@ -118,7 +118,7 @@ export function compileHttpFilterToWhereClause(
         EXISTS (
           SELECT 1
           FROM http_response_header resHeader
-          WHERE resHeader.response_id = res.id
+          WHERE resHeader.response_id = ${tableNames.responses}.id
           AND resHeader.name = 'content-type' COLLATE NOCASE
           AND LOWER(resHeader.value) LIKE LOWER(?)
         )`;
@@ -149,7 +149,7 @@ export function compileHttpFilterToWhereClause(
     }
 
     case 'not': {
-      const inner = compileHttpFilterToWhereClause(filter.filter);
+      const inner = compileHttpFilterToWhereClause(filter.filter, tableNames);
       return {
         sql: `NOT ${parenthesize(inner.sql)}`,
         params: inner.params,
@@ -158,8 +158,8 @@ export function compileHttpFilterToWhereClause(
 
     case 'xor': {
       const [a, b] = filter.filters;
-      const sa = compileHttpFilterToWhereClause(a);
-      const sb = compileHttpFilterToWhereClause(b);
+      const sa = compileHttpFilterToWhereClause(a, tableNames);
+      const sb = compileHttpFilterToWhereClause(b, tableNames);
       const where = `
         (${parenthesize(sa.sql)} AND NOT ${parenthesize(sb.sql)})
         OR
@@ -176,17 +176,18 @@ export function compileHttpFilterToWhereClause(
         return { sql: '1=1', params: [] };
       }
 
+      const base = `
+        EXISTS (
+          SELECT 1
+          FROM http_request_query_parameter reqParam
+          WHERE reqParam.request_id = ${tableNames.requests}.id
+          AND reqParam.name = ? COLLATE NOCASE`;
+      if (typeof filter.value === 'undefined') {
+        return { sql: `${base})`, params: [filter.param] };
+      }
       return {
-        sql: `
-          EXISTS (
-            SELECT 1
-            FROM http_request_query_parameter reqParam
-            WHERE
-              reqParam.request_id = reqId AND
-              reqParam.name = ? COLLATE NOCASE AND
-              reqParam.value = ?
-          )`,
-        params: [filter.param, filter.value],
+        sql: `${base} AND reqParam.value = ?)`,
+        params: [filter.param, String(filter.value)],
       };
     }
     case 'url': {
