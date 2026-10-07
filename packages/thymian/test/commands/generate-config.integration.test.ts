@@ -27,6 +27,7 @@ import { parse } from 'yaml';
 process.env.OCLIF_TEST_ROOT = join(import.meta.url, '../../..');
 
 import GenerateConfig from '../../src/commands/generate/config.js';
+import { loadOclifConfig } from '../support/oclif-config.js';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 
@@ -39,6 +40,8 @@ async function loadGeneratedConfig(
   const content = await readFile(filePath, 'utf-8');
   return parse(content) as Record<string, unknown>;
 }
+
+const oclifConfig = await loadOclifConfig();
 
 describe('generate config (integration)', () => {
   let exitSpy: MockInstance<typeof vi.spyOn>;
@@ -88,7 +91,10 @@ describe('generate config (integration)', () => {
       );
 
       const { stdout } = await captureOutput(async () => {
-        await GenerateConfig.run(['--cwd', testDir, '--no-interactive']);
+        await GenerateConfig.run(
+          ['--cwd', testDir, '--no-interactive'],
+          oclifConfig,
+        );
       });
 
       expect(stdout).toContain('Configuration written to');
@@ -130,13 +136,16 @@ describe('generate config (integration)', () => {
       );
 
       const { stdout } = await captureOutput(async () => {
-        await GenerateConfig.run([
-          '--cwd',
-          testDir,
-          '--no-interactive',
-          '--output',
-          'my-api.config.yaml',
-        ]);
+        await GenerateConfig.run(
+          [
+            '--cwd',
+            testDir,
+            '--no-interactive',
+            '--output',
+            'my-api.config.yaml',
+          ],
+          oclifConfig,
+        );
       });
 
       expect(stdout).toContain('Configuration written to');
@@ -157,7 +166,10 @@ describe('generate config (integration)', () => {
       writeFileSync(join(testDir, 'readme.md'), '# Not an API spec');
 
       const { error } = await captureOutput(async () => {
-        await GenerateConfig.run(['--cwd', testDir, '--no-interactive']);
+        await GenerateConfig.run(
+          ['--cwd', testDir, '--no-interactive'],
+          oclifConfig,
+        );
       });
 
       expect(error).toBeDefined();
@@ -181,7 +193,10 @@ describe('generate config (integration)', () => {
       );
 
       const { error } = await captureOutput(async () => {
-        await GenerateConfig.run(['--cwd', testDir, '--no-interactive']);
+        await GenerateConfig.run(
+          ['--cwd', testDir, '--no-interactive'],
+          oclifConfig,
+        );
       });
 
       expect(error).toBeDefined();
@@ -195,13 +210,16 @@ describe('generate config (integration)', () => {
       mkdirSync(testDir, { recursive: true });
 
       const { stdout } = await captureOutput(async () => {
-        await GenerateConfig.run([
-          '--cwd',
-          testDir,
-          '--no-interactive',
-          '--for-spec',
-          'openapi:./petstore.yaml',
-        ]);
+        await GenerateConfig.run(
+          [
+            '--cwd',
+            testDir,
+            '--no-interactive',
+            '--for-spec',
+            'openapi:./petstore.yaml',
+          ],
+          oclifConfig,
+        );
       });
 
       expect(stdout).toContain('Configuration written to');
@@ -226,15 +244,18 @@ describe('generate config (integration)', () => {
       mkdirSync(testDir, { recursive: true });
 
       await captureOutput(async () => {
-        await GenerateConfig.run([
-          '--cwd',
-          testDir,
-          '--no-interactive',
-          '--for-spec',
-          'openapi:./petstore.yaml',
-          '--for-spec',
-          'openapi:./orders.yaml',
-        ]);
+        await GenerateConfig.run(
+          [
+            '--cwd',
+            testDir,
+            '--no-interactive',
+            '--for-spec',
+            'openapi:./petstore.yaml',
+            '--for-spec',
+            'openapi:./orders.yaml',
+          ],
+          oclifConfig,
+        );
       });
 
       const configPath = join(testDir, 'thymian.config.yaml');
@@ -258,15 +279,18 @@ describe('generate config (integration)', () => {
       mkdirSync(testDir, { recursive: true });
 
       await captureOutput(async () => {
-        await GenerateConfig.run([
-          '--cwd',
-          testDir,
-          '--no-interactive',
-          '--for-spec',
-          'openapi:./petstore.yaml',
-          '--for-report',
-          'spectral:./report.json',
-        ]);
+        await GenerateConfig.run(
+          [
+            '--cwd',
+            testDir,
+            '--no-interactive',
+            '--for-spec',
+            'openapi:./petstore.yaml',
+            '--for-report',
+            'spectral:./report.json',
+          ],
+          oclifConfig,
+        );
       });
 
       const configPath = join(testDir, 'thymian.config.yaml');
@@ -284,17 +308,20 @@ describe('generate config (integration)', () => {
       mkdirSync(testDir, { recursive: true });
 
       await captureOutput(async () => {
-        await GenerateConfig.run([
-          '--cwd',
-          testDir,
-          '--no-interactive',
-          '--for-spec',
-          'openapi:./petstore.yaml',
-          '--for-report',
-          'spectral:./a.json',
-          '--for-report',
-          'spectral:./b.json',
-        ]);
+        await GenerateConfig.run(
+          [
+            '--cwd',
+            testDir,
+            '--no-interactive',
+            '--for-spec',
+            'openapi:./petstore.yaml',
+            '--for-report',
+            'spectral:./a.json',
+            '--for-report',
+            'spectral:./b.json',
+          ],
+          oclifConfig,
+        );
       });
 
       const configPath = join(testDir, 'thymian.config.yaml');
@@ -315,13 +342,16 @@ describe('generate config (integration)', () => {
       mkdirSync(testDir, { recursive: true });
 
       await captureOutput(async () => {
-        await GenerateConfig.run([
-          '--cwd',
-          testDir,
-          '--no-interactive',
-          '--for-spec',
-          'openapi:./petstore.yaml',
-        ]);
+        await GenerateConfig.run(
+          [
+            '--cwd',
+            testDir,
+            '--no-interactive',
+            '--for-spec',
+            'openapi:./petstore.yaml',
+          ],
+          oclifConfig,
+        );
       });
 
       const loadedConfig = await loadGeneratedConfig(
@@ -337,13 +367,16 @@ describe('generate config (integration)', () => {
       // No OpenAPI files in this directory
 
       const { stdout } = await captureOutput(async () => {
-        await GenerateConfig.run([
-          '--cwd',
-          testDir,
-          '--no-interactive',
-          '--for-spec',
-          'openapi:./my-api.yaml',
-        ]);
+        await GenerateConfig.run(
+          [
+            '--cwd',
+            testDir,
+            '--no-interactive',
+            '--for-spec',
+            'openapi:./my-api.yaml',
+          ],
+          oclifConfig,
+        );
       });
 
       expect(stdout).toContain('Configuration written to');
@@ -368,13 +401,16 @@ describe('generate config (integration)', () => {
       mkdirSync(testDir, { recursive: true });
 
       const { stdout } = await captureOutput(async () => {
-        await GenerateConfig.run([
-          '--cwd',
-          testDir,
-          '--no-interactive',
-          '--for-spec',
-          'openapi:./api.yaml',
-        ]);
+        await GenerateConfig.run(
+          [
+            '--cwd',
+            testDir,
+            '--no-interactive',
+            '--for-spec',
+            'openapi:./api.yaml',
+          ],
+          oclifConfig,
+        );
       });
 
       expect(stdout).toContain('Configuration written to');
@@ -403,7 +439,10 @@ describe('generate config (integration)', () => {
       );
 
       await captureOutput(async () => {
-        await GenerateConfig.run(['--cwd', testDir, '--no-interactive']);
+        await GenerateConfig.run(
+          ['--cwd', testDir, '--no-interactive'],
+          oclifConfig,
+        );
       });
 
       const configContent = await readFile(
@@ -434,7 +473,10 @@ describe('generate config (integration)', () => {
       );
 
       await captureOutput(async () => {
-        await GenerateConfig.run(['--cwd', testDir, '--no-interactive']);
+        await GenerateConfig.run(
+          ['--cwd', testDir, '--no-interactive'],
+          oclifConfig,
+        );
       });
 
       const loadedConfig = await loadGeneratedConfig(
@@ -469,7 +511,10 @@ describe('generate config (integration)', () => {
       );
 
       await captureOutput(async () => {
-        await GenerateConfig.run(['--cwd', testDir, '--no-interactive']);
+        await GenerateConfig.run(
+          ['--cwd', testDir, '--no-interactive'],
+          oclifConfig,
+        );
       });
 
       const loadedConfig = await loadGeneratedConfig(

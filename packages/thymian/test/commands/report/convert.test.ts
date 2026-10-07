@@ -31,6 +31,7 @@ import {
 import { mockState, resetMockState } from '@thymian/core-testing/mocks/thymian';
 
 import ReportConvert from '../../../src/commands/report/convert.js';
+import { loadOclifConfig } from '../../support/oclif-config.js';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 
@@ -51,6 +52,8 @@ function fixtureReport(failed: boolean) {
     }),
   ]);
 }
+
+const oclifConfig = await loadOclifConfig();
 
 describe('report convert command', () => {
   let tmpDir: string;
@@ -79,15 +82,18 @@ describe('report convert command', () => {
 
   it('forwards multiple --report and --spec flag inputs to the workflow (AC 3)', async () => {
     await captureOutput(async () => {
-      await ReportConvert.run([
-        '--report',
-        'spectral:./a.json',
-        '--report',
-        'spectral:./b.json',
-        '--spec',
-        'openapi:./api.yaml',
-        '--no-autoload',
-      ]);
+      await ReportConvert.run(
+        [
+          '--report',
+          'spectral:./a.json',
+          '--report',
+          'spectral:./b.json',
+          '--spec',
+          'openapi:./api.yaml',
+          '--no-autoload',
+        ],
+        oclifConfig,
+      );
     });
 
     expect(mockState.runCalled).toBe(true);
@@ -116,7 +122,10 @@ describe('report convert command', () => {
     );
 
     await captureOutput(async () => {
-      await ReportConvert.run(['--config', configPath, '--no-autoload']);
+      await ReportConvert.run(
+        ['--config', configPath, '--no-autoload'],
+        oclifConfig,
+      );
     });
 
     expect(mockState.reportConvertInput).toEqual(
@@ -142,15 +151,18 @@ describe('report convert command', () => {
     );
 
     await captureOutput(async () => {
-      await ReportConvert.run([
-        '--config',
-        configPath,
-        '--report',
-        'spectral:./flag-report.json',
-        '--spec',
-        'openapi:./flag-api.yaml',
-        '--no-autoload',
-      ]);
+      await ReportConvert.run(
+        [
+          '--config',
+          configPath,
+          '--report',
+          'spectral:./flag-report.json',
+          '--spec',
+          'openapi:./flag-api.yaml',
+          '--no-autoload',
+        ],
+        oclifConfig,
+      );
     });
 
     expect(mockState.reportConvertInput).toEqual(
@@ -172,13 +184,16 @@ describe('report convert command', () => {
     };
 
     const { error } = await captureOutput(async () => {
-      await ReportConvert.run([
-        '--report',
-        'spectral:./claimed.json',
-        '--report',
-        'foo:./r.json',
-        '--no-autoload',
-      ]);
+      await ReportConvert.run(
+        [
+          '--report',
+          'spectral:./claimed.json',
+          '--report',
+          'foo:./r.json',
+          '--no-autoload',
+        ],
+        oclifConfig,
+      );
     });
 
     expect(error?.message).toContain('"foo:./r.json"');
@@ -192,14 +207,17 @@ describe('report convert command', () => {
 
   it('forwards --validate-specs as validateSpecs: true', async () => {
     await captureOutput(async () => {
-      await ReportConvert.run([
-        '--report',
-        'spectral:./report.json',
-        '--spec',
-        'openapi:./api.yaml',
-        '--validate-specs',
-        '--no-autoload',
-      ]);
+      await ReportConvert.run(
+        [
+          '--report',
+          'spectral:./report.json',
+          '--spec',
+          'openapi:./api.yaml',
+          '--validate-specs',
+          '--no-autoload',
+        ],
+        oclifConfig,
+      );
     });
 
     expect(mockState.reportConvertInput).toEqual(
@@ -211,7 +229,7 @@ describe('report convert command', () => {
 
   it('fails with exit 2 when no report input is found anywhere', async () => {
     const { error } = await captureOutput(async () => {
-      await ReportConvert.run(['--no-autoload']);
+      await ReportConvert.run(['--no-autoload'], oclifConfig);
     });
 
     expect(error?.message).toBe(
@@ -230,11 +248,10 @@ describe('report convert command', () => {
     };
 
     const { error, stdout } = await captureOutput(async () => {
-      await ReportConvert.run([
-        '--report',
-        'spectral:./report.json',
-        '--no-autoload',
-      ]);
+      await ReportConvert.run(
+        ['--report', 'spectral:./report.json', '--no-autoload'],
+        oclifConfig,
+      );
     });
 
     expect(error).toBeUndefined();
@@ -267,11 +284,10 @@ describe('report convert command', () => {
     };
 
     const { error } = await captureOutput(async () => {
-      await ReportConvert.run([
-        '--report',
-        'spectral:./report.json',
-        '--no-autoload',
-      ]);
+      await ReportConvert.run(
+        ['--report', 'spectral:./report.json', '--no-autoload'],
+        oclifConfig,
+      );
     });
 
     expect(

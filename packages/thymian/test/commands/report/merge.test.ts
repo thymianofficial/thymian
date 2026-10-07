@@ -31,6 +31,7 @@ import {
 import { mockState, resetMockState } from '@thymian/core-testing/mocks/thymian';
 
 import ReportMerge from '../../../src/commands/report/merge.js';
+import { loadOclifConfig } from '../../support/oclif-config.js';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 
@@ -62,6 +63,8 @@ function mergedReport(failed: boolean) {
   ]);
 }
 
+const oclifConfig = await loadOclifConfig();
+
 describe('report merge command', () => {
   let tmpDir: string;
 
@@ -89,15 +92,18 @@ describe('report merge command', () => {
 
   it('forwards mixed --report inputs and --spec to the convert workflow (AC 1, 3)', async () => {
     await captureOutput(async () => {
-      await ReportMerge.run([
-        '--report',
-        'thymian:./a.json',
-        '--report',
-        'spectral:./b.json',
-        '--spec',
-        'openapi:./api.yaml',
-        '--no-autoload',
-      ]);
+      await ReportMerge.run(
+        [
+          '--report',
+          'thymian:./a.json',
+          '--report',
+          'spectral:./b.json',
+          '--spec',
+          'openapi:./api.yaml',
+          '--no-autoload',
+        ],
+        oclifConfig,
+      );
     });
 
     expect(mockState.runCalled).toBe(true);
@@ -126,7 +132,10 @@ describe('report merge command', () => {
     );
 
     const { error } = await captureOutput(async () => {
-      await ReportMerge.run(['--config', configPath, '--no-autoload']);
+      await ReportMerge.run(
+        ['--config', configPath, '--no-autoload'],
+        oclifConfig,
+      );
     });
 
     // Config reports do not count as inputs: without --report the command
@@ -158,13 +167,16 @@ describe('report merge command', () => {
     );
 
     await captureOutput(async () => {
-      await ReportMerge.run([
-        '--config',
-        configPath,
-        '--report',
-        'thymian:./flag-report.json',
-        '--no-autoload',
-      ]);
+      await ReportMerge.run(
+        [
+          '--config',
+          configPath,
+          '--report',
+          'thymian:./flag-report.json',
+          '--no-autoload',
+        ],
+        oclifConfig,
+      );
     });
 
     expect(mockState.reportConvertInput).toEqual(
@@ -188,15 +200,18 @@ describe('report merge command', () => {
     );
 
     await captureOutput(async () => {
-      await ReportMerge.run([
-        '--config',
-        configPath,
-        '--report',
-        'thymian:./flag-report.json',
-        '--spec',
-        'openapi:./flag-api.yaml',
-        '--no-autoload',
-      ]);
+      await ReportMerge.run(
+        [
+          '--config',
+          configPath,
+          '--report',
+          'thymian:./flag-report.json',
+          '--spec',
+          'openapi:./flag-api.yaml',
+          '--no-autoload',
+        ],
+        oclifConfig,
+      );
     });
 
     expect(mockState.reportConvertInput).toEqual(
@@ -208,7 +223,7 @@ describe('report merge command', () => {
 
   it('fails with exit 2 when no report input is given (AC 4)', async () => {
     const { error } = await captureOutput(async () => {
-      await ReportMerge.run(['--no-autoload']);
+      await ReportMerge.run(['--no-autoload'], oclifConfig);
     });
 
     expect(error?.message).toContain('No report input found');
@@ -220,14 +235,17 @@ describe('report merge command', () => {
 
   it('forwards --validate-specs as validateSpecs: true (AC 3)', async () => {
     await captureOutput(async () => {
-      await ReportMerge.run([
-        '--report',
-        'thymian:./report.json',
-        '--spec',
-        'openapi:./api.yaml',
-        '--validate-specs',
-        '--no-autoload',
-      ]);
+      await ReportMerge.run(
+        [
+          '--report',
+          'thymian:./report.json',
+          '--spec',
+          'openapi:./api.yaml',
+          '--validate-specs',
+          '--no-autoload',
+        ],
+        oclifConfig,
+      );
     });
 
     expect(mockState.reportConvertInput).toEqual(
@@ -244,13 +262,16 @@ describe('report merge command', () => {
     };
 
     const { error, stdout } = await captureOutput(async () => {
-      await ReportMerge.run([
-        '--report',
-        'thymian:./a.json',
-        '--report',
-        'spectral:./b.json',
-        '--no-autoload',
-      ]);
+      await ReportMerge.run(
+        [
+          '--report',
+          'thymian:./a.json',
+          '--report',
+          'spectral:./b.json',
+          '--no-autoload',
+        ],
+        oclifConfig,
+      );
     });
 
     expect(error).toBeUndefined();
@@ -267,7 +288,10 @@ describe('report merge command', () => {
     };
 
     const { error } = await captureOutput(async () => {
-      await ReportMerge.run(['--report', 'thymian:./a.json', '--no-autoload']);
+      await ReportMerge.run(
+        ['--report', 'thymian:./a.json', '--no-autoload'],
+        oclifConfig,
+      );
     });
 
     expect(

@@ -73,8 +73,11 @@ vi.mock('@thymian/core', async () => {
 
 import Lint from '../../src/commands/lint.js';
 import Validate from '../../src/commands/validate.js';
+import { loadOclifConfig } from '../support/oclif-config.js';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
+
+const oclifConfig = await loadOclifConfig();
 
 describe('config resolution chain (integration)', () => {
   let exitSpy: MockInstance<typeof vi.spyOn>;
@@ -127,7 +130,7 @@ describe('config resolution chain (integration)', () => {
       );
 
       await captureOutput(async () => {
-        await Lint.run(['--config', configPath, '--no-autoload']);
+        await Lint.run(['--config', configPath, '--no-autoload'], oclifConfig);
       });
 
       expect(mockState.runCalled).toBe(true);
@@ -144,11 +147,14 @@ describe('config resolution chain (integration)', () => {
         .mockImplementation(() => undefined);
 
       await captureOutput(async () => {
-        await Lint.run([
-          '--config',
-          join(tmpDir, 'nonexistent.config.yaml'),
-          '--no-autoload',
-        ]);
+        await Lint.run(
+          [
+            '--config',
+            join(tmpDir, 'nonexistent.config.yaml'),
+            '--no-autoload',
+          ],
+          oclifConfig,
+        );
       });
 
       expect(exitSpy).toHaveBeenCalledWith(2);
@@ -183,7 +189,7 @@ describe('config resolution chain (integration)', () => {
       );
 
       await captureOutput(async () => {
-        await Lint.run(['--cwd', cwdDir, '--no-autoload']);
+        await Lint.run(['--cwd', cwdDir, '--no-autoload'], oclifConfig);
       });
 
       expect(mockState.runCalled).toBe(true);
@@ -200,7 +206,7 @@ describe('config resolution chain (integration)', () => {
       // No config file in cwdDir, no --spec
       // defaultConfig has empty specifications, so Step D/E/F should trigger
       const { error } = await captureOutput(async () => {
-        await Lint.run(['--cwd', cwdDir, '--no-autoload']);
+        await Lint.run(['--cwd', cwdDir, '--no-autoload'], oclifConfig);
       });
 
       // this.exit(2) throws an ExitError during init() after logging guidance.
@@ -229,13 +235,16 @@ describe('config resolution chain (integration)', () => {
       );
 
       await captureOutput(async () => {
-        await Lint.run([
-          '--config',
-          configPath,
-          '--spec',
-          'openapi:./overridden.yaml',
-          '--no-autoload',
-        ]);
+        await Lint.run(
+          [
+            '--config',
+            configPath,
+            '--spec',
+            'openapi:./overridden.yaml',
+            '--no-autoload',
+          ],
+          oclifConfig,
+        );
       });
 
       expect(mockState.runCalled).toBe(true);
@@ -260,13 +269,16 @@ describe('config resolution chain (integration)', () => {
       );
 
       const { error } = await captureOutput(async () => {
-        await Lint.run([
-          '--config',
-          configPath,
-          '--spec',
-          './just-a-path.yaml',
-          '--no-autoload',
-        ]);
+        await Lint.run(
+          [
+            '--config',
+            configPath,
+            '--spec',
+            './just-a-path.yaml',
+            '--no-autoload',
+          ],
+          oclifConfig,
+        );
       });
 
       expect(error).toBeDefined();
@@ -278,13 +290,16 @@ describe('config resolution chain (integration)', () => {
       mkdirSync(emptyDir, { recursive: true });
 
       await captureOutput(async () => {
-        await Lint.run([
-          '--cwd',
-          emptyDir,
-          '--spec',
-          'openapi:./my-spec.yaml',
-          '--no-autoload',
-        ]);
+        await Lint.run(
+          [
+            '--cwd',
+            emptyDir,
+            '--spec',
+            'openapi:./my-spec.yaml',
+            '--no-autoload',
+          ],
+          oclifConfig,
+        );
       });
 
       expect(mockState.runCalled).toBe(true);
@@ -311,13 +326,16 @@ describe('config resolution chain (integration)', () => {
       );
 
       await captureOutput(async () => {
-        await Validate.run([
-          '--config',
-          configPath,
-          '--spec',
-          'openapi:./overridden.yaml',
-          '--no-autoload',
-        ]);
+        await Validate.run(
+          [
+            '--config',
+            configPath,
+            '--spec',
+            'openapi:./overridden.yaml',
+            '--no-autoload',
+          ],
+          oclifConfig,
+        );
       });
 
       expect(mockState.validateInput).toEqual(
@@ -354,7 +372,10 @@ describe('config resolution chain (integration)', () => {
       };
 
       await captureOutput(async () => {
-        await Validate.run(['--config', configPath, '--no-autoload']);
+        await Validate.run(
+          ['--config', configPath, '--no-autoload'],
+          oclifConfig,
+        );
       });
 
       expect(mockState.validateInput).toEqual(
@@ -397,7 +418,10 @@ describe('config resolution chain (integration)', () => {
       };
 
       await captureOutput(async () => {
-        await Validate.run(['--config', configPath, '--no-autoload']);
+        await Validate.run(
+          ['--config', configPath, '--no-autoload'],
+          oclifConfig,
+        );
       });
 
       expect(ux.stdout).not.toHaveBeenCalledWith(
@@ -413,7 +437,7 @@ describe('config resolution chain (integration)', () => {
       mkdirSync(emptyDir, { recursive: true });
 
       const { error } = await captureOutput(async () => {
-        await Validate.run(['--cwd', emptyDir, '--no-autoload']);
+        await Validate.run(['--cwd', emptyDir, '--no-autoload'], oclifConfig);
       });
 
       expect(error).toBeDefined();
@@ -430,7 +454,7 @@ describe('config resolution chain (integration)', () => {
       mkdirSync(emptyDir, { recursive: true });
 
       const { error } = await captureOutput(async () => {
-        await Lint.run(['--cwd', emptyDir, '--no-autoload']);
+        await Lint.run(['--cwd', emptyDir, '--no-autoload'], oclifConfig);
       });
 
       // this.exit(2) throws an ExitError during init() after logging guidance.
