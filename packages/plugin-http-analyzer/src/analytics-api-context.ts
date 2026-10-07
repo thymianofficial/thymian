@@ -143,6 +143,12 @@ export class AnalyticsApiContext implements AnalyzeContext {
     if (roles) {
       this.roles = expandHttpParticipantRoles(roles);
     }
+
+    // A recorded pair the specification does not describe is not secured.
+    this.repository.answerIsSecuredWith((request, response) => {
+      const reqId = this.format.matchTransaction(request, response)?.[1];
+      return !!reqId && this.format.requestIsSecured(reqId);
+    });
   }
 
   getRuleExecutionDiagnostics(): undefined {

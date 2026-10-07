@@ -13,8 +13,6 @@ describeRuleContextScenarios({
   name: 'analyze',
   observes: 'actual pair',
   notApplicable: {
-    isAuthorized:
-      'the analyzer translates appliesTo to SQL, which cannot ask whether the described request is secured',
     path: 'the analyzer compares the recorded concrete path in SQL, not the described path template',
     port: 'the analyzer cannot translate port() to SQL',
     origin:
@@ -33,11 +31,25 @@ describeRuleContextScenarios({
         request: { data: actual.request, meta: {} },
         response: { data: actual.response, meta: {} },
       });
-      format.addHttpTransaction(
+      const [reqId] = format.addHttpTransaction(
         described.request,
         described.response,
         'test-source',
       );
+
+      if (described.secured) {
+        const schemeId = format.addSecurityScheme({
+          label: 'basic',
+          scheme: 'basic',
+          sourceName: 'test-source',
+          type: 'security-scheme',
+        });
+        format.addEdge(reqId, schemeId, {
+          label: 'basic',
+          type: 'is-secured',
+          sourceName: 'test-source',
+        });
+      }
     }
 
     return {

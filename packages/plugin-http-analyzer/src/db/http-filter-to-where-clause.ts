@@ -3,6 +3,12 @@ import { and, type HttpFilterExpression, origin, path } from '@thymian/core';
 import type { TableNames } from './types.js';
 import { parenthesize, type SqlFragment } from './utils.js';
 
+/**
+ * SQL function the repository registers to ask the specification whether the
+ * described request of a recorded transaction is secured; SQL alone cannot.
+ */
+export const IS_SECURED_SQL_FUNCTION = 'thymian_is_secured';
+
 export function compileHttpFilterToWhereClause(
   filter: HttpFilterExpression,
   names: Partial<TableNames> = {},
@@ -222,8 +228,22 @@ export function compileHttpFilterToWhereClause(
         params: [`%${filter.origin.replaceAll('*', '%')}%`],
       };
     }
+    case 'isAuthorized': {
+      // The function may not query while this statement runs, so it gets
+      // every column matching a recorded pair to its description needs.
+      const { requests: req, responses: res } = tableNames;
+      return {
+        sql: `${IS_SECURED_SQL_FUNCTION}(
+          ${req}.method, ${req}.origin, ${req}.path, ${res}.status_code,
+          (SELECT value FROM http_request_header
+            WHERE request_id = ${req}.id AND name = 'content-type' COLLATE NOCASE LIMIT 1),
+          (SELECT value FROM http_response_header
+            WHERE response_id = ${res}.id AND name = 'content-type' COLLATE NOCASE LIMIT 1)
+        ) = ?`,
+        params: [filter.isAuthorized ? 1 : 0],
+      };
+    }
     case 'hasResponse':
-    case 'isAuthorized':
     case 'port':
       throw new Error(
         `HTTP filter expression "${filter.type}" is not supported for SQL translation.`,

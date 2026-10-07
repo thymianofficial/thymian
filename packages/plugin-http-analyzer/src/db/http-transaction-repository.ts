@@ -3,12 +3,22 @@ import type {
   CapturedTrace,
   CapturedTransaction,
   HttpParticipantRole,
+  HttpRequest,
+  HttpResponse,
 } from '@thymian/core';
 
 export type Awaitable<T> = T | Promise<T>;
 
 export interface HttpTransactionRepository {
   init(): Awaitable<void>;
+
+  /**
+   * How `authorization()` is answered for a recorded pair: whether the
+   * specification secures the request it was matched to.
+   */
+  answerIsSecuredWith(
+    isSecured: (request: HttpRequest, response: HttpResponse) => boolean,
+  ): void;
 
   close(): Awaitable<void>;
 

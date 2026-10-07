@@ -8,6 +8,8 @@ import type {
   CapturedTransaction,
   HttpFilterExpression,
   HttpParticipantRole,
+  HttpRequest,
+  HttpResponse,
   Logger,
 } from '@thymian/core';
 import SqliteDb, { type Database, type Statement } from 'better-sqlite3';
@@ -16,7 +18,10 @@ import {
   httpFilterToGroupByClause,
   httpFilterToGroupingKey,
 } from './http-filter-to-groupby-clause.js';
-import { compileHttpFilterToWhereClause } from './http-filter-to-where-clause.js';
+import {
+  compileHttpFilterToWhereClause,
+  IS_SECURED_SQL_FUNCTION,
+} from './http-filter-to-where-clause.js';
 import type { HttpTransactionRepository } from './http-transaction-repository.js';
 
 type TransactionIdDb = {
@@ -52,6 +57,7 @@ function sortTraceTransactions(
 
 export class SqliteHttpTransactionRepository implements HttpTransactionRepository {
   readonly db: Database;
+  private isSecured?: (request: HttpRequest, response: HttpResponse) => boolean;
 
   constructor(
     location = ':memory:',
@@ -59,6 +65,41 @@ export class SqliteHttpTransactionRepository implements HttpTransactionRepositor
   ) {
     this.db = new SqliteDb(location);
     this.db.pragma('journal_mode = WAL');
+    this.db.function(
+      IS_SECURED_SQL_FUNCTION,
+      (method, origin, path, statusCode, reqContentType, resContentType) => {
+        if (!this.isSecured) {
+          throw new Error(
+            'authorization() needs the specification; call answerIsSecuredWith() first.',
+          );
+        }
+        const contentType = (value: unknown): Record<string, string> =>
+          typeof value === 'string' ? { 'content-type': value } : {};
+
+        return this.isSecured(
+          {
+            method: String(method),
+            origin: String(origin),
+            path: String(path),
+            headers: contentType(reqContentType),
+          },
+          {
+            statusCode: Number(statusCode),
+            headers: contentType(resContentType),
+            trailers: {},
+            duration: 0,
+          },
+        )
+          ? 1
+          : 0;
+      },
+    );
+  }
+
+  answerIsSecuredWith(
+    isSecured: (request: HttpRequest, response: HttpResponse) => boolean,
+  ): void {
+    this.isSecured = isSecured;
   }
 
   async init(): Promise<void> {
@@ -115,10 +156,9 @@ export class SqliteHttpTransactionRepository implements HttpTransactionRepositor
     this.logger.debug('Executing SQL query:', statement);
 
     const result = this.db
-      .prepare<
-        unknown[],
-        { transactionIds: string; grouping_key: string }
-      >(statement)
+      .prepare<unknown[], { transactionIds: string; grouping_key: string }>(
+        statement,
+      )
       .iterate(params);
 
     for (const { transactionIds, grouping_key } of result) {
@@ -346,8 +386,7 @@ export class SqliteHttpTransactionRepository implements HttpTransactionRepositor
       SELECT request_id, response_id FROM http_transaction WHERE id = ?
     `);
     const transactionRow = transactionStmt.get(id) as
-      | { request_id: number; response_id: number }
-      | undefined;
+      { request_id: number; response_id: number } | undefined;
 
     if (!transactionRow) {
       return;

@@ -78,6 +78,8 @@ case-insensitively, `protocol` is read from the request origin, and origins, por
 spell the default port explicitly. What only the specification knows is read from it
 through the transaction's source: `isAuthorized` (`requestIsSecured`), `responseWith` (the
 responses the operation declares) and `path` (the template the request was generated from).
+The `Analyze` context answers `isAuthorized` the same way, from the description its
+recorded pair matches; a pair that matches no description is not secured.
 
 The positional signatures are removed outright, not deprecated. Thymian is pre-1.0 and a
 deprecated overload would keep the trap open for exactly the users this protects.
