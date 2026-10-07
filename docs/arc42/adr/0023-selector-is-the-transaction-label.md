@@ -1,4 +1,4 @@
-# ADR-0022: The Selector is the transaction label, application-wide
+# ADR-0023: The Selector is the transaction label, application-wide
 
 | Status   | Date       | Supersedes | Superseded by |
 | -------- | ---------- | ---------- | ------------- |

@@ -7,7 +7,7 @@ a hook is, how it is aimed, and what a transaction earned once it ran.
 The concepts a hook is written _against_ stay one level up, because they are named across
 packages and by accepted ADRs: `Sample` and `Selector`
 ([ADR-0019](../../docs/arc42/adr/0019-virtual-samples-and-selector-anchored-hooks.md),
-[ADR-0022](../../docs/arc42/adr/0022-selector-is-the-transaction-label.md)), and `Operation`.
+[ADR-0023](../../docs/arc42/adr/0023-selector-is-the-transaction-label.md)), and `Operation`.
 
 ## Language
 

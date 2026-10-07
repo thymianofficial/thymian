@@ -48,7 +48,7 @@ export const dispatcherPlugin: ThymianPlugin<SamplerPluginOptions> = {
           ctx.reply(result);
         } catch (e: unknown) {
           // `severity: 'warn'` is load-bearing, not a judgement about how bad
-          // this is (ADR-0023). `Thymian.run` closes the whole run on any
+          // this is (ADR-0024). `Thymian.run` closes the whole run on any
           // `error`-severity event, which is exactly what the Outcome model
           // exists to prevent: a refused connection or a dispatch failure is
           // scoped to the one request that made it, so `warn` is what lets
