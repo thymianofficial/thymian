@@ -74,8 +74,10 @@ correctly within them is the rule author's responsibility.
 
 For `appliesTo` to mean the same in every context, the `Test` context's live filter
 evaluator matches the other two: method, header and trailer names compare
-case-insensitively, `protocol` is read from the request origin, and `isAuthorized` is read
-from the specification (`requestIsSecured`) through the transaction's source.
+case-insensitively, `protocol` is read from the request origin, and origins, ports and URLs
+spell the default port explicitly. What only the specification knows is read from it
+through the transaction's source: `isAuthorized` (`requestIsSecured`), `responseWith` (the
+responses the operation declares) and `path` (the template the request was generated from).
 
 The positional signatures are removed outright, not deprecated. Thymian is pre-1.0 and a
 deprecated overload would keep the trap open for exactly the users this protects.

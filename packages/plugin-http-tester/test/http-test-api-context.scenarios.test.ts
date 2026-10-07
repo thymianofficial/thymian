@@ -15,8 +15,11 @@ import { HttpTestApiContext } from '../src/http-test-api-context.js';
 function actualPairAt(
   transactions: ScenarioTransaction[],
   path: string,
+  sentPath: boolean,
 ): ScenarioTransaction['actual'] {
-  const transaction = transactions.find((t) => t.actual.request.path === path);
+  const transaction = transactions.find(
+    (t) => (sentPath ? t.actual : t.described).request.path === path,
+  );
   if (!transaction) {
     throw new Error(`No scenario transaction for path ${path}.`);
   }
@@ -60,6 +63,7 @@ describeRuleContextScenarios({
         const { request } = actualPairAt(
           transactions,
           transaction.thymianReq.path,
+          false,
         );
         return {
           method: request.method,
@@ -73,7 +77,7 @@ describeRuleContextScenarios({
         };
       },
       runRequest: async (request) =>
-        actualPairAt(transactions, request.path).response,
+        actualPairAt(transactions, request.path, true).response,
       runHook: vi
         .fn()
         .mockImplementation(async (_name, hook) => ({ result: hook.value })),

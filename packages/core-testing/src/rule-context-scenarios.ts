@@ -10,14 +10,19 @@ import {
   type HttpResponse,
   type LiveApiContext,
   method,
+  origin,
+  path,
+  port,
   protocol,
   requestHeader,
   responseHeader,
+  responseWith,
   type RuleFnResult,
   type RuleViolationLocation,
   statusCode,
   type ThymianHttpRequest,
   type ThymianHttpResponse,
+  url,
 } from '@thymian/core';
 import { describe, expect, it } from 'vitest';
 
@@ -78,7 +83,7 @@ type TransactionOptions = {
 
 type ActualOverrides = Pick<
   TransactionOptions,
-  'method' | 'requestHeaders' | 'responseHeaders'
+  'path' | 'method' | 'requestHeaders' | 'responseHeaders'
 >;
 
 function transaction(
@@ -95,6 +100,7 @@ function transaction(
     responseHeaders = [],
   } = options;
   const actual = {
+    path,
     method,
     requestHeaders,
     responseHeaders,
@@ -124,7 +130,7 @@ function transaction(
     actual: {
       request: {
         origin: `${protocol}://api.example.com`,
-        path,
+        path: actual.path,
         method: actual.method,
         headers: Object.fromEntries(
           actual.requestHeaders.map((name) => [name, 'value']),
@@ -132,9 +138,13 @@ function transaction(
       },
       response: {
         statusCode,
-        headers: Object.fromEntries(
-          actual.responseHeaders.map((name) => [name, 'value']),
-        ),
+        headers: {
+          // As described: the response factory declares a JSON body.
+          'content-type': 'application/json',
+          ...Object.fromEntries(
+            actual.responseHeaders.map((name) => [name, 'value']),
+          ),
+        },
         trailers: {},
         duration: 0,
       },
@@ -292,6 +302,52 @@ const scenarios: RuleContextScenario[] = [
     ],
     appliesTo: authorization(),
     applicable: [],
+  },
+  {
+    name: 'path() names the path template, not the concrete path sent',
+    transactions: [
+      transaction(
+        { path: '/users/{id}', responseHeaders: [VIOLATING_HEADER] },
+        { path: '/users/42' },
+      ),
+    ],
+    appliesTo: path('/users/{id}'),
+    applicable: [0],
+  },
+  {
+    name: 'port(443) applies to an https transaction on the default port',
+    transactions: [
+      transaction({ protocol: 'https', responseHeaders: [VIOLATING_HEADER] }),
+    ],
+    appliesTo: port(443),
+    applicable: [0],
+  },
+  {
+    name: 'origin() spells the default port explicitly',
+    transactions: [
+      transaction({ protocol: 'https', responseHeaders: [VIOLATING_HEADER] }),
+    ],
+    appliesTo: origin('https://api.example.com:443'),
+    applicable: [0],
+  },
+  {
+    name: 'url() spells the default port explicitly',
+    transactions: [
+      transaction({ protocol: 'https', responseHeaders: [VIOLATING_HEADER] }),
+    ],
+    appliesTo: url('https://api.example.com:443/users'),
+    applicable: [0],
+  },
+  {
+    name: 'responseWith() asks the declared responses, not the pair that came back',
+    transactions: [
+      transaction(
+        { responseHeaders: ['x-rate-limit', VIOLATING_HEADER] },
+        { responseHeaders: [VIOLATING_HEADER] },
+      ),
+    ],
+    appliesTo: responseWith(responseHeader('x-rate-limit')),
+    applicable: [0],
   },
 ];
 

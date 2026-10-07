@@ -15,6 +15,11 @@ describeRuleContextScenarios({
   notApplicable: {
     isAuthorized:
       'the analyzer translates appliesTo to SQL, which cannot ask whether the described request is secured',
+    path: 'the analyzer compares the recorded concrete path in SQL, not the described path template',
+    port: 'the analyzer cannot translate port() to SQL',
+    origin:
+      'the analyzer compares the origin as recorded, without the default port',
+    hasResponse: 'the analyzer cannot translate responseWith() to SQL',
   },
   async setup(transactions) {
     const logger = new NoopLogger();
