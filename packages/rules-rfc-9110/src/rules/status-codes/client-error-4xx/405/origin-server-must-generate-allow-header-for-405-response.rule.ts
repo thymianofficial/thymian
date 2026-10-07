@@ -1,6 +1,7 @@
 import {
   getHeader,
   type HttpResponse,
+  type HttpRuleCriteria,
   not,
   responseHeader,
   type RuleViolationLocation,
@@ -18,6 +19,23 @@ function allowMethodTokens(value: string | string[] | undefined): string[] {
     .map((token) => token.trim())
     .filter((token) => token.length > 0);
 }
+
+// The real-data contexts (test and analyze) share one validation.
+const liveValidation: HttpRuleCriteria = {
+  appliesTo: statusCode(405),
+  violatedWhen: (_req, res: HttpResponse, location: RuleViolationLocation) => {
+    const tokens = allowMethodTokens(getHeader(res.headers, 'allow'));
+    return tokens.length === 0
+      ? [
+          {
+            location,
+            violation: {},
+            findings: [],
+          },
+        ]
+      : [];
+  },
+};
 
 // eslint-disable-next-line thymian-internal/require-rule-tags -- no concern-tag member fits this rule's topic
 export default httpRule(
@@ -45,46 +63,6 @@ export default httpRule(
       violatedWhen: not(responseHeader('allow')),
     }),
   )
-  .overrideTest((ctx) =>
-    ctx.validateHttpTransactions({
-      appliesTo: statusCode(405),
-      violatedWhen: (
-        _req,
-        res: HttpResponse,
-        location: RuleViolationLocation,
-      ) => {
-        const tokens = allowMethodTokens(getHeader(res.headers, 'allow'));
-        return tokens.length === 0
-          ? [
-              {
-                location,
-                violation: {},
-                findings: [],
-              },
-            ]
-          : [];
-      },
-    }),
-  )
-  .overrideAnalyticsRule((ctx) =>
-    ctx.validateHttpTransactions({
-      appliesTo: statusCode(405),
-      violatedWhen: (
-        _req,
-        res: HttpResponse,
-        location: RuleViolationLocation,
-      ) => {
-        const tokens = allowMethodTokens(getHeader(res.headers, 'allow'));
-        return tokens.length === 0
-          ? [
-              {
-                location,
-                violation: {},
-                findings: [],
-              },
-            ]
-          : [];
-      },
-    }),
-  )
+  .overrideTest((ctx) => ctx.validateHttpTransactions(liveValidation))
+  .overrideAnalyticsRule((ctx) => ctx.validateHttpTransactions(liveValidation))
   .done();

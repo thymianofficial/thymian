@@ -1,6 +1,7 @@
 import {
   getHeader,
   type HttpResponse,
+  type HttpRuleCriteria,
   not,
   responseHeader,
   type RuleViolationLocation,
@@ -9,6 +10,21 @@ import {
 import { httpRule } from '@thymian/core';
 
 import { hasNonEmptyHeaderValue } from '../../utils/headers.js';
+
+// The real-data contexts (test and analyze) share one validation.
+const liveValidation: HttpRuleCriteria = {
+  appliesTo: statusCode(301),
+  violatedWhen: (_req, res: HttpResponse, location: RuleViolationLocation) =>
+    hasNonEmptyHeaderValue(getHeader(res.headers, 'location'))
+      ? []
+      : [
+          {
+            location,
+            violation: {},
+            findings: [],
+          },
+        ],
+};
 
 // eslint-disable-next-line thymian-internal/require-rule-tags -- no concern-tag member fits this rule's topic
 export default httpRule(
@@ -33,42 +49,6 @@ export default httpRule(
       violatedWhen: not(responseHeader('location')),
     }),
   )
-  .overrideTest((ctx) =>
-    ctx.validateHttpTransactions({
-      appliesTo: statusCode(301),
-      violatedWhen: (
-        _req,
-        res: HttpResponse,
-        location: RuleViolationLocation,
-      ) =>
-        hasNonEmptyHeaderValue(getHeader(res.headers, 'location'))
-          ? []
-          : [
-              {
-                location,
-                violation: {},
-                findings: [],
-              },
-            ],
-    }),
-  )
-  .overrideAnalyticsRule((ctx) =>
-    ctx.validateHttpTransactions({
-      appliesTo: statusCode(301),
-      violatedWhen: (
-        _req,
-        res: HttpResponse,
-        location: RuleViolationLocation,
-      ) =>
-        hasNonEmptyHeaderValue(getHeader(res.headers, 'location'))
-          ? []
-          : [
-              {
-                location,
-                violation: {},
-                findings: [],
-              },
-            ],
-    }),
-  )
+  .overrideTest((ctx) => ctx.validateHttpTransactions(liveValidation))
+  .overrideAnalyticsRule((ctx) => ctx.validateHttpTransactions(liveValidation))
   .done();

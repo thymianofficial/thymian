@@ -24,11 +24,12 @@ export default httpRule(
   .appliesTo('server')
   .rule((ctx) =>
     ctx.validateCommonHttpTransactions({
-      appliesTo: and(method('GET'), statusCode(206)),
-      violatedWhen: and(
-        not(responseHeader('content-range')),
+      appliesTo: and(
+        method('GET'),
+        statusCode(206),
         not(responseMediaType('multipart/byteranges')),
       ),
+      violatedWhen: not(responseHeader('content-range')),
     }),
   )
   .done();
