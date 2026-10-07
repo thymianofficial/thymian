@@ -23,6 +23,7 @@ import {
 } from '@thymian/core';
 
 import ExplainRule from '../../../src/commands/explain/rule.js';
+import { loadOclifConfig } from '../../support/oclif-config.js';
 
 const mockedLoadRules = vi.mocked(loadRules);
 
@@ -55,6 +56,8 @@ const ANSI_ESCAPE = String.fromCharCode(27);
 // Error symbol sourced from core (single source of truth), not a literal.
 const ERROR_SYMBOL = SEVERITY_SYMBOLS.error;
 
+const oclifConfig = await loadOclifConfig();
+
 describe('explain rule command', () => {
   beforeEach(() => {
     mockedLoadRules.mockReset();
@@ -68,7 +71,10 @@ describe('explain rule command', () => {
     mockedLoadRules.mockResolvedValue([fullyPopulated]);
 
     const { stdout } = await captureOutput(async () => {
-      await ExplainRule.run(['rfc9110/example-rule', '--no-autoload']);
+      await ExplainRule.run(
+        ['rfc9110/example-rule', '--no-autoload'],
+        oclifConfig,
+      );
     });
 
     expect(stdout).toContain('rfc9110/example-rule');
@@ -111,7 +117,10 @@ describe('explain rule command', () => {
     mockedLoadRules.mockResolvedValue([fullyPopulated]);
 
     const { error } = await captureOutput(async () => {
-      await ExplainRule.run(['rfc9110/does-not-exist', '--no-autoload']);
+      await ExplainRule.run(
+        ['rfc9110/does-not-exist', '--no-autoload'],
+        oclifConfig,
+      );
     });
 
     expect(error).toBeDefined();
@@ -127,10 +136,16 @@ describe('explain rule command', () => {
     mockedLoadRules.mockResolvedValue([fullyPopulated]);
 
     const first = await captureOutput(async () => {
-      await ExplainRule.run(['rfc9110/example-rule', '--no-autoload']);
+      await ExplainRule.run(
+        ['rfc9110/example-rule', '--no-autoload'],
+        oclifConfig,
+      );
     });
     const second = await captureOutput(async () => {
-      await ExplainRule.run(['rfc9110/example-rule', '--no-autoload']);
+      await ExplainRule.run(
+        ['rfc9110/example-rule', '--no-autoload'],
+        oclifConfig,
+      );
     });
 
     expect(first.stdout).toEqual(second.stdout);
@@ -140,7 +155,10 @@ describe('explain rule command', () => {
     mockedLoadRules.mockResolvedValue([fullyPopulated]);
 
     const run = async (): Promise<void> => {
-      await ExplainRule.run(['rfc9110/example-rule', '--no-autoload']);
+      await ExplainRule.run(
+        ['rfc9110/example-rule', '--no-autoload'],
+        oclifConfig,
+      );
     };
 
     // Default capture strips ANSI; the second keeps it (`stripAnsi: false`) so
@@ -162,7 +180,10 @@ describe('explain rule command', () => {
     mockedLoadRules.mockResolvedValue([fullyPopulated]);
 
     await captureOutput(async () => {
-      await ExplainRule.run(['rfc9110/example-rule', '--no-autoload']);
+      await ExplainRule.run(
+        ['rfc9110/example-rule', '--no-autoload'],
+        oclifConfig,
+      );
     });
 
     // The 2nd arg to loadRules is the rule filter. `explain` must NOT gate on
@@ -193,7 +214,10 @@ describe('explain rule command', () => {
     ]);
 
     const { stdout } = await captureOutput(async () => {
-      await ExplainRule.run(['rfc9110/empty-applies-to', '--no-autoload']);
+      await ExplainRule.run(
+        ['rfc9110/empty-applies-to', '--no-autoload'],
+        oclifConfig,
+      );
     });
 
     expect(stdout).not.toContain('APPLIES TO');
@@ -209,7 +233,10 @@ describe('explain rule command', () => {
     ]);
 
     const { stdout, error } = await captureOutput(async () => {
-      await ExplainRule.run(['rfc9110/disabled-rule', '--no-autoload']);
+      await ExplainRule.run(
+        ['rfc9110/disabled-rule', '--no-autoload'],
+        oclifConfig,
+      );
     });
 
     expect(error).toBeUndefined();
@@ -223,7 +250,7 @@ describe('explain rule command', () => {
     mockedLoadRules.mockResolvedValue([]);
 
     const { error } = await captureOutput(async () => {
-      await ExplainRule.run(['rfc9110/anything', '--no-autoload']);
+      await ExplainRule.run(['rfc9110/anything', '--no-autoload'], oclifConfig);
     });
 
     expect(error).toBeDefined();

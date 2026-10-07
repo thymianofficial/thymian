@@ -38,6 +38,9 @@ vi.mock('@thymian/core', async () => {
 });
 
 import Serve from '../../src/commands/serve.js';
+import { loadOclifConfig } from '../support/oclif-config.js';
+
+const oclifConfig = await loadOclifConfig();
 
 describe('serve command', () => {
   let exitSpy: MockInstance<typeof vi.spyOn>;
@@ -56,7 +59,7 @@ describe('serve command', () => {
 
   it('starts and print information to user', async () => {
     const { stdout } = await captureOutput(async () => {
-      await Serve.run(['--no-autoload']);
+      await Serve.run(['--no-autoload'], oclifConfig);
     });
 
     expect(stdout).toContain(
@@ -65,7 +68,7 @@ describe('serve command', () => {
   });
 
   it('closes Thymian and exits process if "q" is pressed', async () => {
-    await Serve.run(['--no-autoload']);
+    await Serve.run(['--no-autoload'], oclifConfig);
 
     process.stdin.emit('data', Buffer.from('q'));
 
@@ -78,7 +81,7 @@ describe('serve command', () => {
   it.todo(
     'closes Thymian and exits process if exit event is emitted',
     async () => {
-      await Serve.run(['--no-autoload']);
+      await Serve.run(['--no-autoload'], oclifConfig);
 
       //mockState.instance?.emitter.emit('core.exit', { code: 5 });
 
@@ -90,7 +93,7 @@ describe('serve command', () => {
   );
 
   it('closes Thymian and exits process when SIGINT (Ctrl+C) is pressed', async () => {
-    await Serve.run(['--no-autoload']);
+    await Serve.run(['--no-autoload'], oclifConfig);
 
     process.emit('SIGINT');
 

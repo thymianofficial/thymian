@@ -33,6 +33,7 @@ import { checkbox, input, select } from '@thymian/common-cli/prompts';
 import GenerateRule, {
   resolveRuleOutputPath,
 } from '../../src/commands/generate/rule.js';
+import { loadOclifConfig } from '../support/oclif-config.js';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 
@@ -52,6 +53,8 @@ function primePrompts(): void {
     .mockResolvedValueOnce(['static']) // rule types (required, non-empty)
     .mockResolvedValue([]); // appliesTo
 }
+
+const oclifConfig = await loadOclifConfig();
 
 describe('generate rule — resolveRuleOutputPath (unit)', () => {
   describe('default (ESM/TypeScript) mode', () => {
@@ -178,14 +181,10 @@ describe('generate rule (integration)', () => {
     mkdirSync(testDir, { recursive: true });
 
     const { stdout } = await captureOutput(async () => {
-      await GenerateRule.run([
-        '--cwd',
-        testDir,
-        '--url',
-        '',
-        '--output',
-        'foo',
-      ]);
+      await GenerateRule.run(
+        ['--cwd', testDir, '--url', '', '--output', 'foo'],
+        oclifConfig,
+      );
     });
 
     expect(stdout).toContain('Rule written to');
@@ -201,14 +200,10 @@ describe('generate rule (integration)', () => {
     mkdirSync(testDir, { recursive: true });
 
     const { error } = await captureOutput(async () => {
-      await GenerateRule.run([
-        '--cwd',
-        testDir,
-        '--url',
-        '',
-        '--output',
-        'foo.mts',
-      ]);
+      await GenerateRule.run(
+        ['--cwd', testDir, '--url', '', '--output', 'foo.mts'],
+        oclifConfig,
+      );
     });
 
     expect(error).toBeDefined();
@@ -221,15 +216,10 @@ describe('generate rule (integration)', () => {
     mkdirSync(testDir, { recursive: true });
 
     const { stdout } = await captureOutput(async () => {
-      await GenerateRule.run([
-        '--cwd',
-        testDir,
-        '--cjs',
-        '--url',
-        '',
-        '--output',
-        'foo',
-      ]);
+      await GenerateRule.run(
+        ['--cwd', testDir, '--cjs', '--url', '', '--output', 'foo'],
+        oclifConfig,
+      );
     });
 
     expect(stdout).toContain('Rule written to');
@@ -247,15 +237,10 @@ describe('generate rule (integration)', () => {
     mkdirSync(testDir, { recursive: true });
 
     await captureOutput(async () => {
-      await GenerateRule.run([
-        '--cwd',
-        testDir,
-        '--cjs',
-        '--url',
-        '',
-        '--output',
-        'foo.cjs',
-      ]);
+      await GenerateRule.run(
+        ['--cwd', testDir, '--cjs', '--url', '', '--output', 'foo.cjs'],
+        oclifConfig,
+      );
     });
 
     expect(existsSync(join(testDir, 'foo.cjs'))).toBe(true);
@@ -266,15 +251,10 @@ describe('generate rule (integration)', () => {
     mkdirSync(testDir, { recursive: true });
 
     const { error } = await captureOutput(async () => {
-      await GenerateRule.run([
-        '--cwd',
-        testDir,
-        '--cjs',
-        '--url',
-        '',
-        '--output',
-        'foo.js',
-      ]);
+      await GenerateRule.run(
+        ['--cwd', testDir, '--cjs', '--url', '', '--output', 'foo.js'],
+        oclifConfig,
+      );
     });
 
     expect(error).toBeDefined();
@@ -288,7 +268,7 @@ describe('generate rule (integration)', () => {
     mkdirSync(testDir, { recursive: true });
 
     const { stdout } = await captureOutput(async () => {
-      await GenerateRule.run(['--cwd', testDir, '--url', '']);
+      await GenerateRule.run(['--cwd', testDir, '--url', ''], oclifConfig);
     });
 
     expect(stdout).toContain("import { httpRule } from '@thymian/core'");
@@ -301,7 +281,10 @@ describe('generate rule (integration)', () => {
     mkdirSync(testDir, { recursive: true });
 
     const { stdout } = await captureOutput(async () => {
-      await GenerateRule.run(['--cwd', testDir, '--cjs', '--url', '']);
+      await GenerateRule.run(
+        ['--cwd', testDir, '--cjs', '--url', ''],
+        oclifConfig,
+      );
     });
 
     expect(stdout).toContain("const { httpRule } = require('@thymian/core')");
@@ -329,7 +312,7 @@ describe('generate rule (integration)', () => {
       .mockResolvedValue([]); // appliesTo
 
     const { stdout } = await captureOutput(async () => {
-      await GenerateRule.run(['--cwd', testDir, '--url', '']);
+      await GenerateRule.run(['--cwd', testDir, '--url', ''], oclifConfig);
     });
 
     expect(stdout).toContain(
@@ -359,7 +342,7 @@ describe('generate rule (integration)', () => {
       .mockResolvedValue([]); // appliesTo
 
     const { stdout } = await captureOutput(async () => {
-      await GenerateRule.run(['--cwd', testDir, '--url', '']);
+      await GenerateRule.run(['--cwd', testDir, '--url', ''], oclifConfig);
     });
 
     expect(stdout).toContain(
