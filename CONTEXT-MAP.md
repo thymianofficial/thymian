@@ -23,7 +23,7 @@ does not already carry. Until then, the project `CONTEXT.md` is the whole answer
   dispatcher through `core.request.dispatch`. `Selector` rendering is core's
   (`packages/core/src/selector/`), which is why the term is defined in the project glossary
   rather than here — see
-  [ADR-0022](./docs/arc42/adr/0022-selector-is-the-transaction-label.md), which makes the
+  [ADR-0023](./docs/arc42/adr/0023-selector-is-the-transaction-label.md), which makes the
   selector the transaction's label application-wide.
 - **plugin-sampler → plugin-http-tester**: the hook lifecycle is the tester's. The sampler
   listens on `http-testing.beforeRequest`, `http-testing.afterResponse` and

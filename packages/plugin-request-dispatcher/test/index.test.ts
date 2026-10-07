@@ -42,7 +42,7 @@ async function getClosedPort(): Promise<number> {
  * #131: a request-scoped transport error is a fault of the one request that
  * made it, never of the run — so it must not carry `Thymian.run`'s default
  * `severity: 'error'`, which would close the whole run through the error
- * subscription (ADR-0023 records the same rule for the hook path).
+ * subscription (ADR-0024 records the same rule for the hook path).
  */
 describe('a request that cannot be dispatched', () => {
   it('raises ServerUnavailableError at warn severity and throws, for a refused connection', async () => {

@@ -83,7 +83,7 @@ export function attributeToHook(
   return new ThymianBaseError(error.message, {
     ...error.options,
     // After the spread, never before it. An `error` closes the run
-    // (`thymian.ts`), which is the mechanism ADR-0023 §2 names and the sentence
+    // (`thymian.ts`), which is the mechanism ADR-0024 §2 names and the sentence
     // above promises to prevent — and every sampler-raised error that reaches
     // here defaults to `error` because none of them sets a severity of its own:
     // `UnknownSelectorError` and `MalformedSelectorError` from `utils.request`,
@@ -163,7 +163,7 @@ export function interpretHookFailure(
   return {
     rethrow: new ThymianBaseError(
       // Deliberately without the Transaction: every surface that prints one
-      // already names it (ADR-0022), and repeating it under a header that says
+      // already names it (ADR-0023), and repeating it under a header that says
       // it is the noise this model removes. What only this sentence knows is
       // which export in which file to open.
       `The ${kind} hook exported as "${entry.exportName}" from "${entry.file}" threw.`,
