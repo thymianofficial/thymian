@@ -40,45 +40,46 @@ export type ValidationFn<Args extends unknown[]> = (
   ...args: Args
 ) => RuleFnResult[];
 
-export type CommonHttpTransactionValidationFn = ValidationFn<
+export type CommonHttpViolationConditionFn = ValidationFn<
   [CommonHttpRequest, CommonHttpResponse, RuleViolationLocation]
 >;
 
-export type GroupedCommonHttpTransactionValidationFn = ValidationFn<
+export type GroupedCommonHttpViolationConditionFn = ValidationFn<
   [string, [CommonHttpRequest, CommonHttpResponse, RuleViolationLocation][]]
 >;
 
-export type HttpTransactionValidationFn = ValidationFn<
+export type HttpViolationConditionFn = ValidationFn<
   [HttpRequest, HttpResponse, RuleViolationLocation]
 >;
 
 /**
- * Names the two roles of a rule-context validation call (ADR-0025).
+ * A rule's criteria: its Applicability and its Violation Condition, named
+ * separately in every rule-context call (ADR-0025).
  *
  * `appliesTo` is the rule's Applicability: which transactions it speaks about,
  * asked of whatever the context observes. `violatedWhen` is its Violation
  * Condition: evaluated only on transactions `appliesTo` accepts, against the
  * same observation. As an expression, a matching transaction is a violation.
  */
-export type HttpValidation<TViolatedWhen> = {
+export type RuleCriteria<TViolatedWhen> = {
   appliesTo: HttpFilterExpression;
   violatedWhen: TViolatedWhen;
 };
 
-export type CommonHttpTransactionValidation = HttpValidation<
-  HttpFilterExpression | CommonHttpTransactionValidationFn
+export type CommonHttpRuleCriteria = RuleCriteria<
+  HttpFilterExpression | CommonHttpViolationConditionFn
 >;
 
-export type GroupedCommonHttpTransactionValidation =
-  HttpValidation<GroupedCommonHttpTransactionValidationFn> & {
+export type GroupedCommonHttpRuleCriteria =
+  RuleCriteria<GroupedCommonHttpViolationConditionFn> & {
     groupBy: HttpFilterExpression;
   };
 
-export type HttpTransactionValidation = HttpValidation<
-  HttpFilterExpression | HttpTransactionValidationFn
+export type HttpRuleCriteria = RuleCriteria<
+  HttpFilterExpression | HttpViolationConditionFn
 >;
 
-export type LintHttpTransactionValidation = {
+export type LintRuleCriteria = {
   appliesTo: (
     req: ThymianHttpRequest,
     res: ThymianHttpResponse,
@@ -92,10 +93,10 @@ export type LintHttpTransactionValidation = {
 };
 
 /**
- * Tells the named form of a validation call from the positional one, whose
+ * Tells the named form of a rule-context call from the positional one, whose
  * first argument is a filter expression or, in `LintContext`, a function.
  */
-export function isHttpValidation<T extends { appliesTo: unknown }>(
+export function isRuleCriteria<T extends { appliesTo: unknown }>(
   value: T | object,
 ): value is T {
   return typeof value === 'object' && 'appliesTo' in value;
@@ -106,7 +107,7 @@ export interface ApiContext<
 > extends RuleExecutionDiagnosticsProvider<TDiagnostics> {
   readonly format: ThymianFormat;
   validateCommonHttpTransactions(
-    validation: CommonHttpTransactionValidation,
+    criteria: CommonHttpRuleCriteria,
   ): Promise<RuleFnResult[]> | RuleFnResult[];
   validateCommonHttpTransactions(
     filter: HttpFilterExpression,
@@ -117,7 +118,7 @@ export interface ApiContext<
       | HttpFilterExpression,
   ): Promise<RuleFnResult[]> | RuleFnResult[];
   validateGroupedCommonHttpTransactions(
-    validation: GroupedCommonHttpTransactionValidation,
+    criteria: GroupedCommonHttpRuleCriteria,
   ): Promise<RuleFnResult[]> | RuleFnResult[];
   validateGroupedCommonHttpTransactions(
     filter: HttpFilterExpression,
@@ -132,7 +133,7 @@ export interface LiveApiContext<
   TDiagnostics = unknown,
 > extends ApiContext<TDiagnostics> {
   validateHttpTransactions(
-    validation: HttpTransactionValidation,
+    criteria: HttpRuleCriteria,
   ): Promise<RuleFnResult[]> | RuleFnResult[];
   validateHttpTransactions(
     filter: HttpFilterExpression,
@@ -146,7 +147,7 @@ export interface LintContext<
   TDiagnostics = unknown,
 > extends ApiContext<TDiagnostics> {
   validateHttpTransactions(
-    validation: LintHttpTransactionValidation,
+    criteria: LintRuleCriteria,
   ): Promise<RuleFnResult[]> | RuleFnResult[];
   validateHttpTransactions(
     filterFn: (

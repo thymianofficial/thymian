@@ -6,10 +6,10 @@ import {
   type CapturedTransaction,
   type CommonHttpRequest,
   type CommonHttpResponse,
-  type CommonHttpTransactionValidation,
+  type CommonHttpRuleCriteria,
   createRegExpFromOriginWildcard,
   expandHttpParticipantRoles,
-  type GroupedCommonHttpTransactionValidation,
+  type GroupedCommonHttpRuleCriteria,
   type HttpFilterExpression,
   type HttpParticipantRole,
   httpParticipantRoles,
@@ -17,9 +17,9 @@ import {
   httpRequestToCommonHttpRequest,
   type HttpResponse,
   httpResponseToCommonHttpResponse,
+  type HttpRuleCriteria,
   httpTransactionToLabel,
-  type HttpTransactionValidation,
-  isHttpValidation,
+  isRuleCriteria,
   type Logger,
   matchesOrigin,
   not,
@@ -163,7 +163,7 @@ export class AnalyticsApiContext implements AnalyzeContext {
   }
 
   validateCommonHttpTransactions(
-    validation: CommonHttpTransactionValidation,
+    criteria: CommonHttpRuleCriteria,
   ): RuleFnResult[];
   validateCommonHttpTransactions(
     filter: HttpFilterExpression,
@@ -174,8 +174,8 @@ export class AnalyticsApiContext implements AnalyzeContext {
       | HttpFilterExpression,
   ): RuleFnResult[];
   validateCommonHttpTransactions(
-    filterOrValidation: HttpFilterExpression | CommonHttpTransactionValidation,
-    validateArg?:
+    appliesToOrCriteria: HttpFilterExpression | CommonHttpRuleCriteria,
+    violatedWhenArg?:
       | ValidationFn<
           [CommonHttpRequest, CommonHttpResponse, RuleViolationLocation]
         >
@@ -183,20 +183,20 @@ export class AnalyticsApiContext implements AnalyzeContext {
   ): RuleFnResult[] {
     // Recorded pairs are the observation, so the named form evaluates exactly
     // like the positional one: SQL selects by `appliesTo` before validation.
-    const [filter, validate] = isHttpValidation(filterOrValidation)
-      ? [filterOrValidation.appliesTo, filterOrValidation.violatedWhen]
-      : [filterOrValidation, validateArg ?? filterOrValidation];
+    const [appliesTo, violatedWhen] = isRuleCriteria(appliesToOrCriteria)
+      ? [appliesToOrCriteria.appliesTo, appliesToOrCriteria.violatedWhen]
+      : [appliesToOrCriteria, violatedWhenArg ?? appliesToOrCriteria];
 
     let finalFilter!: HttpFilterExpression;
     let validateFn!: ValidationFn<
       [CommonHttpRequest, CommonHttpResponse, RuleViolationLocation]
     >;
 
-    if (typeof validate === 'function') {
-      finalFilter = filter;
-      validateFn = validate;
+    if (typeof violatedWhen === 'function') {
+      finalFilter = appliesTo;
+      validateFn = violatedWhen;
     } else {
-      finalFilter = and(filter, validate);
+      finalFilter = and(appliesTo, violatedWhen);
       validateFn = (req, res, location) => [
         { location, violation: {}, findings: [] },
       ];
@@ -227,7 +227,7 @@ export class AnalyticsApiContext implements AnalyzeContext {
   }
 
   validateGroupedCommonHttpTransactions(
-    validation: GroupedCommonHttpTransactionValidation,
+    criteria: GroupedCommonHttpRuleCriteria,
   ): RuleFnResult[];
   validateGroupedCommonHttpTransactions(
     filter: HttpFilterExpression,
@@ -237,24 +237,25 @@ export class AnalyticsApiContext implements AnalyzeContext {
     >,
   ): RuleFnResult[];
   validateGroupedCommonHttpTransactions(
-    filterOrValidation:
-      HttpFilterExpression | GroupedCommonHttpTransactionValidation,
+    appliesToOrCriteria: HttpFilterExpression | GroupedCommonHttpRuleCriteria,
     groupByArg?: HttpFilterExpression,
-    validationFnArg?: ValidationFn<
+    violatedWhenArg?: ValidationFn<
       [string, [CommonHttpRequest, CommonHttpResponse, RuleViolationLocation][]]
     >,
   ): RuleFnResult[] {
-    const [filter, groupBy, validationFn] = isHttpValidation(filterOrValidation)
+    const [appliesTo, groupBy, violatedWhen] = isRuleCriteria(
+      appliesToOrCriteria,
+    )
       ? [
-          filterOrValidation.appliesTo,
-          filterOrValidation.groupBy,
-          filterOrValidation.violatedWhen,
+          appliesToOrCriteria.appliesTo,
+          appliesToOrCriteria.groupBy,
+          appliesToOrCriteria.violatedWhen,
         ]
       : // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        [filterOrValidation, groupByArg!, validationFnArg!];
+        [appliesToOrCriteria, groupByArg!, violatedWhenArg!];
 
     const results: RuleFnResult[] = [];
-    const finalFilter = this.addOriginsToFilter(filter);
+    const finalFilter = this.addOriginsToFilter(appliesTo);
 
     const groups = this.repository.readAndGroupTransactionsByHttpFilter(
       finalFilter,
@@ -264,7 +265,7 @@ export class AnalyticsApiContext implements AnalyzeContext {
 
     for (const [key, transactions] of groups) {
       results.push(
-        ...validationFn(
+        ...violatedWhen(
           key,
           transactions.map((t) => [
             httpRequestToCommonHttpRequest(t.request.data),
@@ -278,9 +279,7 @@ export class AnalyticsApiContext implements AnalyzeContext {
     return results;
   }
 
-  validateHttpTransactions(
-    validation: HttpTransactionValidation,
-  ): RuleFnResult[];
+  validateHttpTransactions(criteria: HttpRuleCriteria): RuleFnResult[];
   validateHttpTransactions(
     filter: HttpFilterExpression,
     validation?:
@@ -288,25 +287,25 @@ export class AnalyticsApiContext implements AnalyzeContext {
       | HttpFilterExpression,
   ): RuleFnResult[];
   validateHttpTransactions(
-    filterOrValidation: HttpFilterExpression | HttpTransactionValidation,
-    validationArg?:
+    appliesToOrCriteria: HttpFilterExpression | HttpRuleCriteria,
+    violatedWhenArg?:
       | ValidationFn<[HttpRequest, HttpResponse, RuleViolationLocation]>
       | HttpFilterExpression,
   ): RuleFnResult[] {
-    const [filter, validation] = isHttpValidation(filterOrValidation)
-      ? [filterOrValidation.appliesTo, filterOrValidation.violatedWhen]
-      : [filterOrValidation, validationArg ?? filterOrValidation];
+    const [appliesTo, violatedWhen] = isRuleCriteria(appliesToOrCriteria)
+      ? [appliesToOrCriteria.appliesTo, appliesToOrCriteria.violatedWhen]
+      : [appliesToOrCriteria, violatedWhenArg ?? appliesToOrCriteria];
 
     let finalFilter!: HttpFilterExpression;
     let validateFn!: ValidationFn<
       [HttpRequest, HttpResponse, RuleViolationLocation]
     >;
 
-    if (typeof validation === 'function') {
-      finalFilter = filter;
-      validateFn = validation;
+    if (typeof violatedWhen === 'function') {
+      finalFilter = appliesTo;
+      validateFn = violatedWhen;
     } else {
-      finalFilter = and(filter, validation);
+      finalFilter = and(appliesTo, violatedWhen);
       validateFn = (req, res, location) => [
         { location, violation: {}, findings: [] },
       ];
