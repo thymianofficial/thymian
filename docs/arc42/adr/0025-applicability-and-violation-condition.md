@@ -28,8 +28,12 @@ returns a violation unconditionally. OpenAPI never declares `Content-Type` as a 
 header, so on the specification that filter is true for every response with a body, and
 `thymian test` reported a missing `Content-Type` on responses that carried one. Against
 `thymian-demo`, 20 of a run's 32 warnings were false. Five rules reachable in `Test` were
-built this way. About 27 more selected by described status or method and never saw the
-live status, so a rule for 405 responses validated a 204.
+built this way. About 27 more selected by described status or method and handed the live
+pair to the function unchecked too. They stayed silent only because of the status-code gate
+(`checkStatusCode`): a test case whose live status differs from the described one is
+skipped before any rule sees it, and requests are always sent with the described method. A
+rule for 405 responses therefore never validated a 204 — but only by accident of that gate,
+not because the rule context guaranteed it.
 
 Nothing at the call site signals the change of meaning: adding a second argument to
 customise a message silently demotes the first from condition to selection. Every rule
@@ -101,7 +105,9 @@ deprecated overload would keep the trap open for exactly the users this protects
 **Neutral:**
 
 - The status-code gate that skips non-passing test cases (`checkStatusCode`) is untouched;
-  it is a separate under-reporting problem.
+  it is a separate under-reporting problem. Relaxing it later relies on this decision: once
+  mismatching pairs reach the rules, the live re-check of `appliesTo` is what keeps a rule
+  for 405 responses away from a 204.
 - Nothing stops a rule from putting a live-only predicate in `appliesTo`; it then selects
   nothing in `Test`, which is a rule-authoring error, not a framework one.
 
