@@ -1,6 +1,8 @@
 import { or, statusCode, statusCodeRange } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
+import { hasHeader } from '../../../utils.js';
+
 export default httpRule(
   'rfc9110/server-must-not-send-content-length-for-1xx-or-204',
 )
@@ -23,7 +25,7 @@ export default httpRule(
     ctx.validateCommonHttpTransactions({
       appliesTo: or(statusCodeRange(100, 199), statusCode(204)),
       violatedWhen: (_req, res, location) =>
-        res.headers.some((header) => header.toLowerCase() === 'content-length')
+        hasHeader(res.headers, 'content-length')
           ? [
               {
                 location,

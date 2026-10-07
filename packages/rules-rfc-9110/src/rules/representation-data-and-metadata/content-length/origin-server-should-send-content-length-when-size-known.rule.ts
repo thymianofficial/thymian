@@ -7,6 +7,8 @@ import {
 } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
+import { hasHeader } from '../../../utils.js';
+
 // eslint-disable-next-line thymian-internal/require-rule-tags -- establishes framing exists (performance/UX); the framing-integrity surface is the mismatch/forwarding rules below
 export default httpRule(
   'rfc9110/origin-server-should-send-content-length-when-size-known',
@@ -35,11 +37,8 @@ export default httpRule(
         not(statusCode(304)),
       ),
       violatedWhen: (_req, res, location) =>
-        res.headers.some(
-          (header) =>
-            header.toLowerCase() === 'transfer-encoding' ||
-            header.toLowerCase() === 'content-length',
-        )
+        hasHeader(res.headers, 'transfer-encoding') ||
+        hasHeader(res.headers, 'content-length')
           ? []
           : [
               {

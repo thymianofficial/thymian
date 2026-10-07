@@ -1,10 +1,8 @@
 import {
   and,
-  type CommonHttpRequest,
   deleteHeader,
   not,
   requestHeader,
-  type RuleViolationLocation,
   statusCode,
 } from '@thymian/core';
 import { httpRule, singleTestCase } from '@thymian/core';
@@ -37,11 +35,7 @@ export default httpRule('rfc9110/server-must-ignore-if-range-without-range')
   .rule((ctx) =>
     ctx.validateCommonHttpTransactions({
       appliesTo: and(requestHeader('if-range'), not(requestHeader('range'))),
-      violatedWhen: (
-        _req: CommonHttpRequest,
-        res,
-        location: RuleViolationLocation,
-      ) =>
+      violatedWhen: (_req, res, location) =>
         res.statusCode === 206
           ? [
               {

@@ -1,6 +1,8 @@
 import { hasResponseBody } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
+import { hasHeader } from '../../../utils.js';
+
 export default httpRule(
   'rfc9110/sender-should-generate-content-type-for-message-with-content',
 )
@@ -22,7 +24,7 @@ export default httpRule(
     ctx.validateCommonHttpTransactions({
       appliesTo: hasResponseBody(),
       violatedWhen: (_req, res, location) =>
-        res.headers.some((header) => header.toLowerCase() === 'content-type')
+        hasHeader(res.headers, 'content-type')
           ? []
           : [
               {
@@ -37,6 +39,9 @@ export default httpRule(
     }),
   )
   .overrideStaticRule((ctx) =>
-    ctx.validateHttpTransactions((req, res) => !!res.schema && !res.mediaType),
+    ctx.validateHttpTransactions({
+      appliesTo: (_req, res) => !!res.schema,
+      violatedWhen: (_req, res) => !res.mediaType,
+    }),
   )
   .done();

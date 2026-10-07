@@ -14,7 +14,7 @@ import {
 } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
-import { createList } from '../../../../utils.js';
+import { createList, hasHeader } from '../../../../utils.js';
 
 /**
  * Request header fields whose presence indicates that the origin server was
@@ -50,10 +50,6 @@ const negotiatedCacheableResponse = and(
   or(...cacheableStatusCodes.map((code) => statusCode(code))),
   or(...negotiationRequestHeaders.map((header) => requestHeader(header))),
 );
-
-function hasHeader(headers: string[], name: string): boolean {
-  return headers.some((header) => header.toLowerCase() === name);
-}
 
 /** Negotiation headers present in a common (design-time) request projection. */
 function presentNegotiationHeaders(req: CommonHttpRequest): string[] {

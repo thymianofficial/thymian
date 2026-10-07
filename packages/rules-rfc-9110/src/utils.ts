@@ -19,3 +19,9 @@ export function createList(list: string[]): string {
 export function arrayDifference(as: string[], bs: string[]): string[] {
   return as.filter((a) => !bs.includes(a));
 }
+
+export function hasHeader(headers: string[], name: string): boolean {
+  const wanted = name.toLowerCase();
+
+  return headers.some((header) => header.trim().toLowerCase() === wanted);
+}

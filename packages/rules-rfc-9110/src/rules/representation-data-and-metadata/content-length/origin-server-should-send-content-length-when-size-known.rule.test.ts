@@ -1,58 +1,21 @@
 import {
-  createHttpTestContext,
-  type HttpRequestTemplate,
-  type HttpResponse,
-  NoopLogger,
-  type RuleFnResult,
-  type TestContext,
-} from '@thymian/core';
-import {
   createHttpRequest,
   createHttpResponse,
   createObjectSchema,
-  createThymianFormatWithTransaction,
 } from '@thymian/core-testing';
-import { HttpTestApiContext } from '@thymian/plugin-http-tester';
 import { describe, expect, it } from 'vitest';
 
+import { runTestRule } from '../../../../test/run-test-rule.js';
 import rule from './origin-server-should-send-content-length-when-size-known.rule.js';
 
-async function runTest(response: HttpResponse): Promise<RuleFnResult[]> {
-  const format = createThymianFormatWithTransaction(
-    createHttpRequest({ method: 'get', path: '/rocket-types' }),
-    createHttpResponse({ statusCode: 200, schema: createObjectSchema() }),
-  );
-
-  const ctx = createHttpTestContext({
-    format,
-    logger: new NoopLogger(),
-    locals: {},
-    sampleRequest: async (transaction): Promise<HttpRequestTemplate> => ({
-      method: transaction.thymianReq.method,
-      origin: 'http://localhost:3000',
-      path: transaction.thymianReq.path,
-      headers: {},
-      pathParameters: {},
-      query: {},
-      cookies: {},
-      authorize: true,
-    }),
-    runRequest: async () => response,
-    runHook: async (_name, hook) => ({ result: hook.value }) as never,
-  });
-
-  const context = new HttpTestApiContext('test-rule', ctx) as TestContext;
-
-  if (!rule.testRule) {
-    throw new Error('Expected the rule to define a test rule function.');
-  }
-
-  return rule.testRule(context, { mode: 'test' }, new NoopLogger());
-}
+const described = {
+  req: createHttpRequest({ method: 'get', path: '/rocket-types' }),
+  res: createHttpResponse({ statusCode: 200, schema: createObjectSchema() }),
+};
 
 describe('rfc9110/origin-server-should-send-content-length-when-size-known (test)', () => {
   it('reports no violation when the live response carries a Content-Length header', async () => {
-    const results = await runTest({
+    const results = await runTestRule(rule, described, {
       statusCode: 200,
       headers: { 'content-length': '2' },
       trailers: {},
@@ -64,7 +27,7 @@ describe('rfc9110/origin-server-should-send-content-length-when-size-known (test
   });
 
   it('reports a violation when the live response has a body with neither Content-Length nor Transfer-Encoding', async () => {
-    const results = await runTest({
+    const results = await runTestRule(rule, described, {
       statusCode: 200,
       headers: {},
       trailers: {},
@@ -73,7 +36,7 @@ describe('rfc9110/origin-server-should-send-content-length-when-size-known (test
     });
 
     expect(results).toHaveLength(1);
-    expect(results[0].violation?.message).toBe(
+    expect(results[0]?.violation?.message).toBe(
       'The response carries content with no Transfer-Encoding and no Content-Length header.',
     );
   });

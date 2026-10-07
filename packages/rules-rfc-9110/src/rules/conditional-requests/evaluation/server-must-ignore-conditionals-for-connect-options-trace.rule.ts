@@ -10,6 +10,8 @@ import {
 } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
+import { hasHeader } from '../../../utils.js';
+
 const conditionalHeaders = [
   'if-match',
   'if-none-match',
@@ -17,10 +19,6 @@ const conditionalHeaders = [
   'if-unmodified-since',
   'if-range',
 ];
-
-function hasHeader(headers: string[], name: string): boolean {
-  return headers.some((header) => header.toLowerCase() === name);
-}
 
 function presentConditionalHeaders(req: CommonHttpRequest): string[] {
   return conditionalHeaders.filter((header) => hasHeader(req.headers, header));

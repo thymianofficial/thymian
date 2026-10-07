@@ -1,6 +1,8 @@
 import { and, method, statusCodeRange } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
+import { hasHeader } from '../../../utils.js';
+
 export default httpRule(
   'rfc9110/server-must-not-send-content-length-for-2xx-connect-response',
 )
@@ -23,7 +25,7 @@ export default httpRule(
     ctx.validateCommonHttpTransactions({
       appliesTo: and(method('connect'), statusCodeRange(200, 299)),
       violatedWhen: (_req, res, location) =>
-        res.headers.some((header) => header.toLowerCase() === 'content-length')
+        hasHeader(res.headers, 'content-length')
           ? [
               {
                 location,
