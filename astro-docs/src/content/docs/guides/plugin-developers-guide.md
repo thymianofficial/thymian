@@ -85,7 +85,7 @@ emitter.emit('core.report', {
       runAt: new Date().toISOString(),
       executions: [
         {
-          location: { type: 'custom', value: 'GET /pets → 200 OK' },
+          location: { type: 'custom', value: 'GET /pets -> 200' },
           findings: [
             {
               id: 'finding-1',

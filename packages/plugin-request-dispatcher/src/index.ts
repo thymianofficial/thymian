@@ -47,11 +47,20 @@ export const dispatcherPlugin: ThymianPlugin<SamplerPluginOptions> = {
 
           ctx.reply(result);
         } catch (e: unknown) {
+          // `severity: 'warn'` is load-bearing, not a judgement about how bad
+          // this is (ADR-0023). `Thymian.run` closes the whole run on any
+          // `error`-severity event, which is exactly what the Outcome model
+          // exists to prevent: a refused connection or a dispatch failure is
+          // scoped to the one request that made it, so `warn` is what lets
+          // this action still throw — telling the caller this Transaction
+          // failed — without ending the command for every Transaction after
+          // it.
           if (isHttpRequestError(e) && e.code === 'ECONNREFUSED') {
             return ctx.error(
               new ThymianBaseError(`Server ${request.origin} is unavailable.`, {
                 name: 'ServerUnavailableError',
                 ref: 'https://thymian.dev/references/errors/server-unavailable-error/',
+                severity: 'warn',
               }),
             );
           }
@@ -64,6 +73,7 @@ export const dispatcherPlugin: ThymianPlugin<SamplerPluginOptions> = {
                 name: 'RequestDispatchError',
                 ref: 'https://thymian.dev/references/errors/request-dispatch-error/',
                 cause: e,
+                severity: 'warn',
               },
             ),
           );

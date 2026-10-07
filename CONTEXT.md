@@ -160,6 +160,11 @@ cannot silently register a rule that never runs.
 
 ### Sampling
 
+The vocabulary of authoring hooks — `Hook`, `Transaction Filter`, `Path Glob`, `Seed`
+and `Outcome` — lives one level down, in
+[`packages/plugin-sampler/CONTEXT.md`](./packages/plugin-sampler/CONTEXT.md). What stays
+here is what the rest of the tool names too.
+
 **Sample**:
 Test data for one `Transaction`, derived as a deterministic in-memory projection of the
 `Thymian Format`. Virtual: nothing is written to disk as canonical state, so a sample cannot
@@ -168,15 +173,26 @@ _Avoid_: fixture, mock, stub
 
 **Selector**:
 The address of exactly one `Transaction`, qualified by method, path, status, and the media
-types where a body exists. Fully qualified by construction, so adding a status code or a media
-type to the specification cannot silently change what an existing selector points at.
-_Avoid_: pattern, matcher, glob
+types the request and response nodes _declare_ — a declared media type earns its part whether
+or not a body exists. Fully qualified by construction, so adding a status code or a media type
+to the specification cannot silently change what an existing selector points at. Rendering is
+total and injective: a path or media type that would collide with the grammar is quoted, never
+rejected — a quote fences the value rather than substituting characters inside it, so two
+distinct declarations can never render one selector.
+Also the only spelling of a `Transaction` anywhere Thymian writes one — terminal lines,
+reports, error messages — so any printed transaction can be pasted back as a hook target. A
+label naming only a request or only a response uses the selector grammar's corresponding half.
+_Avoid_: pattern, matcher
 
-**Hook**:
-A user-owned TypeScript function that shapes or authorizes a run — generating a sample,
-running before or after a transaction, supplying credentials. Targeted by a `Selector` or by a
-typed transaction filter. The only artifact in sampling the user owns, and the compiler is what
-reports one that no longer matches anything.
+**Operation**:
+What a `Selector`'s request half names: a method, a path, and the media type the request
+declares. Every `Transaction` sharing it is one response that operation declares, which is
+why a `Seed` addressed at one of them may be answered by another. Narrower than OpenAPI's
+operation, which is method and path alone — two request media types on one path are two
+operations here, because they are two different requests to send. Note that the generated
+`Endpoints` map is keyed by `Selector`, so it is a map of transactions and not of
+operations; the operations are the keys of `Responses`.
+_Avoid_: route
 
 ### Reporting
 
