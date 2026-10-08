@@ -5,7 +5,6 @@
 // disagree on what a redirect is.
 
 import {
-  getHeader,
   type HttpRequest,
   type HttpResponse,
   type LintContext,
@@ -23,6 +22,7 @@ import {
   declaresHeader,
   describedTransaction,
   isServerFallbackOrigin,
+  liveHeaderValues,
   pinnedHeaderValues,
   ruleSkip,
   serverFallbackSkip,
@@ -105,13 +105,10 @@ function liveRedirectProblem(
   request: HttpRequest,
   response: HttpResponse,
 ): string | undefined {
-  const header = getHeader(response.headers, 'location');
-  const location = Array.isArray(header) ? header[0] : header;
-
   return redirectProblem(
     ANSWERED,
     response.statusCode,
-    location === undefined ? [] : [location],
+    liveHeaderValues(response.headers, 'location'),
     requestUri(request),
   );
 }

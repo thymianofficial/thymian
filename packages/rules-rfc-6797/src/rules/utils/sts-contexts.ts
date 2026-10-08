@@ -111,15 +111,24 @@ export function pinnedHeaderValues(
   return values.length > 0 ? [...new Set(values)] : undefined;
 }
 
-// Every STS field line of a live response. Repeated field lines arrive as an
-// array, which is what `hsts-host-must-send-only-one-sts-header` checks; a
-// value rule holds each field line to its requirement on its own.
-export function liveStsValues(headers: HttpResponse['headers']): string[] {
-  const value = getHeader(headers, STS_HEADER);
+// Every field line of one header in a live response: repeated field lines
+// arrive as an array.
+export function liveHeaderValues(
+  headers: HttpResponse['headers'],
+  header: string,
+): string[] {
+  const value = getHeader(headers, header);
   if (value === undefined) {
     return [];
   }
   return Array.isArray(value) ? value : [value];
+}
+
+// Every STS field line of a live response. More than one is what
+// `hsts-host-must-send-only-one-sts-header` checks; a value rule holds each
+// field line to its requirement on its own.
+export function liveStsValues(headers: HttpResponse['headers']): string[] {
+  return liveHeaderValues(headers, STS_HEADER);
 }
 
 export function violation(

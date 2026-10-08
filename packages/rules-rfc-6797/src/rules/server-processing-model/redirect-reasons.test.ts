@@ -83,6 +83,35 @@ describe.each([rfcRule, conventionRule])('$meta.name', (rule) => {
     });
   });
 
+  // A response may carry Location more than once, and each field line is a
+  // target the user agent may follow, so every one must be https.
+  it.each(['test', 'analytics'] as const)(
+    'names, in %s, a second Location that is not https',
+    async (context) => {
+      const statusCode = 301;
+      const headers = {
+        location: ['https://api.example.com/', 'http://api.example.com/'],
+      };
+      const inputs: Pick<CaseOf, 'test' | 'analytics'> = {
+        test: {
+          format: apiDescription({ request: INSECURE }),
+          respond: respondWith({ statusCode, headers }),
+        },
+        analytics: {
+          transactions: [recorded({ origin: INSECURE, statusCode, headers })],
+        },
+      };
+
+      const results = await runInContext(context, rule, inputs[context]);
+
+      expect(messages(results)).toEqual([
+        expect.stringMatching(
+          /redirected to "http:\/\/api\.example\.com\/", which is not an https URI/,
+        ),
+      ]);
+    },
+  );
+
   // Every request over plain http is owed the redirect, so `static` judges
   // each declared response on its own, as `test` and `analytics` judge each
   // answer: a permanent redirect beside it does not excuse the other.
