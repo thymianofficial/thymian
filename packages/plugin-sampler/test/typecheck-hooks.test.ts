@@ -2,13 +2,18 @@ import { mkdir, mkdtemp, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   resolveSamplerPaths,
   type SamplerPaths,
 } from '../src/sampler-paths.js';
 import { typecheckHooks } from '../src/validation/typecheck-hooks.js';
+
+// Every case drives a real `ts.createProgram`, which sits close to vitest's 5s
+// default on a contended CI runner and timed out on whichever one was busiest.
+// A stopgap until the compile cost itself comes down.
+vi.setConfig({ testTimeout: 20_000 });
 
 /**
  * #134: `validate` has to agree with the editor about tsconfig handling — an

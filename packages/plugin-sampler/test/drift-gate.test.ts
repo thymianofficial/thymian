@@ -3,10 +3,15 @@ import { join } from 'node:path';
 
 import { ThymianFormat } from '@thymian/core';
 import { createHttpRequest, createHttpResponse } from '@thymian/core-testing';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { canonicalize } from '../src/validation/canonicalize.js';
 import { type SamplerHarness, startSampler } from './plugin-harness.js';
+
+// Every case drives a real `ts.createProgram`, which sits close to vitest's 5s
+// default on a contended CI runner and timed out on whichever one was busiest.
+// A stopgap until the compile cost itself comes down.
+vi.setConfig({ testTimeout: 20_000 });
 
 /**
  * #16: committed types are the staleness baseline. `sync` accepts a new
