@@ -19,10 +19,10 @@ export default httpRule(
   )
   .appliesTo('server')
   .rule((ctx) =>
-    ctx.validateGroupedCommonHttpTransactions(
-      and(statusCode(200), or(method('GET'), method('HEAD'))),
-      url(),
-      (_, transactions) => {
+    ctx.validateGroupedCommonHttpTransactions({
+      appliesTo: and(statusCode(200), or(method('GET'), method('HEAD'))),
+      groupBy: url(),
+      violatedWhen: (_, transactions) => {
         const [, getResponse, getLocation] =
           transactions.find(([req]) => equalsIgnoreCase(req.method, 'get')) ??
           [];
@@ -54,6 +54,6 @@ export default httpRule(
           },
         ];
       },
-    ),
+    }),
   )
   .done();

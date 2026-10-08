@@ -29,9 +29,9 @@ export default httpRule(
   )
   .appliesTo('server')
   .rule((ctx) =>
-    ctx.validateCommonHttpTransactions(
-      and(method('OPTIONS'), successfulStatusCode()),
-      not(or(...headerNames.map((name) => responseHeader(name)))),
-    ),
+    ctx.validateCommonHttpTransactions({
+      appliesTo: and(method('OPTIONS'), successfulStatusCode()),
+      violatedWhen: not(or(...headerNames.map((name) => responseHeader(name)))),
+    }),
   )
   .done();

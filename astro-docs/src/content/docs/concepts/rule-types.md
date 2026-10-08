@@ -68,7 +68,7 @@ export default httpRule('require-rate-limit-headers')
   .type('static') // Lint context only
   .description('All responses must define rate limiting headers')
   .appliesTo('server')
-  .rule((ctx) => ctx.validateCommonHttpTransactions(statusCode(200), not(responseHeader('x-ratelimit-limit'))))
+  .rule((ctx) => ctx.validateCommonHttpTransactions({ appliesTo: statusCode(200), violatedWhen: not(responseHeader('x-ratelimit-limit')) }))
   .done();
 ```
 
@@ -92,10 +92,10 @@ The lint context checks:
 .
 type('static')
   .rule((ctx) =>
-    ctx.validateCommonHttpTransactions(
-      statusCodeRange(400, 599),
-      not(responseHeader('content-type'))
-    )
+    ctx.validateCommonHttpTransactions({
+      appliesTo: statusCodeRange(400, 599),
+      violatedWhen: not(responseHeader('content-type')),
+    })
   )
 ```
 
@@ -106,10 +106,10 @@ type('static')
 .
 type('static')
   .rule((ctx) =>
-    ctx.validateCommonHttpTransactions(
-      method('DELETE'),
-      not(statusCode(204))
-    )
+    ctx.validateCommonHttpTransactions({
+      appliesTo: method('DELETE'),
+      violatedWhen: not(statusCode(204)),
+    })
   )
 ```
 
@@ -120,10 +120,10 @@ type('static')
 .
 type('static')
   .rule((ctx) =>
-    ctx.validateCommonHttpTransactions(
-      method('POST'),
-      not(hasRequestBody())
-    )
+    ctx.validateCommonHttpTransactions({
+      appliesTo: method('POST'),
+      violatedWhen: not(hasRequestBody()),
+    })
   )
 ```
 
@@ -158,14 +158,14 @@ The **test context** generates and executes HTTP requests against a live API. It
 
 ```typescript
 import { httpRule } from '@thymian/core';
-import { not, responseHeader } from '@thymian/core';
+import { constant, not, responseHeader } from '@thymian/core';
 
 export default httpRule('test-request-id-propagation')
   .severity('error')
   .type('test') // Test context only
   .description('Live API must return X-Request-ID for request tracking')
   .appliesTo('server')
-  .rule((ctx) => ctx.validateHttpTransactions(not(responseHeader('x-request-id'))))
+  .rule((ctx) => ctx.validateHttpTransactions({ appliesTo: constant(true), violatedWhen: not(responseHeader('x-request-id')) }))
   .done();
 ```
 
@@ -178,6 +178,8 @@ The test context checks:
 - Status codes returned by servers
 - Response bodies and formats
 - Server behavior under specific conditions
+
+A rule's `appliesTo` is checked twice in the test context: against the specification, to choose which requests to send, and again against the response that came back. A rule for 405 responses therefore stays silent when the server answers 204. `violatedWhen` runs only on responses `appliesTo` accepts, so put a fact only live traffic carries, such as a `Content-Length` header, there rather than in `appliesTo`.
 
 ### Advanced: Custom Test Logic
 
@@ -270,7 +272,7 @@ export default httpRule('analyze-401-responses')
   .type('analytics') // Analyze context only
   .description('Recorded 401 responses must include WWW-Authenticate')
   .appliesTo('server')
-  .rule((ctx) => ctx.validateCommonHttpTransactions(statusCode(401), not(responseHeader('www-authenticate'))))
+  .rule((ctx) => ctx.validateCommonHttpTransactions({ appliesTo: statusCode(401), violatedWhen: not(responseHeader('www-authenticate')) }))
   .done();
 ```
 
@@ -286,11 +288,11 @@ The analyze context checks:
 
 ### SQL Optimization
 
-The analyze context automatically compiles filter expressions to SQL for efficiency:
+The analyze context automatically compiles filter expressions to SQL for efficiency. `appliesTo` and an expression `violatedWhen` are combined into one query; a function `violatedWhen` is called only on the rows `appliesTo` selects:
 
 ```typescript
-// This filter...
-ctx.validateCommonHttpTransactions(not(responseHeader('x-correlation-id')));
+// These filters...
+ctx.validateCommonHttpTransactions({ appliesTo: constant(true), violatedWhen: not(responseHeader('x-correlation-id')) });
 
 // ...is compiled to SQL like:
 // SELECT * FROM http_transactions

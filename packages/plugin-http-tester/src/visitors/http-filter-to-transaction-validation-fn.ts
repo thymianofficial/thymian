@@ -3,32 +3,52 @@ import {
   createRegExpFromOriginWildcard,
   equalsIgnoreCase,
   getContentType,
+  getHeader,
   type HttpFilterExpression,
   type HttpFilterVisitor,
   type HttpRequest,
   type HttpResponse,
   queryParamsFromRequest,
+  type ThymianFormat,
+  type ThymianHttpTransaction,
   visitHttpFilter,
 } from '@thymian/core';
 
-type TransactionFilterFn = (req: HttpRequest, res: HttpResponse) => boolean;
+import { httpFilterExpressionToFilter } from './http-filter-expression-to-filter.js';
 
+type TransactionFilterFn = (
+  req: HttpRequest,
+  res: HttpResponse,
+  source: ThymianHttpTransaction,
+) => boolean;
+
+/**
+ * Evaluates a filter expression against a live request/response pair, agreeing
+ * with the specification-side compiler and the analyzer's SQL: method, header
+ * and trailer names compare case-insensitively, and what only the
+ * specification knows — `isAuthorized`, `responseWith` and the path template —
+ * is answered by the specification through the pair's `source`. Origins and
+ * ports carry the default port explicitly, as the specification side does.
+ */
 export function httpFilterToTransactionValidationFn(
   filterExpression: HttpFilterExpression,
+  format: ThymianFormat,
 ): TransactionFilterFn {
   return visitHttpFilter(
     filterExpression,
-    createTransactionValidationVisitor(),
+    createTransactionValidationVisitor(format),
   ) as TransactionFilterFn;
 }
 
-function createTransactionValidationVisitor(): HttpFilterVisitor<TransactionFilterFn> {
+function createTransactionValidationVisitor(
+  format: ThymianFormat,
+): HttpFilterVisitor<TransactionFilterFn> {
   return createFilterVisitor({
-    visitMethod(expr) {
-      if (typeof expr.method === 'undefined') {
+    visitMethod({ method }) {
+      if (typeof method === 'undefined') {
         return () => false;
       }
-      return (req: HttpRequest) => req.method === expr.method;
+      return (req: HttpRequest) => equalsIgnoreCase(req.method, method);
     },
     visitRequestHeader(expr) {
       return (req: HttpRequest) => {
@@ -36,7 +56,7 @@ function createTransactionValidationVisitor(): HttpFilterVisitor<TransactionFilt
           return false;
         }
 
-        const headerValue = req.headers[expr.header];
+        const headerValue = getHeader(req.headers, expr.header);
         if (typeof expr.value === 'undefined') {
           return headerValue !== undefined;
         }
@@ -58,18 +78,29 @@ function createTransactionValidationVisitor(): HttpFilterVisitor<TransactionFilt
       };
     },
     visitPath(expr) {
-      return (req: HttpRequest) => req.path === expr.path;
+      // A live request carries the concrete path; the specification side
+      // compares the template it was generated from.
+      return (_req, _res, source) => source.thymianReq.path === expr.path;
     },
     visitHasResponse(expr) {
-      return (req: HttpRequest, res: HttpResponse) => {
-        const fn = httpFilterToTransactionValidationFn(expr.filter);
-        return !!fn(req, res);
-      };
+      // Whether the operation declares such a response; one live pair cannot
+      // answer that for its siblings.
+      const declaresResponse = httpFilterExpressionToFilter(expr);
+      return (_req, _res, source) => declaresResponse(source, format);
+    },
+    visitIsAuthorized({ isAuthorized }) {
+      return (_req, _res, source) =>
+        format.requestIsSecured(source.thymianReqId) === isAuthorized;
+    },
+    visitProtocol({ protocol }) {
+      if (typeof protocol === 'undefined') {
+        return () => false;
+      }
+      return (req: HttpRequest) =>
+        req.origin.toLowerCase().startsWith(`${protocol.toLowerCase()}://`);
     },
     visitOrigin(expr) {
-      return (req: HttpRequest) => {
-        return req.origin === expr.origin;
-      };
+      return (req: HttpRequest) => explicitOrigin(req.origin) === expr.origin;
     },
     visitHasBody(expr) {
       return (req: HttpRequest) => {
@@ -78,8 +109,7 @@ function createTransactionValidationVisitor(): HttpFilterVisitor<TransactionFilt
       };
     },
     visitPort(expr) {
-      return (req: HttpRequest) =>
-        new URL(req.path, req.origin).port === expr.port?.toString();
+      return (req: HttpRequest) => portOf(new URL(req.origin)) === expr.port;
     },
     visitRequestMediaType(expr) {
       return (req: HttpRequest) => {
@@ -88,9 +118,12 @@ function createTransactionValidationVisitor(): HttpFilterVisitor<TransactionFilt
       };
     },
     visitUrl(expr) {
-      return (req: HttpRequest) => {
-        const url = new URL(req.path, req.origin).toString();
-        return url === expr.url;
+      return (req: HttpRequest, _res, source) => {
+        const { path } = source.thymianReq;
+        return (
+          `${explicitOrigin(req.origin)}${path.startsWith('/') ? path : '/' + path}` ===
+          expr.url
+        );
       };
     },
     visitStatusCode(expr) {
@@ -108,7 +141,7 @@ function createTransactionValidationVisitor(): HttpFilterVisitor<TransactionFilt
         return () => false;
       }
       return (_req: HttpRequest, res: HttpResponse) => {
-        const headerValue = res.headers[header];
+        const headerValue = getHeader(res.headers, header);
         if (typeof value === 'undefined') {
           return headerValue !== undefined;
         }
@@ -132,7 +165,7 @@ function createTransactionValidationVisitor(): HttpFilterVisitor<TransactionFilt
         return () => false;
       }
       return (_req: HttpRequest, res: HttpResponse) => {
-        const trailerValue = res.trailers?.[trailer];
+        const trailerValue = getHeader(res.trailers, trailer);
         if (typeof value === 'undefined') {
           return trailerValue !== undefined;
         }
@@ -149,4 +182,16 @@ function createTransactionValidationVisitor(): HttpFilterVisitor<TransactionFilt
       return (req: HttpRequest) => regExp.test(req.origin ?? '');
     },
   });
+}
+
+const DEFAULT_PORTS: Record<string, number> = { 'http:': 80, 'https:': 443 };
+
+function portOf(url: URL): number | undefined {
+  return url.port ? Number(url.port) : DEFAULT_PORTS[url.protocol];
+}
+
+/** `protocol://host:port`, the way the specification side spells an origin. */
+function explicitOrigin(origin: string): string {
+  const url = new URL(origin);
+  return `${url.protocol}//${url.hostname}:${portOf(url)}`;
 }

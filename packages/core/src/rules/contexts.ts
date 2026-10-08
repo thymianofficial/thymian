@@ -40,10 +40,75 @@ export type ValidationFn<Args extends unknown[]> = (
   ...args: Args
 ) => RuleFnResult[];
 
+export type CommonHttpViolationConditionFn = ValidationFn<
+  [CommonHttpRequest, CommonHttpResponse, RuleViolationLocation]
+>;
+
+export type GroupedCommonHttpViolationConditionFn = ValidationFn<
+  [string, [CommonHttpRequest, CommonHttpResponse, RuleViolationLocation][]]
+>;
+
+export type HttpViolationConditionFn = ValidationFn<
+  [HttpRequest, HttpResponse, RuleViolationLocation]
+>;
+
+/**
+ * A rule's criteria: its Applicability and its Violation Condition, named
+ * separately in every rule-context call (ADR-0025).
+ *
+ * `appliesTo` is the rule's Applicability: which transactions it speaks about,
+ * asked of whatever the context observes. `violatedWhen` is its Violation
+ * Condition: evaluated only on transactions `appliesTo` accepts, against the
+ * same observation. As an expression, a matching transaction is a violation.
+ */
+export type RuleCriteria<TViolatedWhen> = {
+  appliesTo: HttpFilterExpression;
+  violatedWhen: TViolatedWhen;
+};
+
+export type CommonHttpRuleCriteria = RuleCriteria<
+  HttpFilterExpression | CommonHttpViolationConditionFn
+>;
+
+export type GroupedCommonHttpRuleCriteria =
+  RuleCriteria<GroupedCommonHttpViolationConditionFn> & {
+    groupBy: HttpFilterExpression;
+  };
+
+export type HttpRuleCriteria = RuleCriteria<
+  HttpFilterExpression | HttpViolationConditionFn
+>;
+
+export type LintRuleCriteria = {
+  appliesTo: (
+    req: ThymianHttpRequest,
+    res: ThymianHttpResponse,
+    responses: ThymianHttpResponse[],
+  ) => boolean;
+  violatedWhen: (
+    req: ThymianHttpRequest,
+    res: ThymianHttpResponse,
+    responses: ThymianHttpResponse[],
+  ) => { violation?: RuleViolation; findings?: RuleFinding[] } | boolean;
+};
+
+/**
+ * Tells the named form of a rule-context call from the positional one, whose
+ * first argument is a filter expression or, in `LintContext`, a function.
+ */
+export function isRuleCriteria<T extends { appliesTo: unknown }>(
+  value: T | object,
+): value is T {
+  return typeof value === 'object' && 'appliesTo' in value;
+}
+
 export interface ApiContext<
   TDiagnostics = unknown,
 > extends RuleExecutionDiagnosticsProvider<TDiagnostics> {
   readonly format: ThymianFormat;
+  validateCommonHttpTransactions(
+    criteria: CommonHttpRuleCriteria,
+  ): Promise<RuleFnResult[]> | RuleFnResult[];
   validateCommonHttpTransactions(
     filter: HttpFilterExpression,
     validationFn?:
@@ -51,6 +116,9 @@ export interface ApiContext<
           [CommonHttpRequest, CommonHttpResponse, RuleViolationLocation]
         >
       | HttpFilterExpression,
+  ): Promise<RuleFnResult[]> | RuleFnResult[];
+  validateGroupedCommonHttpTransactions(
+    criteria: GroupedCommonHttpRuleCriteria,
   ): Promise<RuleFnResult[]> | RuleFnResult[];
   validateGroupedCommonHttpTransactions(
     filter: HttpFilterExpression,
@@ -65,6 +133,9 @@ export interface LiveApiContext<
   TDiagnostics = unknown,
 > extends ApiContext<TDiagnostics> {
   validateHttpTransactions(
+    criteria: HttpRuleCriteria,
+  ): Promise<RuleFnResult[]> | RuleFnResult[];
+  validateHttpTransactions(
     filter: HttpFilterExpression,
     validation?:
       | ValidationFn<[HttpRequest, HttpResponse, RuleViolationLocation]>
@@ -75,6 +146,9 @@ export interface LiveApiContext<
 export interface LintContext<
   TDiagnostics = unknown,
 > extends ApiContext<TDiagnostics> {
+  validateHttpTransactions(
+    criteria: LintRuleCriteria,
+  ): Promise<RuleFnResult[]> | RuleFnResult[];
   validateHttpTransactions(
     filterFn: (
       req: ThymianHttpRequest,

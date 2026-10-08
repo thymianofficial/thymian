@@ -20,9 +20,9 @@ export default httpRule(
   )
   .appliesTo('user-agent')
   .overrideAnalyticsRule((ctx) =>
-    ctx.validateHttpTransactions(
-      requestHeader('referer'),
-      (request, _res, location: RuleViolationLocation) => {
+    ctx.validateHttpTransactions({
+      appliesTo: requestHeader('referer'),
+      violatedWhen: (request, _res, location: RuleViolationLocation) => {
         const referer = getHeader(request.headers, 'referer');
 
         if (typeof referer !== 'string') {
@@ -58,7 +58,7 @@ export default httpRule(
           },
         ];
       },
-    ),
+    }),
   )
   .done();
 

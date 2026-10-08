@@ -32,6 +32,7 @@ This chapter documents the significant architectural decisions made for Thymian.
 | [ADR-0022](adr/0022-reports-land-in-per-report-run-directories.md)             | One run directory per report under a plugin-level `reportsDir`            | Accepted | 2026-09-23 | —                                                                                                                      |
 | [ADR-0023](adr/0023-selector-is-the-transaction-label.md)                      | The Selector is the transaction label, application-wide                   | Accepted | 2026-09-04 | [10.2.1](10-quality-requirements.md#102-quality-scenarios)                                                             |
 | [ADR-0024](adr/0024-a-per-transaction-problem-must-not-end-the-run.md)         | A per-transaction problem must not end the run                            | Accepted | 2026-09-04 | [10.2.1](10-quality-requirements.md#102-quality-scenarios)                                                             |
+| [ADR-0025](adr/0025-applicability-and-violation-condition.md)                  | Rule validation calls name applicability and violation condition          | Accepted | 2026-09-24 | —                                                                                                                      |
 
 ## Creating New ADRs
 

@@ -1,10 +1,14 @@
 import {
   type CommonHttpRequest,
   type CommonHttpResponse,
+  type CommonHttpRuleCriteria,
   createRegExpFromOriginWildcard,
+  type GroupedCommonHttpRuleCriteria,
   type HttpFilterExpression,
   isNodeType,
+  isRuleCriteria,
   type LintContext,
+  type LintRuleCriteria,
   type Logger,
   type RuleFinding,
   type RuleFnResult,
@@ -56,26 +60,42 @@ export class StaticApiContext implements LintContext {
   }
 
   validateCommonHttpTransactions(
+    criteria: CommonHttpRuleCriteria,
+  ): RuleFnResult[];
+  validateCommonHttpTransactions(
     filter: HttpFilterExpression,
-    validate:
+    validate?:
       | ValidationFn<
           [CommonHttpRequest, CommonHttpResponse, RuleViolationLocation]
         >
-      | HttpFilterExpression = filter,
+      | HttpFilterExpression,
+  ): RuleFnResult[];
+  validateCommonHttpTransactions(
+    appliesToOrCriteria: HttpFilterExpression | CommonHttpRuleCriteria,
+    violatedWhenArg?:
+      | ValidationFn<
+          [CommonHttpRequest, CommonHttpResponse, RuleViolationLocation]
+        >
+      | HttpFilterExpression,
   ): RuleFnResult[] {
-    const filterFn = httpFilterExpressionToFilter(filter);
+    // The specification is the observation, so the named form evaluates
+    // exactly like the positional one.
+    const [appliesTo, violatedWhen] = isRuleCriteria(appliesToOrCriteria)
+      ? [appliesToOrCriteria.appliesTo, appliesToOrCriteria.violatedWhen]
+      : [appliesToOrCriteria, violatedWhenArg ?? appliesToOrCriteria];
+    const isApplicable = httpFilterExpressionToFilter(appliesTo);
 
     const rawEntries: RuleFnResult[] = this.format
       .getThymianHttpTransactions()
-      .filter((transaction) => filterFn(transaction, this.format))
+      .filter((transaction) => isApplicable(transaction, this.format))
       .flatMap((transaction) => {
         const location: RuleViolationLocation = {
           elementType: 'edge',
           elementId: transaction.transactionId,
         };
 
-        if (typeof validate === 'function') {
-          return validate(
+        if (typeof violatedWhen === 'function') {
+          return violatedWhen(
             thymianToCommonHttpRequest(
               transaction.thymianReq,
               transaction.thymianReqId,
@@ -87,8 +107,8 @@ export class StaticApiContext implements LintContext {
             location,
           );
         } else {
-          const validateFn = httpFilterExpressionToFilter(validate);
-          return validateFn(transaction, this.format)
+          const isViolated = httpFilterExpressionToFilter(violatedWhen);
+          return isViolated(transaction, this.format)
             ? [
                 {
                   location: { ...location, pointer: '' },
@@ -104,18 +124,38 @@ export class StaticApiContext implements LintContext {
   }
 
   validateGroupedCommonHttpTransactions(
+    criteria: GroupedCommonHttpRuleCriteria,
+  ): RuleFnResult[];
+  validateGroupedCommonHttpTransactions(
     filter: HttpFilterExpression,
     groupBy: HttpFilterExpression,
     validationFn: ValidationFn<
       [string, [CommonHttpRequest, CommonHttpResponse, RuleViolationLocation][]]
     >,
+  ): RuleFnResult[];
+  validateGroupedCommonHttpTransactions(
+    appliesToOrCriteria: HttpFilterExpression | GroupedCommonHttpRuleCriteria,
+    groupByArg?: HttpFilterExpression,
+    violatedWhenArg?: ValidationFn<
+      [string, [CommonHttpRequest, CommonHttpResponse, RuleViolationLocation][]]
+    >,
   ): RuleFnResult[] {
-    const filterFn = httpFilterExpressionToFilter(filter);
+    const [appliesTo, groupBy, violatedWhen] = isRuleCriteria(
+      appliesToOrCriteria,
+    )
+      ? [
+          appliesToOrCriteria.appliesTo,
+          appliesToOrCriteria.groupBy,
+          appliesToOrCriteria.violatedWhen,
+        ]
+      : // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        [appliesToOrCriteria, groupByArg!, violatedWhenArg!];
+    const isApplicable = httpFilterExpressionToFilter(appliesTo);
     const groupByFn = httpFilterToGroupByFn(groupBy);
 
     const groups = this.format
       .getThymianHttpTransactions()
-      .filter((t) => filterFn(t, this.format))
+      .filter((t) => isApplicable(t, this.format))
       .reduce<Record<string, ThymianHttpTransaction[]>>(
         (groups, transaction) => {
           const key = groupByFn(transaction, this.format);
@@ -127,7 +167,7 @@ export class StaticApiContext implements LintContext {
 
     const rawEntries: RuleFnResult[] = Object.entries(groups).flatMap(
       ([key, group]) =>
-        validationFn(
+        violatedWhen(
           key,
           group.map(
             ({
@@ -151,20 +191,26 @@ export class StaticApiContext implements LintContext {
     return rawEntries;
   }
 
+  validateHttpTransactions(criteria: LintRuleCriteria): RuleFnResult[];
   validateHttpTransactions(
     filterFn: (
       req: ThymianHttpRequest,
       res: ThymianHttpResponse,
       responses: ThymianHttpResponse[],
     ) => boolean,
-    validationFn: (
+    validationFn?: (
       req: ThymianHttpRequest,
       res: ThymianHttpResponse,
       responses: ThymianHttpResponse[],
-    ) =>
-      | { violation?: RuleViolation; findings?: RuleFinding[] }
-      | boolean = filterFn,
+    ) => { violation?: RuleViolation; findings?: RuleFinding[] } | boolean,
+  ): RuleFnResult[];
+  validateHttpTransactions(
+    appliesToOrCriteria: LintRuleCriteria['appliesTo'] | LintRuleCriteria,
+    violatedWhenArg?: LintRuleCriteria['violatedWhen'],
   ): RuleFnResult[] {
+    const [appliesTo, violatedWhen] = isRuleCriteria(appliesToOrCriteria)
+      ? [appliesToOrCriteria.appliesTo, appliesToOrCriteria.violatedWhen]
+      : [appliesToOrCriteria, violatedWhenArg ?? appliesToOrCriteria];
     const rawEntries = this.format.graph.reduceNodes((acc, id, node) => {
       if (!isNodeType(node, 'http-request')) {
         return acc;
@@ -174,8 +220,8 @@ export class StaticApiContext implements LintContext {
       const responses = responsesWithIds.map(([, res]) => res);
 
       for (const [resId, res] of responsesWithIds) {
-        if (filterFn(node, res, responses)) {
-          const result = validationFn(node, res, responses);
+        if (appliesTo(node, res, responses)) {
+          const result = violatedWhen(node, res, responses);
 
           const transactionId = this.format.graph.findEdge(
             id,

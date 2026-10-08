@@ -1,6 +1,7 @@
 import {
   getHeader,
   type HttpResponse,
+  type HttpRuleCriteria,
   not,
   responseHeader,
   type RuleViolationLocation,
@@ -9,6 +10,21 @@ import {
 import { httpRule } from '@thymian/core';
 
 import { hasNonEmptyHeaderValue } from '../../utils/headers.js';
+
+// The real-data contexts (test and analyze) share one set of criteria.
+const liveCriteria: HttpRuleCriteria = {
+  appliesTo: statusCode(302),
+  violatedWhen: (_req, res: HttpResponse, location: RuleViolationLocation) =>
+    hasNonEmptyHeaderValue(getHeader(res.headers, 'location'))
+      ? []
+      : [
+          {
+            location,
+            violation: {},
+            findings: [],
+          },
+        ],
+};
 
 // eslint-disable-next-line thymian-internal/require-rule-tags -- no concern-tag member fits this rule's topic
 export default httpRule(
@@ -28,39 +44,11 @@ export default httpRule(
   // overrides additionally read the VALUE to catch an empty "Location:" that
   // satisfies presence but carries no URI reference.
   .rule((ctx) =>
-    ctx.validateCommonHttpTransactions(
-      statusCode(302),
-      not(responseHeader('location')),
-    ),
+    ctx.validateCommonHttpTransactions({
+      appliesTo: statusCode(302),
+      violatedWhen: not(responseHeader('location')),
+    }),
   )
-  .overrideTest((ctx) =>
-    ctx.validateHttpTransactions(
-      statusCode(302),
-      (_req, res: HttpResponse, location: RuleViolationLocation) =>
-        hasNonEmptyHeaderValue(getHeader(res.headers, 'location'))
-          ? []
-          : [
-              {
-                location,
-                violation: {},
-                findings: [],
-              },
-            ],
-    ),
-  )
-  .overrideAnalyticsRule((ctx) =>
-    ctx.validateHttpTransactions(
-      statusCode(302),
-      (_req, res: HttpResponse, location: RuleViolationLocation) =>
-        hasNonEmptyHeaderValue(getHeader(res.headers, 'location'))
-          ? []
-          : [
-              {
-                location,
-                violation: {},
-                findings: [],
-              },
-            ],
-    ),
-  )
+  .overrideTest((ctx) => ctx.validateHttpTransactions(liveCriteria))
+  .overrideAnalyticsRule((ctx) => ctx.validateHttpTransactions(liveCriteria))
   .done();

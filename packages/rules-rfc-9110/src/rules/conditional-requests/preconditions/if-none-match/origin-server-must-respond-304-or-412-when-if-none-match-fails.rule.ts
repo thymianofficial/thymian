@@ -37,21 +37,19 @@ export default httpRule(
   )
   .appliesTo('origin server')
   .rule((ctx) =>
-    ctx.validateCommonHttpTransactions(
-      and(
-        requestHeader('if-none-match'),
-        or(
-          and(
-            or(method('GET'), method('HEAD')),
-            not(responseWith(statusCode(304))),
-          ),
-          and(
-            not(or(method('GET'), method('HEAD'))),
-            not(responseWith(statusCode(412))),
-          ),
+    ctx.validateCommonHttpTransactions({
+      appliesTo: requestHeader('if-none-match'),
+      violatedWhen: or(
+        and(
+          or(method('GET'), method('HEAD')),
+          not(responseWith(statusCode(304))),
+        ),
+        and(
+          not(or(method('GET'), method('HEAD'))),
+          not(responseWith(statusCode(412))),
         ),
       ),
-    ),
+    }),
   )
   .overrideTest(async (ctx) => {
     const results: RuleFnResult[] = [];

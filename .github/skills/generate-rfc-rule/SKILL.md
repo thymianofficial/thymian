@@ -257,18 +257,23 @@ Construct the RFC section URL:
 
 ### 9. Implement the Validation Logic
 
-Use the `.rule()` method to implement validation logic using the constraint matcher API:
+Use the `.rule()` method to implement validation logic. Every validation call names two roles with required keys:
 
 ```typescript
 .rule((ctx) =>
-  ctx.validateCommonHttpTransactions(
-    // condition matcher
-    and(method('DELETE'), hasRequestBody()),
-    // constraint matcher (what should be flagged)
-    hasRequestBody()
-  )
+  ctx.validateCommonHttpTransactions({
+    // Applicability: which transactions the rule speaks about
+    appliesTo: method('DELETE'),
+    // Violation Condition: what is wrong with them (an expression, or a function returning results)
+    violatedWhen: hasRequestBody(),
+  })
 )
 ```
+
+- **`appliesTo`** — the rule's Applicability. Answer it from what the specification knows: method, status code, the actor's message. In `test` it is checked twice, against the specification to choose which requests to send and against the response that came back, so a rule for 405 responses stays silent when the server answers 204.
+- **`violatedWhen`** — the rule's Violation Condition. It runs only on applicable transactions. **A fact only live traffic carries goes here, never in `appliesTo`:** a response header such as `Content-Length` or `Content-Type` is not declared in an OpenAPI description, so in `appliesTo` it selects nothing in `test` and the rule sends no requests.
+- For a condition an expression can't state (parse a value, compare dates, diff two responses), make `violatedWhen` a function `(req, res, location) => results`.
+- For a rule that compares several transactions, use `validateGroupedCommonHttpTransactions({ appliesTo, groupBy, violatedWhen })`, where `violatedWhen` receives each group.
 
 **Common Matchers:**
 
@@ -318,10 +323,10 @@ not(matcher);
 ```typescript
 // MUST NOT send header
 .rule((ctx) =>
-  ctx.validateCommonHttpTransactions(
-    method('CONNECT'),  // condition
-    responseHeader('content-length')  // flag this
-  )
+  ctx.validateCommonHttpTransactions({
+    appliesTo: and(method('CONNECT'), statusCodeRange(200, 299)),  // what the specification can select on
+    violatedWhen: responseHeader('content-length'),  // the live-only fact: flag this
+  })
 )
 ```
 
@@ -330,10 +335,10 @@ not(matcher);
 ```typescript
 // MUST send header
 .rule((ctx) =>
-  ctx.validateCommonHttpTransactions(
-    method('OPTIONS'),  // condition
-    not(requestHeader('max-forwards'))  // flag this absence
-  )
+  ctx.validateCommonHttpTransactions({
+    appliesTo: method('OPTIONS'),
+    violatedWhen: not(requestHeader('max-forwards')),  // flag this absence
+  })
 )
 ```
 
@@ -342,10 +347,10 @@ not(matcher);
 ```typescript
 // Server MUST NOT send certain headers in 2xx CONNECT responses
 .rule((ctx) =>
-  ctx.validateCommonHttpTransactions(
-    and(method('CONNECT'), statusCodeRange(200, 299)),
-    or(responseHeader('transfer-encoding'), responseHeader('content-length'))
-  )
+  ctx.validateCommonHttpTransactions({
+    appliesTo: and(method('CONNECT'), statusCodeRange(200, 299)),
+    violatedWhen: or(responseHeader('transfer-encoding'), responseHeader('content-length')),
+  })
 )
 ```
 
@@ -395,7 +400,7 @@ export default httpRule('rfc9110/client-should-not-generate-content-for-delete-r
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-delete')
   .description('A client SHOULD NOT generate content in a DELETE request unless it is made directly to an origin server that has previously indicated, in or out of band, that such a request has a purpose and will be adequately supported.')
   .appliesTo('client')
-  .rule((ctx) => ctx.validateCommonHttpTransactions(method('DELETE'), hasRequestBody()))
+  .rule((ctx) => ctx.validateCommonHttpTransactions({ appliesTo: method('DELETE'), violatedWhen: hasRequestBody() }))
   .done();
 ```
 
@@ -417,7 +422,7 @@ export default httpRule('rfc9110/server-must-not-send-transfer-encoding-or-conte
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-connect')
   .description('A server MUST NOT send any Transfer-Encoding or Content-Length header fields in a 2xx (Successful) response to CONNECT.')
   .appliesTo('server')
-  .rule((ctx) => ctx.validateCommonHttpTransactions(and(method('CONNECT'), statusCodeRange(200, 299)), or(responseHeader('transfer-encoding'), responseHeader('content-length'))))
+  .rule((ctx) => ctx.validateCommonHttpTransactions({ appliesTo: and(method('CONNECT'), statusCodeRange(200, 299)), violatedWhen: or(responseHeader('transfer-encoding'), responseHeader('content-length')) }))
   .done();
 ```
 

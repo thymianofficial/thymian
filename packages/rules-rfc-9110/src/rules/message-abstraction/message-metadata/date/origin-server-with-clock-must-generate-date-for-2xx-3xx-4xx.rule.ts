@@ -1,4 +1,4 @@
-import { and, not, or, responseHeader, statusCodeRange } from '@thymian/core';
+import { not, or, responseHeader, statusCodeRange } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
 // A response-side server-behavior MUST that needs only the *presence* of the
@@ -28,15 +28,13 @@ export default httpRule(
     "An origin server that has a working clock must stamp every 2xx (Successful), 3xx (Redirection), and 4xx (Client Error) response with a Date header giving the time the response was generated. Caches and clients rely on this timestamp to compute a response's age, detect clock skew, and decide how long a cached response stays fresh. Without Date on these responses, caching and freshness calculations become unreliable, so omitting it on a clock-bearing server is a conformance error.",
   )
   .rule((ctx) =>
-    ctx.validateCommonHttpTransactions(
-      and(
-        or(
-          statusCodeRange(200, 299),
-          statusCodeRange(300, 399),
-          statusCodeRange(400, 499),
-        ),
-        not(responseHeader('date')),
+    ctx.validateCommonHttpTransactions({
+      appliesTo: or(
+        statusCodeRange(200, 299),
+        statusCodeRange(300, 399),
+        statusCodeRange(400, 499),
       ),
-    ),
+      violatedWhen: not(responseHeader('date')),
+    }),
   )
   .done();

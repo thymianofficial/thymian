@@ -1,5 +1,5 @@
 import type { RuleViolationLocation } from '@thymian/core';
-import { and, getHeader, responseHeader } from '@thymian/core';
+import { constant, getHeader } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
 // eslint-disable-next-line thymian-internal/require-rule-tags -- cache-freshness correctness, not a concern this vocabulary covers
@@ -23,9 +23,9 @@ export default httpRule(
     'A server that has a clock must never claim a resource was last modified at a time later than the moment it generated the response, that is, later than its own Date header. If internal metadata yields a future modification time, the server must clamp it down to the response Date. A future Last-Modified confuses caches and conditional-request logic, which compare that timestamp against the current time and can end up serving stale content or making the wrong freshness decisions.',
   )
   .rule((ctx) =>
-    ctx.validateHttpTransactions(
-      and(responseHeader('last-modified'), responseHeader('date')),
-      (_req, res, location: RuleViolationLocation) => {
+    ctx.validateHttpTransactions({
+      appliesTo: constant(true),
+      violatedWhen: (_req, res, location: RuleViolationLocation) => {
         const lastModifiedHeader = getHeader(res.headers, 'last-modified');
         const dateHeader = getHeader(res.headers, 'date');
 
@@ -57,6 +57,6 @@ export default httpRule(
 
         return [];
       },
-    ),
+    }),
   )
   .done();

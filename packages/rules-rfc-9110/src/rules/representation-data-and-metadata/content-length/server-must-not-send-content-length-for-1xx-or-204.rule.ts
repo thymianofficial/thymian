@@ -1,11 +1,7 @@
-import {
-  and,
-  or,
-  responseHeader,
-  statusCode,
-  statusCodeRange,
-} from '@thymian/core';
+import { or, statusCode, statusCodeRange } from '@thymian/core';
 import { httpRule } from '@thymian/core';
+
+import { hasHeader } from '../../../utils.js';
 
 export default httpRule(
   'rfc9110/server-must-not-send-content-length-for-1xx-or-204',
@@ -26,20 +22,20 @@ export default httpRule(
     'Responses with a 1xx informational status or a 204 No Content status never carry a body, so a server must not put a Content-Length header on them. It matters because these statuses are defined to have no content; adding a Content-Length implies a body that will never arrive, which confuses recipients about message framing and, over HTTP/1.1, can desynchronise the connection or open the door to request smuggling.',
   )
   .rule((ctx) =>
-    ctx.validateCommonHttpTransactions(
-      and(
-        or(statusCodeRange(100, 199), statusCode(204)),
-        responseHeader('content-length'),
-      ),
-      (_req, res, location) => [
-        {
-          location,
-          violation: {
-            message: `A ${res.statusCode} response includes a Content-Length header field.`,
-          },
-          findings: [],
-        },
-      ],
-    ),
+    ctx.validateCommonHttpTransactions({
+      appliesTo: or(statusCodeRange(100, 199), statusCode(204)),
+      violatedWhen: (_req, res, location) =>
+        hasHeader(res.headers, 'content-length')
+          ? [
+              {
+                location,
+                violation: {
+                  message: `A ${res.statusCode} response includes a Content-Length header field.`,
+                },
+                findings: [],
+              },
+            ]
+          : [],
+    }),
   )
   .done();

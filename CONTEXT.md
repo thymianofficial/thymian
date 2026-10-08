@@ -134,6 +134,23 @@ declare, or to mark a declared one heuristic — a declared context defaults to 
 _In code_: `CoverageRecord`, `defineCoverage`, `packages/core/src/rules/rule-coverage.ts`.
 _Avoid_: roadmap, manifest
 
+**Applicability**:
+Which `Transaction`s a rule speaks about — "responses with status 405". Asked of whatever the
+`Validation Context` observes: the specification in `Lint`, the recorded pair in `Analyze`,
+and in `Test` twice — of the specification to choose what to send, then of the pair that came
+back, so a rule for 405 responses stays silent when the server answers 204. A transaction
+outside a rule's applicability is never a violation of it.
+_In code_: `appliesTo`.
+_Avoid_: filter, candidate set, selection
+
+**Violation Condition**:
+What is wrong with an applicable `Transaction` — "no `Allow` header". Evaluated only against
+transactions inside the rule's `Applicability`, and against the same observation. A fact only
+live traffic carries, such as a `Content-Length` header, belongs here: in the
+applicability it would also be asked of a specification, which cannot answer it.
+_In code_: `violatedWhen`.
+_Avoid_: check, assertion, validation
+
 **Convention Rule**:
 A rule that asserts an obligation no `Source` imposes, over a mechanism a `Source` defines —
 send HSTS at all, mark a session cookie `HttpOnly`. Lives in its source's own package, never

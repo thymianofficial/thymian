@@ -1,8 +1,6 @@
 import {
+  constant,
   getHeader,
-  or,
-  requestHeader,
-  responseHeader,
   type RuleFnResult,
   type RuleViolationLocation,
 } from '@thymian/core';
@@ -78,26 +76,23 @@ export default httpRule(
   // In `test` only the RESPONSE side is observable: the request is
   // Thymian-generated and always well-formed, so a request-side scan is inert.
   .overrideTest((ctx) =>
-    ctx.validateHttpTransactions(
-      or(...responseAuthenticationHeaders.map((h) => responseHeader(h))),
-      (_req, res, location: RuleViolationLocation) =>
+    ctx.validateHttpTransactions({
+      appliesTo: constant(true),
+      violatedWhen: (_req, res, location: RuleViolationLocation) =>
         scanForDuplicateParameterNames(
           responseAuthenticationHeaders.flatMap(
             (header) => getHeader(res.headers, header) ?? [],
           ),
           location,
         ),
-    ),
+    }),
   )
   // In `analytics` both request-side credentials and response-side challenges
   // carry real header values, so both directions are validated.
   .overrideAnalyticsRule((ctx) =>
-    ctx.validateHttpTransactions(
-      or(
-        ...requestAuthenticationHeaders.map((h) => requestHeader(h)),
-        ...responseAuthenticationHeaders.map((h) => responseHeader(h)),
-      ),
-      (req, res, location: RuleViolationLocation) =>
+    ctx.validateHttpTransactions({
+      appliesTo: constant(true),
+      violatedWhen: (req, res, location: RuleViolationLocation) =>
         scanForDuplicateParameterNames(
           [
             ...requestAuthenticationHeaders.flatMap(
@@ -109,6 +104,6 @@ export default httpRule(
           ],
           location,
         ),
-    ),
+    }),
   )
   .done();

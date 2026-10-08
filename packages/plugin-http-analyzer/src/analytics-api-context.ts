@@ -6,8 +6,10 @@ import {
   type CapturedTransaction,
   type CommonHttpRequest,
   type CommonHttpResponse,
+  type CommonHttpRuleCriteria,
   createRegExpFromOriginWildcard,
   expandHttpParticipantRoles,
+  type GroupedCommonHttpRuleCriteria,
   type HttpFilterExpression,
   type HttpParticipantRole,
   httpParticipantRoles,
@@ -15,7 +17,9 @@ import {
   httpRequestToCommonHttpRequest,
   type HttpResponse,
   httpResponseToCommonHttpResponse,
+  type HttpRuleCriteria,
   httpTransactionToLabel,
+  isRuleCriteria,
   type Logger,
   matchesOrigin,
   not,
@@ -139,6 +143,12 @@ export class AnalyticsApiContext implements AnalyzeContext {
     if (roles) {
       this.roles = expandHttpParticipantRoles(roles);
     }
+
+    // A recorded pair the specification does not describe is not secured.
+    this.repository.answerIsSecuredWith((request, response) => {
+      const reqId = this.format.matchTransaction(request, response)?.[1];
+      return !!reqId && this.format.requestIsSecured(reqId);
+    });
   }
 
   getRuleExecutionDiagnostics(): undefined {
@@ -159,23 +169,40 @@ export class AnalyticsApiContext implements AnalyzeContext {
   }
 
   validateCommonHttpTransactions(
+    criteria: CommonHttpRuleCriteria,
+  ): RuleFnResult[];
+  validateCommonHttpTransactions(
     filter: HttpFilterExpression,
-    validate:
+    validate?:
       | ValidationFn<
           [CommonHttpRequest, CommonHttpResponse, RuleViolationLocation]
         >
-      | HttpFilterExpression = filter,
-  ): Promise<RuleFnResult[]> | RuleFnResult[] {
+      | HttpFilterExpression,
+  ): RuleFnResult[];
+  validateCommonHttpTransactions(
+    appliesToOrCriteria: HttpFilterExpression | CommonHttpRuleCriteria,
+    violatedWhenArg?:
+      | ValidationFn<
+          [CommonHttpRequest, CommonHttpResponse, RuleViolationLocation]
+        >
+      | HttpFilterExpression,
+  ): RuleFnResult[] {
+    // Recorded pairs are the observation, so the named form evaluates exactly
+    // like the positional one: SQL selects by `appliesTo` before validation.
+    const [appliesTo, violatedWhen] = isRuleCriteria(appliesToOrCriteria)
+      ? [appliesToOrCriteria.appliesTo, appliesToOrCriteria.violatedWhen]
+      : [appliesToOrCriteria, violatedWhenArg ?? appliesToOrCriteria];
+
     let finalFilter!: HttpFilterExpression;
     let validateFn!: ValidationFn<
       [CommonHttpRequest, CommonHttpResponse, RuleViolationLocation]
     >;
 
-    if (typeof validate === 'function') {
-      finalFilter = filter;
-      validateFn = validate;
+    if (typeof violatedWhen === 'function') {
+      finalFilter = appliesTo;
+      validateFn = violatedWhen;
     } else {
-      finalFilter = and(filter, validate);
+      finalFilter = and(appliesTo, violatedWhen);
       validateFn = (req, res, location) => [
         { location, violation: {}, findings: [] },
       ];
@@ -206,14 +233,35 @@ export class AnalyticsApiContext implements AnalyzeContext {
   }
 
   validateGroupedCommonHttpTransactions(
+    criteria: GroupedCommonHttpRuleCriteria,
+  ): RuleFnResult[];
+  validateGroupedCommonHttpTransactions(
     filter: HttpFilterExpression,
     groupBy: HttpFilterExpression,
     validationFn: ValidationFn<
       [string, [CommonHttpRequest, CommonHttpResponse, RuleViolationLocation][]]
     >,
-  ): Promise<RuleFnResult[]> | RuleFnResult[] {
+  ): RuleFnResult[];
+  validateGroupedCommonHttpTransactions(
+    appliesToOrCriteria: HttpFilterExpression | GroupedCommonHttpRuleCriteria,
+    groupByArg?: HttpFilterExpression,
+    violatedWhenArg?: ValidationFn<
+      [string, [CommonHttpRequest, CommonHttpResponse, RuleViolationLocation][]]
+    >,
+  ): RuleFnResult[] {
+    const [appliesTo, groupBy, violatedWhen] = isRuleCriteria(
+      appliesToOrCriteria,
+    )
+      ? [
+          appliesToOrCriteria.appliesTo,
+          appliesToOrCriteria.groupBy,
+          appliesToOrCriteria.violatedWhen,
+        ]
+      : // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        [appliesToOrCriteria, groupByArg!, violatedWhenArg!];
+
     const results: RuleFnResult[] = [];
-    const finalFilter = this.addOriginsToFilter(filter);
+    const finalFilter = this.addOriginsToFilter(appliesTo);
 
     const groups = this.repository.readAndGroupTransactionsByHttpFilter(
       finalFilter,
@@ -223,7 +271,7 @@ export class AnalyticsApiContext implements AnalyzeContext {
 
     for (const [key, transactions] of groups) {
       results.push(
-        ...validationFn(
+        ...violatedWhen(
           key,
           transactions.map((t) => [
             httpRequestToCommonHttpRequest(t.request.data),
@@ -237,22 +285,33 @@ export class AnalyticsApiContext implements AnalyzeContext {
     return results;
   }
 
+  validateHttpTransactions(criteria: HttpRuleCriteria): RuleFnResult[];
   validateHttpTransactions(
     filter: HttpFilterExpression,
-    validation:
+    validation?:
       | ValidationFn<[HttpRequest, HttpResponse, RuleViolationLocation]>
-      | HttpFilterExpression = filter,
-  ): Promise<RuleFnResult[]> | RuleFnResult[] {
+      | HttpFilterExpression,
+  ): RuleFnResult[];
+  validateHttpTransactions(
+    appliesToOrCriteria: HttpFilterExpression | HttpRuleCriteria,
+    violatedWhenArg?:
+      | ValidationFn<[HttpRequest, HttpResponse, RuleViolationLocation]>
+      | HttpFilterExpression,
+  ): RuleFnResult[] {
+    const [appliesTo, violatedWhen] = isRuleCriteria(appliesToOrCriteria)
+      ? [appliesToOrCriteria.appliesTo, appliesToOrCriteria.violatedWhen]
+      : [appliesToOrCriteria, violatedWhenArg ?? appliesToOrCriteria];
+
     let finalFilter!: HttpFilterExpression;
     let validateFn!: ValidationFn<
       [HttpRequest, HttpResponse, RuleViolationLocation]
     >;
 
-    if (typeof validation === 'function') {
-      finalFilter = filter;
-      validateFn = validation;
+    if (typeof violatedWhen === 'function') {
+      finalFilter = appliesTo;
+      validateFn = violatedWhen;
     } else {
-      finalFilter = and(filter, validation);
+      finalFilter = and(appliesTo, violatedWhen);
       validateFn = (req, res, location) => [
         { location, violation: {}, findings: [] },
       ];

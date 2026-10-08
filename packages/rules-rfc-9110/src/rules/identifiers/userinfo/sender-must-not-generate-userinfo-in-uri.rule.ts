@@ -16,9 +16,9 @@ export default httpRule('rfc9110/sender-must-not-generate-userinfo-in-uri')
   )
   .appliesTo('client')
   .rule((ctx, opts, logger) =>
-    ctx.validateCommonHttpTransactions(
-      or(protocol('http'), protocol('https')),
-      (req, _res, location: RuleViolationLocation) => {
+    ctx.validateCommonHttpTransactions({
+      appliesTo: or(protocol('http'), protocol('https')),
+      violatedWhen: (req, _res, location: RuleViolationLocation) => {
         try {
           const url = new URL(req.target ?? req.path, req.origin);
 
@@ -30,6 +30,6 @@ export default httpRule('rfc9110/sender-must-not-generate-userinfo-in-uri')
           return [];
         }
       },
-    ),
+    }),
   )
   .done();

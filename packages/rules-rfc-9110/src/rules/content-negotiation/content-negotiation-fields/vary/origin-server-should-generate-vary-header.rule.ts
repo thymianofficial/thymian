@@ -14,7 +14,7 @@ import {
 } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
-import { createList } from '../../../../utils.js';
+import { createList, hasHeader } from '../../../../utils.js';
 
 /**
  * Request header fields whose presence indicates that the origin server was
@@ -50,10 +50,6 @@ const negotiatedCacheableResponse = and(
   or(...cacheableStatusCodes.map((code) => statusCode(code))),
   or(...negotiationRequestHeaders.map((header) => requestHeader(header))),
 );
-
-function hasHeader(headers: string[], name: string): boolean {
-  return headers.some((header) => header.toLowerCase() === name);
-}
 
 /** Negotiation headers present in a common (design-time) request projection. */
 function presentNegotiationHeaders(req: CommonHttpRequest): string[] {
@@ -149,9 +145,9 @@ export default httpRule('rfc9110/origin-server-should-generate-vary-header')
   // Static context sees only header names (no values), so it can only check
   // that a `Vary` header is present when a negotiation request header is.
   .overrideStaticRule((ctx) =>
-    ctx.validateCommonHttpTransactions(
-      negotiatedCacheableResponse,
-      (
+    ctx.validateCommonHttpTransactions({
+      appliesTo: negotiatedCacheableResponse,
+      violatedWhen: (
         req: CommonHttpRequest,
         res: CommonHttpResponse,
         location: RuleViolationLocation,
@@ -170,20 +166,20 @@ export default httpRule('rfc9110/origin-server-should-generate-vary-header')
           },
         ];
       },
-    ),
+    }),
   )
   // Test and analytics have the actual header values, so they additionally
   // check that the `Vary` value covers a negotiated dimension.
   .overrideTest((ctx) =>
-    ctx.validateHttpTransactions(
-      negotiatedCacheableResponse,
-      validateVaryValue,
-    ),
+    ctx.validateHttpTransactions({
+      appliesTo: negotiatedCacheableResponse,
+      violatedWhen: validateVaryValue,
+    }),
   )
   .overrideAnalyticsRule((ctx) =>
-    ctx.validateHttpTransactions(
-      negotiatedCacheableResponse,
-      validateVaryValue,
-    ),
+    ctx.validateHttpTransactions({
+      appliesTo: negotiatedCacheableResponse,
+      violatedWhen: validateVaryValue,
+    }),
   )
   .done();

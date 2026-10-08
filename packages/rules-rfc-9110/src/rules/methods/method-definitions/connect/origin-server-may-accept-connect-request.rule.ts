@@ -14,6 +14,9 @@ export default httpRule('rfc9110/origin-server-may-accept-connect-request')
   )
   .appliesTo('origin server')
   .rule((ctx) =>
-    ctx.validateCommonHttpTransactions(method('CONNECT'), statusCode(501)),
+    ctx.validateCommonHttpTransactions({
+      appliesTo: method('CONNECT'),
+      violatedWhen: statusCode(501),
+    }),
   )
   .done();

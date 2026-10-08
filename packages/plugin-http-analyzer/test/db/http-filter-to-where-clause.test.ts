@@ -96,12 +96,7 @@ type Case = { name: string; filter: HttpFilterExpression; matches: string[] };
 
 // Keyed by filter type so that a new filter type without a case fails the typecheck.
 const supported: {
-  [
-    T in Exclude<
-      HttpFilterExpression['type'],
-      'hasResponse' | 'isAuthorized' | 'port'
-    >
-  ]: Case[];
+  [T in Exclude<HttpFilterExpression['type'], 'hasResponse' | 'port'>]: Case[];
 } = {
   origin: [
     {
@@ -269,11 +264,18 @@ const supported: {
       matches: [ITEMS_PAGE_2],
     },
   ],
+  isAuthorized: [
+    { name: 'authorized', filter: authorization(), matches: [OTHER] },
+    {
+      name: 'unauthorized',
+      filter: authorization(false),
+      matches: [ITEMS_PAGE_1, ITEMS_PAGE_2],
+    },
+  ],
 };
 
 const unsupported: HttpFilterExpression[] = [
   responseWith(constant(true)),
-  authorization(),
   port(443),
 ];
 
@@ -283,6 +285,8 @@ describe('compileHttpFilterToWhereClause', () => {
   beforeEach(async () => {
     repo = new SqliteHttpTransactionRepository(':memory:', new NoopLogger());
     await repo.init();
+    // Stands in for the specification: only the transaction to /other is secured.
+    repo.answerIsSecuredWith((request) => request.path === OTHER);
     repo.insertHttpTransaction(itemsPage1Transaction);
     repo.insertHttpTransaction(itemsPage2Transaction);
     repo.insertHttpTransaction(otherTransaction);

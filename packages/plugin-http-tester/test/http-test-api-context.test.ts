@@ -7,17 +7,22 @@ import {
 } from '@thymian/core';
 import {
   and,
+  authorization,
   DEFAULT_HEADER_SERIALIZATION_STYLE,
+  type HttpFilterExpression,
   method,
   NoopLogger,
   not,
   or,
   port,
+  protocol,
+  requestHeader,
   responseHeader,
   responseMediaType,
+  responseTrailer,
   singleTestCase,
   statusCode,
-  type ThymianFormat,
+  ThymianFormat,
 } from '@thymian/core';
 import { createHttpTestContext, type HttpTestContext } from '@thymian/core';
 import {
@@ -790,6 +795,225 @@ describe('HttpTestApiContext', () => {
 
       const diagnostics = context.getRuleExecutionDiagnostics();
       expect(diagnostics?.[0]?.placements).toHaveLength(0);
+    });
+  });
+  describe.each([
+    'validateCommonHttpTransactions',
+    'validateHttpTransactions',
+  ] as const)(
+    '%s evaluates an expression against the live pair like the specification side and SQL do',
+    (validate) => {
+      async function countMatches(
+        expression: HttpFilterExpression,
+        live: {
+          format?: ThymianFormat;
+          request?: Partial<HttpRequestTemplate>;
+          response?: Partial<HttpResponse>;
+        } = {},
+      ): Promise<number> {
+        const mockContext = createMockHttpTestContext({
+          format:
+            live.format ??
+            createThymianFormatWithTransaction(
+              createHttpRequest({ method: 'GET', path: '/users' }),
+              createHttpResponse({ statusCode: 200 }),
+            ),
+          sampleRequest: async (transaction) => ({
+            method: transaction.thymianReq.method,
+            origin: 'https://api.example.com',
+            path: transaction.thymianReq.path,
+            headers: {},
+            pathParameters: {},
+            query: {},
+            authorize: true,
+            cookies: {},
+            ...live.request,
+          }),
+          runRequest: async () => ({
+            statusCode: 200,
+            duration: 0,
+            headers: {},
+            trailers: {},
+            ...live.response,
+          }),
+        });
+
+        const context = new HttpTestApiContext('test-rule', mockContext);
+        const results = await context[validate](statusCode(200), expression);
+
+        return results.length;
+      }
+
+      function formatWithSecurity(secured: boolean): ThymianFormat {
+        const format = new ThymianFormat();
+        const [reqId] = format.addHttpTransaction(
+          createHttpRequest({ method: 'GET', path: '/users' }),
+          createHttpResponse({ statusCode: 200 }),
+          'test-source',
+        );
+
+        if (secured) {
+          const schemeId = format.addSecurityScheme({
+            label: 'basic',
+            scheme: 'basic',
+            sourceName: 'test-source',
+            type: 'security-scheme',
+          });
+          format.addEdge(reqId, schemeId, {
+            label: 'basic',
+            type: 'is-secured',
+            sourceName: 'test-source',
+          });
+        }
+
+        return format;
+      }
+
+      it.each([
+        ['GET', 'get'],
+        ['get', 'GET'],
+      ])(
+        'matches method(%j) against a live request with method %j',
+        async (expected, actual) => {
+          await expect(
+            countMatches(method(expected), { request: { method: actual } }),
+          ).resolves.toBe(1);
+        },
+      );
+
+      it('does not match method() against a different live method', async () => {
+        await expect(
+          countMatches(method('POST'), { request: { method: 'get' } }),
+        ).resolves.toBe(0);
+      });
+
+      it.each([
+        ['X-Api-Key', 'x-api-key'],
+        ['x-api-key', 'X-Api-Key'],
+      ])(
+        'matches requestHeader(%j) against a live request header named %j',
+        async (expected, actual) => {
+          await expect(
+            countMatches(requestHeader(expected), {
+              request: { headers: { [actual]: 'secret' } },
+            }),
+          ).resolves.toBe(1);
+        },
+      );
+
+      it('keeps comparing request header values exactly', async () => {
+        const live = { request: { headers: { 'X-Api-Key': 'secret' } } };
+
+        await expect(
+          countMatches(requestHeader('x-api-key', 'secret'), live),
+        ).resolves.toBe(1);
+        await expect(
+          countMatches(requestHeader('x-api-key', 'SECRET'), live),
+        ).resolves.toBe(0);
+      });
+
+      it.each([
+        ['Content-Type', 'content-type'],
+        ['content-type', 'Content-Type'],
+      ])(
+        'matches responseHeader(%j) against a live response header named %j',
+        async (expected, actual) => {
+          await expect(
+            countMatches(responseHeader(expected), {
+              response: { headers: { [actual]: 'application/json' } },
+            }),
+          ).resolves.toBe(1);
+        },
+      );
+
+      it('keeps comparing response header values exactly', async () => {
+        const live = {
+          response: { headers: { 'Content-Type': 'text/plain' } },
+        };
+
+        await expect(
+          countMatches(responseHeader('content-type', 'text/plain'), live),
+        ).resolves.toBe(1);
+        await expect(
+          countMatches(responseHeader('content-type', 'TEXT/PLAIN'), live),
+        ).resolves.toBe(0);
+      });
+
+      it.each([
+        ['Server-Timing', 'server-timing'],
+        ['server-timing', 'Server-Timing'],
+      ])(
+        'matches responseTrailer(%j) against a live trailer named %j',
+        async (expected, actual) => {
+          await expect(
+            countMatches(responseTrailer(expected), {
+              response: { trailers: { [actual]: 'total;dur=1' } },
+            }),
+          ).resolves.toBe(1);
+        },
+      );
+
+      it.each([
+        ['https', 'https://api.example.com', 1],
+        ['https', 'http://api.example.com', 0],
+        ['http', 'http://api.example.com', 1],
+        ['http', 'https://api.example.com', 0],
+      ] as const)(
+        'evaluates protocol(%j) from the live origin %j',
+        async (expected, origin, matches) => {
+          await expect(
+            countMatches(protocol(expected), { request: { origin } }),
+          ).resolves.toBe(matches);
+        },
+      );
+
+      it.each([
+        [true, true, 1],
+        [true, false, 0],
+        [false, false, 1],
+        [false, true, 0],
+      ])(
+        'evaluates authorization(%j) from the specification, whose request is secured: %j',
+        async (isAuthorized, secured, matches) => {
+          await expect(
+            countMatches(authorization(isAuthorized), {
+              format: formatWithSecurity(secured),
+            }),
+          ).resolves.toBe(matches);
+        },
+      );
+    },
+  );
+
+  describe('selecting by protocol on the specification side', () => {
+    it('sends requests only for transactions described with that protocol', async () => {
+      const format = new ThymianFormat();
+      const [, , httpsId] = format.addHttpTransaction(
+        createHttpRequest({ protocol: 'https', path: '/secure' }),
+        createHttpResponse({ statusCode: 200 }),
+        'test-source',
+      );
+      format.addHttpTransaction(
+        createHttpRequest({ protocol: 'http', port: 80, path: '/plain' }),
+        createHttpResponse({ statusCode: 200 }),
+        'test-source',
+      );
+
+      const context = new HttpTestApiContext(
+        'test-rule',
+        createMockHttpTestContext({ format }),
+      );
+
+      const result = await context.validateCommonHttpTransactions(
+        protocol('https'),
+        (_req, _res, location) => [{ location, violation: {}, findings: [] }],
+      );
+
+      expect(result).toEqual([
+        expect.objectContaining({
+          location: { elementType: 'edge', elementId: httpsId },
+        }),
+      ]);
     });
   });
 });

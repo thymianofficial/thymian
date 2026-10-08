@@ -1,8 +1,4 @@
-import {
-  getHeader,
-  responseHeader,
-  type RuleViolationLocation,
-} from '@thymian/core';
+import { constant, getHeader, type RuleViolationLocation } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
 /**
@@ -33,9 +29,9 @@ export default httpRule('rfc9110/content-encoding-should-not-include-identity')
     'Do not list "identity" as a content coding in a Content-Encoding header. The token "identity" means "no encoding applied" and exists only for use in Accept-Encoding to say a client will accept an unencoded response; putting it in Content-Encoding is meaningless and can confuse recipients that try to decode it. If nothing was applied, simply omit the header rather than declaring the identity coding.',
   )
   .rule((ctx) =>
-    ctx.validateHttpTransactions(
-      responseHeader('content-encoding'),
-      (_req, res, location: RuleViolationLocation) => {
+    ctx.validateHttpTransactions({
+      appliesTo: constant(true),
+      violatedWhen: (_req, res, location: RuleViolationLocation) => {
         const contentEncoding = getHeader(res.headers, 'content-encoding');
 
         if (contentEncoding === undefined) {
@@ -59,6 +55,6 @@ export default httpRule('rfc9110/content-encoding-should-not-include-identity')
           },
         ];
       },
-    ),
+    }),
   )
   .done();

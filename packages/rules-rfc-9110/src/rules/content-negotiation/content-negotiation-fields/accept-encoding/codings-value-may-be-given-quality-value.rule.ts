@@ -45,19 +45,19 @@ export default httpRule('rfc9110/codings-value-may-be-given-quality-value')
   // Static context can only observe that the request carries Accept-Encoding,
   // so it always surfaces the hint about the available quality-value mechanism.
   .rule((ctx) =>
-    ctx.validateCommonHttpTransactions(
-      requestHeader('accept-encoding'),
-      (_req, _res, location: RuleViolationLocation) => [
+    ctx.validateCommonHttpTransactions({
+      appliesTo: requestHeader('accept-encoding'),
+      violatedWhen: (_req, _res, location: RuleViolationLocation) => [
         { location, violation: { message: hintMessage }, findings: [] },
       ],
-    ),
+    }),
   )
   // Analytics has the actual header value: only surface the hint when none of
   // the codings already carry a quality value.
   .overrideAnalyticsRule((ctx) =>
-    ctx.validateHttpTransactions(
-      requestHeader('accept-encoding'),
-      (req, _res, location: RuleViolationLocation) => {
+    ctx.validateHttpTransactions({
+      appliesTo: requestHeader('accept-encoding'),
+      violatedWhen: (req, _res, location: RuleViolationLocation) => {
         const acceptEncoding = headerToString(
           getHeader(req.headers, 'accept-encoding'),
         );
@@ -70,6 +70,6 @@ export default httpRule('rfc9110/codings-value-may-be-given-quality-value')
           { location, violation: { message: hintMessage }, findings: [] },
         ];
       },
-    ),
+    }),
   )
   .done();

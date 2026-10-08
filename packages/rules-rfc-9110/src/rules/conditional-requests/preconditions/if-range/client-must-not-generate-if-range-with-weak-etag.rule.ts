@@ -31,9 +31,9 @@ export default httpRule(
   )
   .appliesTo('client')
   .rule((ctx) =>
-    ctx.validateHttpTransactions(
-      requestHeader('if-range'),
-      (req, _res, location: RuleViolationLocation) => {
+    ctx.validateHttpTransactions({
+      appliesTo: requestHeader('if-range'),
+      violatedWhen: (req, _res, location: RuleViolationLocation) => {
         const ifRange = getHeader(req.headers, 'if-range');
 
         if (typeof ifRange === 'undefined') {
@@ -65,6 +65,6 @@ export default httpRule(
           },
         ];
       },
-    ),
+    }),
   )
   .done();

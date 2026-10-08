@@ -1,4 +1,4 @@
-import { not, requestHeader } from '@thymian/core';
+import { constant, not, requestHeader } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
 // eslint-disable-next-line thymian-internal/require-rule-tags -- no concern-tag member fits this rule's topic
@@ -14,5 +14,10 @@ export default httpRule('rfc9110/user-agent-may-send-date-header-in-request')
   .explanation(
     "A user agent is allowed, but not expected, to include a Date header in its requests indicating when the request was created. Most clients omit it because servers rarely need it, but a request Date can be useful for custom applications where the server adjusts its handling based on the difference between the client's clock and its own. Since this is entirely optional, a missing request Date is never a problem; the rule only surfaces it as an informational hint.",
   )
-  .rule((ctx) => ctx.validateHttpTransactions(not(requestHeader('date'))))
+  .rule((ctx) =>
+    ctx.validateHttpTransactions({
+      appliesTo: constant(true),
+      violatedWhen: not(requestHeader('date')),
+    }),
+  )
   .done();

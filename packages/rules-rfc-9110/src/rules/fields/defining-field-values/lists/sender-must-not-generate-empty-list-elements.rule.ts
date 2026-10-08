@@ -1,9 +1,4 @@
-import {
-  getHeader,
-  or,
-  responseHeader,
-  type RuleViolationLocation,
-} from '@thymian/core';
+import { constant, getHeader, type RuleViolationLocation } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
 import { createList } from '../../../../utils.js';
@@ -57,9 +52,9 @@ export default httpRule('rfc9110/sender-must-not-generate-empty-list-elements')
     'For any header defined as a comma-separated list (such as Vary or Allow), a sender must not emit empty entries, meaning no leading comma, no trailing comma, and no two commas with nothing but whitespace between them. Although recipients are told to tolerate such gaps, producing them is sloppy and risks confusing stricter parsers. Keeping list values clean, with a real value between every comma, avoids ambiguity and interoperability problems across differing implementations.',
   )
   .rule((ctx) =>
-    ctx.validateHttpTransactions(
-      or(...listTypedResponseHeaders.map((name) => responseHeader(name))),
-      (_req, res, location: RuleViolationLocation) => {
+    ctx.validateHttpTransactions({
+      appliesTo: constant(true),
+      violatedWhen: (_req, res, location: RuleViolationLocation) => {
         const offending: string[] = [];
 
         for (const headerName of listTypedResponseHeaders) {
@@ -88,6 +83,6 @@ export default httpRule('rfc9110/sender-must-not-generate-empty-list-elements')
           },
         ];
       },
-    ),
+    }),
   )
   .done();

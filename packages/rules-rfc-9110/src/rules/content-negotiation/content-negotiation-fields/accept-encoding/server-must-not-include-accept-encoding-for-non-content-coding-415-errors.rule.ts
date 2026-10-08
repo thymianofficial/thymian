@@ -25,12 +25,9 @@ export default httpRule(
   )
   .appliesTo('server')
   .rule((ctx) =>
-    ctx.validateCommonHttpTransactions(
-      and(
-        statusCode(415),
-        not(requestHeader('accept-encoding')),
-        responseHeader('accept-encoding'),
-      ),
-    ),
+    ctx.validateCommonHttpTransactions({
+      appliesTo: and(statusCode(415), not(requestHeader('accept-encoding'))),
+      violatedWhen: responseHeader('accept-encoding'),
+    }),
   )
   .done();

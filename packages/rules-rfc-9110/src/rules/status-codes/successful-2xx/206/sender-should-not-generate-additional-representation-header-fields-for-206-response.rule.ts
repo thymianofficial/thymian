@@ -97,19 +97,19 @@ export default httpRule(
     "When a 206 Partial Content response is sent for a conditional range request (one carrying an If-Range header), the client already holds an earlier full response with the representation metadata, so the server should avoid resending extra representation headers like Content-Encoding, ETag, or Last-Modified. If the server does include such headers, it must then include the full set it would have sent in a 200 OK. This keeps the client's picture of the representation consistent, so it doesn't stitch together a partial body against stale or mismatched metadata.",
   )
   .rule((ctx) =>
-    ctx.validateGroupedCommonHttpTransactions(
+    ctx.validateGroupedCommonHttpTransactions({
       /*
       (req, res) =>
         (equalsIgnoreCase('if-range', ...req.headers) &&
           res.statusCode === 206) ||
         res.statusCode === 200,
        */
-      or(
+      appliesTo: or(
         and(statusCode(200), responseWith(statusCode(206))),
         and(statusCode(206), requestHeader('if-range')),
       ),
-      and(method(), origin(), path()),
-      (_, transactions) => {
+      groupBy: and(method(), origin(), path()),
+      violatedWhen: (_, transactions) => {
         const [, okResponse] =
           transactions.find(([, res]) => res.statusCode === 200) ?? [];
         const [partialRequest, partialResponse, partialTransactionLocation] =
@@ -137,16 +137,19 @@ export default httpRule(
 
         return [];
       },
-    ),
+    }),
   )
   .overrideAnalyticsRule((ctx) =>
     // responseWith() cannot be compiled to SQL, so for analytics mode
     // we broaden the filter to fetch both 200 and 206 responses for the
     // same endpoint, then compare representation headers in the callback.
-    ctx.validateGroupedCommonHttpTransactions(
-      or(statusCode(200), and(statusCode(206), requestHeader('if-range'))),
-      and(method(), origin(), path()),
-      (_, transactions) => {
+    ctx.validateGroupedCommonHttpTransactions({
+      appliesTo: or(
+        statusCode(200),
+        and(statusCode(206), requestHeader('if-range')),
+      ),
+      groupBy: and(method(), origin(), path()),
+      violatedWhen: (_, transactions) => {
         const [, okResponse] =
           transactions.find(([, res]) => res.statusCode === 200) ?? [];
         const [partialRequest, partialResponse, partialTransactionLocation] =
@@ -174,7 +177,7 @@ export default httpRule(
 
         return [];
       },
-    ),
+    }),
   )
   // TODO: let's think about later, if we should include this test
   .overrideTest(async (testContext) => {

@@ -1,4 +1,4 @@
-import { and, hasResponseBody, httpRule, method } from '@thymian/core';
+import { hasResponseBody, httpRule, method } from '@thymian/core';
 
 // eslint-disable-next-line thymian-internal/require-rule-tags -- no concern-tag member fits this rule's topic
 export default httpRule(
@@ -15,6 +15,9 @@ export default httpRule(
   )
   .appliesTo('server')
   .rule((ctx) =>
-    ctx.validateCommonHttpTransactions(and(method('HEAD'), hasResponseBody())),
+    ctx.validateCommonHttpTransactions({
+      appliesTo: method('HEAD'),
+      violatedWhen: hasResponseBody(),
+    }),
   )
   .done();

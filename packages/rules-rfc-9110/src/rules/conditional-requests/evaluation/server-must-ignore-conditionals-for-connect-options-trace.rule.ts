@@ -6,9 +6,10 @@ import {
   or,
   requestHeader,
   type RuleViolationLocation,
-  statusCode,
 } from '@thymian/core';
 import { httpRule } from '@thymian/core';
+
+import { hasHeader } from '../../../utils.js';
 
 const conditionalHeaders = [
   'if-match',
@@ -17,10 +18,6 @@ const conditionalHeaders = [
   'if-unmodified-since',
   'if-range',
 ];
-
-function hasHeader(headers: string[], name: string): boolean {
-  return headers.some((header) => header.toLowerCase() === name);
-}
 
 function presentConditionalHeaders(req: CommonHttpRequest): string[] {
   return conditionalHeaders.filter((header) => hasHeader(req.headers, header));
@@ -52,8 +49,8 @@ export default httpRule(
   )
   .appliesTo('server')
   .rule((ctx) =>
-    ctx.validateCommonHttpTransactions(
-      and(
+    ctx.validateCommonHttpTransactions({
+      appliesTo: and(
         or(method('CONNECT'), method('OPTIONS'), method('TRACE')),
         or(
           requestHeader('if-match'),
@@ -62,25 +59,27 @@ export default httpRule(
           requestHeader('if-unmodified-since'),
           requestHeader('if-range'),
         ),
-        // A conditional-outcome status reveals that the server evaluated the
-        // precondition instead of ignoring it.
-        or(statusCode(304), statusCode(412)),
       ),
-      (
+      violatedWhen: (
         req: CommonHttpRequest,
         res: CommonHttpResponse,
         location: RuleViolationLocation,
-      ) => [
-        {
-          location,
-          violation: {
-            message: `A ${req.method} request carrying conditional header field(s) ${presentConditionalHeaders(
-              req,
-            ).join(', ')} received a ${res.statusCode} response.`,
-          },
-          findings: [],
-        },
-      ],
-    ),
+      ) =>
+        // A conditional-outcome status reveals that the server evaluated the
+        // precondition instead of ignoring it.
+        res.statusCode === 304 || res.statusCode === 412
+          ? [
+              {
+                location,
+                violation: {
+                  message: `A ${req.method} request carrying conditional header field(s) ${presentConditionalHeaders(
+                    req,
+                  ).join(', ')} received a ${res.statusCode} response.`,
+                },
+                findings: [],
+              },
+            ]
+          : [],
+    }),
   )
   .done();

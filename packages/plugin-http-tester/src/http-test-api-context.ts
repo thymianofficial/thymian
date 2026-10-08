@@ -1,13 +1,17 @@
 import {
   type CommonHttpRequest,
   type CommonHttpResponse,
+  type CommonHttpRuleCriteria,
   createRegExpFromOriginWildcard,
+  type GroupedCommonHttpRuleCriteria,
   type HttpFilterExpression,
   type HttpRequest,
   httpRequestToCommonHttpRequest,
   type HttpResponse,
   httpResponseToCommonHttpResponse,
+  type HttpRuleCriteria,
   type HttpTestCaseResult,
+  isRuleCriteria,
   type RuleFnResult,
   type RuleViolationLocation,
   type TestContext,
@@ -54,6 +58,12 @@ function isSameLocation(
   }
   return a.elementType === b.elementType && a.elementId === b.elementId;
 }
+
+type EdgeLocation = {
+  elementType: 'node' | 'edge';
+  elementId: string;
+  pointer?: string;
+};
 
 /**
  * Links a single RuleFnResult back to its position in the HTTP test run.
@@ -102,6 +112,15 @@ export class HttpTestApiContext<
     };
   }
 
+  /**
+   * `appliesTo` selects what to send from the specification; this asks it again
+   * of the pair that came back, so a pair it rejects never reaches
+   * `violatedWhen` (ADR-0025). The positional form skips this re-check.
+   */
+  private liveApplicability(appliesTo: HttpFilterExpression) {
+    return httpFilterToTransactionValidationFn(appliesTo, this.format);
+  }
+
   getRuleExecutionDiagnostics(): HttpTesterRuleDiagnostics | undefined {
     return this.diagnosticEntries.length > 0
       ? this.diagnosticEntries
@@ -109,18 +128,38 @@ export class HttpTestApiContext<
   }
 
   async validateGroupedCommonHttpTransactions(
+    criteria: GroupedCommonHttpRuleCriteria,
+  ): Promise<RuleFnResult[]>;
+  async validateGroupedCommonHttpTransactions(
     filterExpr: HttpFilterExpression,
     groupByExpression: HttpFilterExpression,
     validationFn: ValidationFn<
       [string, [CommonHttpRequest, CommonHttpResponse, RuleViolationLocation][]]
     >,
+  ): Promise<RuleFnResult[]>;
+  async validateGroupedCommonHttpTransactions(
+    appliesToOrCriteria: HttpFilterExpression | GroupedCommonHttpRuleCriteria,
+    groupByArg?: HttpFilterExpression,
+    violatedWhenArg?: ValidationFn<
+      [string, [CommonHttpRequest, CommonHttpResponse, RuleViolationLocation][]]
+    >,
   ): Promise<RuleFnResult[]> {
-    const filterFn = httpFilterExpressionToFilter(filterExpr);
+    const [appliesTo, groupByExpression, violatedWhen, liveAppliesTo] =
+      isRuleCriteria(appliesToOrCriteria)
+        ? [
+            appliesToOrCriteria.appliesTo,
+            appliesToOrCriteria.groupBy,
+            appliesToOrCriteria.violatedWhen,
+            this.liveApplicability(appliesToOrCriteria.appliesTo),
+          ]
+        : // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+          [appliesToOrCriteria, groupByArg!, violatedWhenArg!, undefined];
+    const isApplicable = httpFilterExpressionToFilter(appliesTo);
     const groupByFn = httpFilterToGroupByFn(groupByExpression);
 
     const test = httpTest(this.name, (test) =>
       test.pipe(
-        filter(({ current, ctx }) => filterFn(current, ctx.format)),
+        filter(({ current, ctx }) => isApplicable(current, ctx.format)),
         groupBy(({ current, ctx }) => groupByFn(current, ctx.format)),
         mapToGroupedTestCase(),
         generateRequests(),
@@ -142,6 +181,13 @@ export class HttpTestApiContext<
 
       const transactionsToValidate = transactions
         .filter(hasSource)
+        .filter(
+          ({ request, response, source }) =>
+            !liveAppliesTo ||
+            (!!request &&
+              !!response &&
+              liveAppliesTo(request, response, source)),
+        )
         .map<[CommonHttpRequest, CommonHttpResponse, RuleViolationLocation]>(
           (transaction) => [
             httpRequestToCommonHttpRequest(
@@ -161,7 +207,11 @@ export class HttpTestApiContext<
           ],
         );
 
-      const results = validationFn(source.key, transactionsToValidate);
+      if (liveAppliesTo && transactionsToValidate.length === 0) {
+        return;
+      }
+
+      const results = violatedWhen(source.key, transactionsToValidate);
       callViolations.push(...results);
       for (const result of results) {
         placements.push({ result, testCaseIndex, stepIndex: 0 });
@@ -174,16 +224,41 @@ export class HttpTestApiContext<
   }
 
   async validateCommonHttpTransactions(
+    criteria: CommonHttpRuleCriteria,
+  ): Promise<RuleFnResult[]>;
+  async validateCommonHttpTransactions(
     filterExpr: HttpFilterExpression,
-    validate:
+    validate?:
       | ValidationFn<
           [CommonHttpRequest, CommonHttpResponse, RuleViolationLocation]
         >
-      | HttpFilterExpression = filterExpr,
+      | HttpFilterExpression,
+  ): Promise<RuleFnResult[]>;
+  async validateCommonHttpTransactions(
+    appliesToOrCriteria: HttpFilterExpression | CommonHttpRuleCriteria,
+    violatedWhenArg?:
+      | ValidationFn<
+          [CommonHttpRequest, CommonHttpResponse, RuleViolationLocation]
+        >
+      | HttpFilterExpression,
   ): Promise<RuleFnResult[]> {
+    const [appliesTo, violatedWhen, liveAppliesTo] = isRuleCriteria(
+      appliesToOrCriteria,
+    )
+      ? [
+          appliesToOrCriteria.appliesTo,
+          appliesToOrCriteria.violatedWhen,
+          this.liveApplicability(appliesToOrCriteria.appliesTo),
+        ]
+      : [
+          appliesToOrCriteria,
+          violatedWhenArg ?? appliesToOrCriteria,
+          undefined,
+        ];
+
     const test = httpTest(
       this.name,
-      singleTestCase().forTransactionsWith(filterExpr).run().done(),
+      singleTestCase().forTransactionsWith(appliesTo).run().done(),
     );
 
     const testResult = await test(this.ctx);
@@ -203,23 +278,30 @@ export class HttpTestApiContext<
             throw new Error('Invalid HTTP test case transaction.');
           }
 
+          if (liveAppliesTo && !liveAppliesTo(request, response, source)) {
+            continue;
+          }
+
           const location: RuleViolationLocation = {
             elementType: 'edge',
             elementId: source.transactionId,
           };
 
           const results: RuleFnResult[] = [];
-          if (typeof validate === 'function') {
+          if (typeof violatedWhen === 'function') {
             results.push(
-              ...validate(
+              ...violatedWhen(
                 httpRequestToCommonHttpRequest(request, source.thymianReqId),
                 httpResponseToCommonHttpResponse(response, source.thymianResId),
                 location,
               ),
             );
           } else {
-            const filterFn = httpFilterToTransactionValidationFn(validate);
-            if (filterFn(request, response)) {
+            const isViolated = httpFilterToTransactionValidationFn(
+              violatedWhen,
+              this.format,
+            );
+            if (isViolated(request, response, source)) {
               results.push({
                 location: { ...location, pointer: '' },
                 violation: {},
@@ -230,7 +312,7 @@ export class HttpTestApiContext<
           callViolations.push(...results);
           for (const result of results) {
             if (
-              typeof validate !== 'function' ||
+              typeof violatedWhen !== 'function' ||
               isSameLocation(result.location, location)
             ) {
               placements.push({ result, testCaseIndex, stepIndex });
@@ -323,24 +405,37 @@ export class HttpTestApiContext<
   }
 
   async validateHttpTransactions(
+    criteria: HttpRuleCriteria,
+  ): Promise<RuleFnResult[]>;
+  async validateHttpTransactions(
     filterExpr: HttpFilterExpression,
-    validation:
-      | ValidationFn<
-          [
-            HttpRequest,
-            HttpResponse,
-            {
-              elementType: 'node' | 'edge';
-              elementId: string;
-              pointer?: string;
-            },
-          ]
-        >
-      | HttpFilterExpression = filterExpr,
+    validation?:
+      | ValidationFn<[HttpRequest, HttpResponse, EdgeLocation]>
+      | HttpFilterExpression,
+  ): Promise<RuleFnResult[]>;
+  async validateHttpTransactions(
+    appliesToOrCriteria: HttpFilterExpression | HttpRuleCriteria,
+    violatedWhenArg?:
+      | ValidationFn<[HttpRequest, HttpResponse, EdgeLocation]>
+      | HttpFilterExpression,
   ): Promise<RuleFnResult[]> {
+    const [appliesTo, violatedWhen, liveAppliesTo] = isRuleCriteria(
+      appliesToOrCriteria,
+    )
+      ? [
+          appliesToOrCriteria.appliesTo,
+          appliesToOrCriteria.violatedWhen,
+          this.liveApplicability(appliesToOrCriteria.appliesTo),
+        ]
+      : [
+          appliesToOrCriteria,
+          violatedWhenArg ?? appliesToOrCriteria,
+          undefined,
+        ];
+
     const test = httpTest(
       this.name,
-      singleTestCase().forTransactionsWith(filterExpr).run().done(),
+      singleTestCase().forTransactionsWith(appliesTo).run().done(),
     );
 
     const testResult = await test(this.ctx);
@@ -362,6 +457,10 @@ export class HttpTestApiContext<
             );
           }
 
+          if (liveAppliesTo && !liveAppliesTo(request, response, source)) {
+            continue;
+          }
+
           const location: RuleViolationLocation = {
             elementType: 'edge',
             elementId: source.transactionId,
@@ -369,18 +468,21 @@ export class HttpTestApiContext<
           };
 
           const results: RuleFnResult[] = [];
-          if (typeof validation === 'function') {
-            results.push(...validation(request, response, location));
+          if (typeof violatedWhen === 'function') {
+            results.push(...violatedWhen(request, response, location));
           } else {
-            const filterFn = httpFilterToTransactionValidationFn(validation);
-            if (filterFn(request, response)) {
+            const isViolated = httpFilterToTransactionValidationFn(
+              violatedWhen,
+              this.format,
+            );
+            if (isViolated(request, response, source)) {
               results.push({ location, violation: {}, findings: [] });
             }
           }
           callViolations.push(...results);
           for (const result of results) {
             if (
-              typeof validation !== 'function' ||
+              typeof violatedWhen !== 'function' ||
               isSameLocation(result.location, location)
             ) {
               placements.push({ result, testCaseIndex, stepIndex });

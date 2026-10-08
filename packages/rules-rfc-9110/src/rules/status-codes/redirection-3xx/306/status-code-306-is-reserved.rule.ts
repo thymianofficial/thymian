@@ -1,4 +1,4 @@
-import { statusCode } from '@thymian/core';
+import { constant, statusCode } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
 // eslint-disable-next-line thymian-internal/require-rule-tags -- no concern-tag member fits this rule's topic
@@ -13,5 +13,10 @@ export default httpRule('rfc9110/status-code-306-is-reserved')
     'Do not send the 306 status code; it was defined in an earlier version of HTTP, is no longer used, and the code number is now reserved so it carries no defined meaning. This matters because clients have no interoperable behavior for it, and reusing a reserved code invites confusion. Pick a currently defined status code that actually describes the response you intend.',
   )
   .appliesTo('server')
-  .rule((ctx) => ctx.validateCommonHttpTransactions(statusCode(306)))
+  .rule((ctx) =>
+    ctx.validateCommonHttpTransactions({
+      appliesTo: statusCode(306),
+      violatedWhen: constant(true),
+    }),
+  )
   .done();

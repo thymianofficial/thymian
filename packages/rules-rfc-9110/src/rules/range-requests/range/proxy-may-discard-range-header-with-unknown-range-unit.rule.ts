@@ -1,4 +1,4 @@
-import { requestHeader } from '@thymian/core';
+import { constant, requestHeader } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
 // eslint-disable-next-line thymian-internal/require-rule-tags -- no concern-tag member fits this rule's topic
@@ -18,5 +18,10 @@ export default httpRule(
     'If a proxy sees a Range header whose range unit it does not recognize (anything other than a unit it knows, such as bytes), it is allowed to strip that header before forwarding the request rather than pass it along. This is permissive, not required, but it lets an intermediary avoid relaying a range instruction it cannot reason about, so the origin server simply returns the full resource instead of acting on a unit the proxy could not validate.',
   )
   .appliesTo('proxy')
-  .rule((ctx) => ctx.validateHttpTransactions(requestHeader('range')))
+  .rule((ctx) =>
+    ctx.validateHttpTransactions({
+      appliesTo: requestHeader('range'),
+      violatedWhen: constant(true),
+    }),
+  )
   .done();

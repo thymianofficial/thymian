@@ -1,6 +1,7 @@
 import {
   getHeader,
   type HttpResponse,
+  type HttpRuleCriteria,
   not,
   responseHeader,
   type RuleViolationLocation,
@@ -18,6 +19,23 @@ function allowMethodTokens(value: string | string[] | undefined): string[] {
     .map((token) => token.trim())
     .filter((token) => token.length > 0);
 }
+
+// The real-data contexts (test and analyze) share one set of criteria.
+const liveCriteria: HttpRuleCriteria = {
+  appliesTo: statusCode(405),
+  violatedWhen: (_req, res: HttpResponse, location: RuleViolationLocation) => {
+    const tokens = allowMethodTokens(getHeader(res.headers, 'allow'));
+    return tokens.length === 0
+      ? [
+          {
+            location,
+            violation: {},
+            findings: [],
+          },
+        ]
+      : [];
+  },
+};
 
 // eslint-disable-next-line thymian-internal/require-rule-tags -- no concern-tag member fits this rule's topic
 export default httpRule(
@@ -40,43 +58,11 @@ export default httpRule(
   // read the VALUE to catch an empty "Allow:" that satisfies presence but
   // lists zero methods (still a MUST violation).
   .rule((ctx) =>
-    ctx.validateCommonHttpTransactions(
-      statusCode(405),
-      not(responseHeader('allow')),
-    ),
+    ctx.validateCommonHttpTransactions({
+      appliesTo: statusCode(405),
+      violatedWhen: not(responseHeader('allow')),
+    }),
   )
-  .overrideTest((ctx) =>
-    ctx.validateHttpTransactions(
-      statusCode(405),
-      (_req, res: HttpResponse, location: RuleViolationLocation) => {
-        const tokens = allowMethodTokens(getHeader(res.headers, 'allow'));
-        return tokens.length === 0
-          ? [
-              {
-                location,
-                violation: {},
-                findings: [],
-              },
-            ]
-          : [];
-      },
-    ),
-  )
-  .overrideAnalyticsRule((ctx) =>
-    ctx.validateHttpTransactions(
-      statusCode(405),
-      (_req, res: HttpResponse, location: RuleViolationLocation) => {
-        const tokens = allowMethodTokens(getHeader(res.headers, 'allow'));
-        return tokens.length === 0
-          ? [
-              {
-                location,
-                violation: {},
-                findings: [],
-              },
-            ]
-          : [];
-      },
-    ),
-  )
+  .overrideTest((ctx) => ctx.validateHttpTransactions(liveCriteria))
+  .overrideAnalyticsRule((ctx) => ctx.validateHttpTransactions(liveCriteria))
   .done();

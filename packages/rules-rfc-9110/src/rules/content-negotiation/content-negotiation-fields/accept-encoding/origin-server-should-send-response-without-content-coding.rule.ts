@@ -1,8 +1,6 @@
 import {
-  and,
   getHeader,
   requestHeader,
-  responseHeader,
   type RuleViolationLocation,
 } from '@thymian/core';
 import { httpRule } from '@thymian/core';
@@ -98,9 +96,9 @@ export default httpRule(
   )
   .appliesTo('origin server')
   .rule((ctx) =>
-    ctx.validateHttpTransactions(
-      and(requestHeader('accept-encoding'), responseHeader('content-encoding')),
-      (req, res, location: RuleViolationLocation) => {
+    ctx.validateHttpTransactions({
+      appliesTo: requestHeader('accept-encoding'),
+      violatedWhen: (req, res, location: RuleViolationLocation) => {
         const acceptEncoding = headerToString(
           getHeader(req.headers, 'accept-encoding'),
         );
@@ -108,7 +106,7 @@ export default httpRule(
           getHeader(res.headers, 'content-encoding'),
         );
 
-        // The filter guarantees both headers are present; an empty
+        // Content-Encoding is a live-only fact, so it is checked here. An empty
         // Accept-Encoding does not constrain the server, so it is out of scope.
         if (!acceptEncoding || !acceptEncoding.trim() || !contentEncoding) {
           return [];
@@ -137,6 +135,6 @@ export default httpRule(
           },
         ];
       },
-    ),
+    }),
   )
   .done();

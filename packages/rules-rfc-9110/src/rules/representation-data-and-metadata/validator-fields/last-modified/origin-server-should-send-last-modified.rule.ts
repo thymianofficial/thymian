@@ -1,4 +1,4 @@
-import { and, not, responseHeader, statusCodeRange } from '@thymian/core';
+import { not, responseHeader, statusCodeRange } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
 // eslint-disable-next-line thymian-internal/require-rule-tags -- cache-efficiency presence rule, not a concern this vocabulary covers
@@ -19,13 +19,9 @@ export default httpRule('rfc9110/origin-server-should-send-last-modified')
     'When your server can reasonably determine when a resource was last changed, it should include a Last-Modified date on the response. Clients and caches use that timestamp in conditional requests to check whether their stored copy is still current, so the server can reply 304 Not Modified rather than resending unchanged data. Supplying Last-Modified reduces wasteful transfers and helps the service scale and stay available.',
   )
   .rule((ctx) =>
-    ctx.validateCommonHttpTransactions(
-      and(
-        // Only for successful responses
-        statusCodeRange(200, 299),
-        // Should have at least one validator
-        not(responseHeader('last-modified')),
-      ),
-    ),
+    ctx.validateCommonHttpTransactions({
+      appliesTo: statusCodeRange(200, 299),
+      violatedWhen: not(responseHeader('last-modified')),
+    }),
   )
   .done();
