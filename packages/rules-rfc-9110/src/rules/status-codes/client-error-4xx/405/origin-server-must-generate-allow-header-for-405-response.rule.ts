@@ -20,8 +20,8 @@ function allowMethodTokens(value: string | string[] | undefined): string[] {
     .filter((token) => token.length > 0);
 }
 
-// The real-data contexts (test and analyze) share one validation.
-const liveValidation: HttpRuleCriteria = {
+// The real-data contexts (test and analyze) share one set of criteria.
+const liveCriteria: HttpRuleCriteria = {
   appliesTo: statusCode(405),
   violatedWhen: (_req, res: HttpResponse, location: RuleViolationLocation) => {
     const tokens = allowMethodTokens(getHeader(res.headers, 'allow'));
@@ -63,6 +63,6 @@ export default httpRule(
       violatedWhen: not(responseHeader('allow')),
     }),
   )
-  .overrideTest((ctx) => ctx.validateHttpTransactions(liveValidation))
-  .overrideAnalyticsRule((ctx) => ctx.validateHttpTransactions(liveValidation))
+  .overrideTest((ctx) => ctx.validateHttpTransactions(liveCriteria))
+  .overrideAnalyticsRule((ctx) => ctx.validateHttpTransactions(liveCriteria))
   .done();

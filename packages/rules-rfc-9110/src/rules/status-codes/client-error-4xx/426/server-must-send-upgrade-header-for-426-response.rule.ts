@@ -11,8 +11,8 @@ import { httpRule } from '@thymian/core';
 
 import { hasNonEmptyHeaderValue } from '../../utils/headers.js';
 
-// The real-data contexts (test and analyze) share one validation.
-const liveValidation: HttpRuleCriteria = {
+// The real-data contexts (test and analyze) share one set of criteria.
+const liveCriteria: HttpRuleCriteria = {
   appliesTo: statusCode(426),
   violatedWhen: (_req, res: HttpResponse, location: RuleViolationLocation) =>
     hasNonEmptyHeaderValue(getHeader(res.headers, 'upgrade'))
@@ -49,6 +49,6 @@ export default httpRule(
       violatedWhen: not(responseHeader('upgrade')),
     }),
   )
-  .overrideTest((ctx) => ctx.validateHttpTransactions(liveValidation))
-  .overrideAnalyticsRule((ctx) => ctx.validateHttpTransactions(liveValidation))
+  .overrideTest((ctx) => ctx.validateHttpTransactions(liveCriteria))
+  .overrideAnalyticsRule((ctx) => ctx.validateHttpTransactions(liveCriteria))
   .done();
