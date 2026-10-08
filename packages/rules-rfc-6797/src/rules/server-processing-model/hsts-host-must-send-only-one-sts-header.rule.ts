@@ -1,6 +1,7 @@
 import { constant, httpRule, type LiveApiContext } from '@thymian/core';
 
-import { liveStsValues, violation } from '../utils/sts-contexts.js';
+import { violation } from '../utils/results.js';
+import { liveStsValues } from '../utils/sts-contexts.js';
 
 // Sending the header is what makes a host an HSTS Host (§5.1), so the
 // condition in "If an STS header field is included" is met by the very field

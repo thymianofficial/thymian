@@ -21,15 +21,11 @@ import {
 import {
   declaresHeader,
   describedTransaction,
-  isServerFallbackOrigin,
   liveHeaderValues,
   pinnedHeaderValues,
-  ruleSkip,
-  serverFallbackSkip,
-  violation,
-} from './sts-contexts.js';
-
-type Options = Record<PropertyKey, unknown>;
+} from './headers.js';
+import { type RuleOptions, ruleSkip, violation } from './results.js';
+import { isServerFallbackOrigin, serverFallbackSkip } from './transport.js';
 
 // 301 (Moved Permanently) and 308 (Permanent Redirect) are HTTP's two
 // permanent redirects. 302, 303 and 307 redirect too, but not permanently:
@@ -152,12 +148,18 @@ function staticRedirectVerdict(
 }
 
 // The three execution functions of a rule that holds plain-http requests to
-// §7.2's redirect. The server URL fallback (see `isServerFallbackOrigin`) is
-// skipped in `static` and in `test`, and judged in `analytics`.
+// §7.2's redirect, for `.overrideStaticRule()`, `.overrideTest()` and
+// `.overrideAnalyticsRule()`. Such a rule overrides all three contexts:
+// whether the redirect names an https target is in the Location's value,
+// which the common interface cannot see, and each context judges it its own
+// way — per declared response in `static`, without the status-code check in
+// `test`, per recorded answer in `analytics`. The server URL fallback (see
+// `isServerFallbackOrigin`) is skipped in `static` and in `test`, and judged
+// in `analytics`.
 export function redirectRuleFns(ruleName: string): {
-  lint: RuleFn<LintContext, Options>;
-  test: RuleFn<TestContext, Options>;
-  analytics: RuleFn<LiveApiContext, Options>;
+  lint: RuleFn<LintContext, RuleOptions>;
+  test: RuleFn<TestContext, RuleOptions>;
+  analytics: RuleFn<LiveApiContext, RuleOptions>;
 } {
   return {
     // A function validator, because the lint context's

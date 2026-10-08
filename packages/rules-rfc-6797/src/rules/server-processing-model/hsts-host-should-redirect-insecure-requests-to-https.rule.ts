@@ -27,11 +27,6 @@ export default httpRule(NAME)
     "A browser that has never seen a host's HSTS Policy still starts with plain HTTP, typically because a user typed the bare domain. Answering that request with a permanent redirect to https moves the user onto a secure connection, where the Strict-Transport-Security header can then be delivered. Serving content over HTTP instead keeps the user there, where any attacker on the network can read and rewrite the traffic; a temporary redirect (302, 307) moves the user too, but is followed again over HTTP on every visit.",
   )
   .appliesTo('server')
-  // Overridden in all three contexts: whether the redirect names an https
-  // target is in the Location's value, which the common interface cannot
-  // see, and each context judges it its own way — per declared response in
-  // `static`, without the status-code check in `test`, per recorded answer
-  // in `analytics`.
   .overrideStaticRule(lint)
   .overrideTest(test)
   .overrideAnalyticsRule(analytics)

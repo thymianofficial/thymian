@@ -26,11 +26,6 @@ export default httpRule(NAME)
     'RFC 6797 asks for this redirect only from a host that has already chosen to be an HSTS Host, and the recommended profile requires it of every server because a plain-HTTP request not answered by a permanent redirect — typically a typed bare domain on a first visit — is exactly the downgrade window HSTS exists to close, and the one place its header can never be delivered.',
   )
   .appliesTo('server')
-  // Overridden in all three contexts: whether the redirect names an https
-  // target is in the Location's value, which the common interface cannot
-  // see, and each context judges it its own way — per declared response in
-  // `static`, without the status-code check in `test`, per recorded answer
-  // in `analytics`.
   .overrideStaticRule(lint)
   .overrideTest(test)
   .overrideAnalyticsRule(analytics)

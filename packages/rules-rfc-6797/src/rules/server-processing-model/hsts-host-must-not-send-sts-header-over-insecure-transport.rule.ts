@@ -5,13 +5,13 @@ import {
   type RuleFn,
 } from '@thymian/core';
 
+import { carriesHeader } from '../utils/headers.js';
+import { type RuleOptions, violation } from '../utils/results.js';
+import { STS_HEADER } from '../utils/sts-field-value.js';
 import {
-  carriesHeader,
   isServerFallbackOrigin,
   serverFallbackSkip,
-  violation,
-} from '../utils/sts-contexts.js';
-import { STS_HEADER } from '../utils/sts-field-value.js';
+} from '../utils/transport.js';
 
 const NAME =
   'rfc6797/hsts-host-must-not-send-sts-header-over-insecure-transport';
@@ -30,7 +30,7 @@ function judgeTransport({
   skipServerFallback,
 }: {
   skipServerFallback: boolean;
-}): RuleFn<ApiContext, Record<PropertyKey, unknown>> {
+}): RuleFn<ApiContext, RuleOptions> {
   return (ctx) =>
     ctx.validateCommonHttpTransactions(
       protocol('http'),
