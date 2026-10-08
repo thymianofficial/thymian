@@ -83,9 +83,12 @@ clickjacking package: grouping by threat is what a tag does. §17 stays in
   packages check an API against its own specification — `rules-api-description-validation`
   is the only one. The kind is documentation, not a field on `RuleSet`; only the
   conventions below that say "spec packages only" depend on it.
-- **One slug in all three identifier places**: the npm specifier, the config-key prefix,
-  and the rule-id prefix. `rules-api-description-validation`'s `thymian/` rule-id prefix is
-  renamed to match.
+- **The package carries the slug, its rules carry the source's name.** The npm specifier is
+  `@thymian/rules-<slug>`. The rule-id prefix, which is the config-key prefix, and
+  `RuleSet.name` are the source's own name: for an RFC its RFC Editor name, so
+  `rules-rfc-6797`'s rules are `rfc6797/…` and `rules-rfc-9110`'s `rfc9110/` already
+  conforms; for a source without one, the slug. `rules-api-description-validation`'s
+  `thymian/` rule-id prefix is renamed to its slug.
 - **No floor package and no aggregate package.** The thin packages carry real grammar and
   vocabulary conformance; a `rules-http-security` umbrella would group by concern, which is
   a tag.
@@ -361,7 +364,7 @@ of this.
 ## Related
 
 - [ADR-0008](0008-package-naming-conventions.md): the `rules-*` naming this extends with
-  one-slug-in-three-places and the spec/self-referential kinds.
+  the slug-and-source-name split and the spec/self-referential kinds.
 - [ADR-0009](0009-rule-system-as-core-concern.md): the core-owned rule system that owns the
   tag vocabulary and the impossibility vocabulary.
 - [ADR-0018](0018-recommended-rule-configuration-profiles.md): the `profiles` mechanism this
