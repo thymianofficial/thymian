@@ -25,13 +25,17 @@ export function describedTransaction(
     : ctx.format.getThymianHttpTransactionById(location.elementId);
 }
 
+function sameHeaderName(a: string, b: string): boolean {
+  return a.toLowerCase() === b.toLowerCase();
+}
+
 // A response header as the API description declares it.
 function declaredHeader(
   res: ThymianHttpResponse,
   header: string,
 ): Parameter | undefined {
-  const name = Object.keys(res.headers).find(
-    (declared) => declared.toLowerCase() === header,
+  const name = Object.keys(res.headers).find((declared) =>
+    sameHeaderName(declared, header),
   );
   return name === undefined ? undefined : res.headers[name];
 }
@@ -49,7 +53,7 @@ export function carriesHeader(
   res: CommonHttpResponse,
   header: string,
 ): boolean {
-  return res.headers.some((name) => name.toLowerCase() === header);
+  return res.headers.some((name) => sameHeaderName(name, header));
 }
 
 // The values an API description pins for one response header: a `const`,
