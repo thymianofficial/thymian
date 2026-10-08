@@ -29,9 +29,9 @@ export default httpRule(NAME)
   .appliesTo('server')
   // Overridden in all three contexts: whether the redirect names an https
   // target is in the Location's value, which the common interface cannot
-  // see, and each context judges it its own way — once per operation over
-  // the declared responses in `static`, without the status-code check in
-  // `test`, per recorded answer in `analytics`.
+  // see, and each context judges it its own way — per declared response in
+  // `static`, without the status-code check in `test`, per recorded answer
+  // in `analytics`.
   .overrideStaticRule(lint)
   .overrideTest(test)
   .overrideAnalyticsRule(analytics)

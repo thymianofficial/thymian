@@ -83,6 +83,36 @@ describe.each([rfcRule, conventionRule])('$meta.name', (rule) => {
     });
   });
 
+  // Every request over plain http is owed the redirect, so `static` judges
+  // each declared response on its own, as `test` and `analytics` judge each
+  // answer: a permanent redirect beside it does not excuse the other.
+  it.each([
+    ['content', 200, /declares a 200, not a redirect/],
+    [
+      'a redirect that is not permanent',
+      302,
+      /declares a 302, a redirect that is not permanent/,
+    ],
+  ])(
+    'flags, in static, %s declared beside a permanent redirect',
+    async (_what, statusCode, expected) => {
+      const results = await runInContext('static', rule, {
+        format: apiDescription(
+          {
+            request: INSECURE,
+            response: {
+              statusCode: 301,
+              headers: header('location', 'https://api.example.com/'),
+            },
+          },
+          { request: INSECURE, response: { statusCode } },
+        ),
+      });
+
+      expect(messages(results)).toEqual([expect.stringMatching(expected)]);
+    },
+  );
+
   it('skips, in static, a Location the description declares without pinning', async () => {
     const results = await runInContext('static', rule, {
       format: apiDescription({

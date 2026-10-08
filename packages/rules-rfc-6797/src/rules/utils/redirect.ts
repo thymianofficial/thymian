@@ -56,42 +56,64 @@ function locationScheme(location: string, base: string): string | undefined {
   }
 }
 
-function statusProblem(subject: string, status: number): string {
-  return OTHER_REDIRECTS.includes(status)
-    ? `${subject} ${status}, a redirect that is not permanent, which the user agent follows again over plain http on every visit. ${SHOULD_REDIRECT}`
-    : `${subject} ${status}, not a redirect. ${SHOULD_REDIRECT}`;
+// How a message names the response it judges: as the API description
+// declares it in `static`, as the server answered in `test` and `analytics`.
+type Wording = { answered: string; redirected: string };
+
+const DECLARED: Wording = {
+  answered:
+    'This operation is served over non-secure transport (http) and declares a',
+  redirected:
+    'This operation is served over non-secure transport (http) and redirects to',
+};
+
+const ANSWERED: Wording = {
+  answered: 'This request over non-secure transport (http) was answered with',
+  redirected: 'This request over non-secure transport (http) is redirected to',
+};
+
+// Why one response to a plain-http request is not the redirect §7.2 asks
+// for, or undefined when it is. `locations` are the Location values: the
+// ones the description pins in `static`, the ones sent in `test` and
+// `analytics`. Every one of them must name an https URI.
+function redirectProblem(
+  wording: Wording,
+  status: number,
+  locations: string[],
+  base: string,
+): string | undefined {
+  if (!PERMANENT_REDIRECTS.includes(status)) {
+    return OTHER_REDIRECTS.includes(status)
+      ? `${wording.answered} ${status}, a redirect that is not permanent, which the user agent follows again over plain http on every visit. ${SHOULD_REDIRECT}`
+      : `${wording.answered} ${status}, not a redirect. ${SHOULD_REDIRECT}`;
+  }
+
+  const targets = locations.filter((location) => location.trim() !== '');
+  if (targets.length === 0) {
+    return `${wording.answered} ${status} without a Location header field, so the redirect names no target. ${SHOULD_REDIRECT}`;
+  }
+
+  const insecure = targets.filter(
+    (target) => locationScheme(target, base) !== 'https',
+  );
+  return insecure.length === 0
+    ? undefined
+    : `${wording.redirected} ${insecure.map((target) => `"${target}"`).join(', ')}, which is not an https URI. ${SHOULD_REDIRECT}`;
 }
 
-function insecureTargetProblem(subject: string, targets: string[]): string {
-  return `${subject} ${targets.map((target) => `"${target}"`).join(', ')}, which is not an https URI. ${SHOULD_REDIRECT}`;
-}
-
-// Why a live response to a plain-http request is not the redirect §7.2 asks
-// for, or undefined when it is.
 function liveRedirectProblem(
   request: HttpRequest,
   response: HttpResponse,
 ): string | undefined {
-  const status = response.statusCode;
-  if (!PERMANENT_REDIRECTS.includes(status)) {
-    return statusProblem(
-      'This request over non-secure transport (http) was answered with',
-      status,
-    );
-  }
-
   const header = getHeader(response.headers, 'location');
   const location = Array.isArray(header) ? header[0] : header;
-  if (location === undefined || location.trim() === '') {
-    return `This request over non-secure transport (http) was answered with ${status} but no Location header field, so the redirect names no target. ${SHOULD_REDIRECT}`;
-  }
 
-  return locationScheme(location, requestUri(request)) === 'https'
-    ? undefined
-    : insecureTargetProblem(
-        'This request over non-secure transport (http) is redirected to',
-        [location],
-      );
+  return redirectProblem(
+    ANSWERED,
+    response.statusCode,
+    location === undefined ? [] : [location],
+    requestUri(request),
+  );
 }
 
 type StaticVerdict =
@@ -99,73 +121,37 @@ type StaticVerdict =
   | { kind: 'violates'; message: string }
   | { kind: 'undecidable'; message: string };
 
-// Static: an operation the description serves over http should declare a
-// permanent redirect, and each one should declare a Location it pins to an
-// https URI. Judged once per operation, over all of its declared responses.
-// A Location declared without a pinned value cannot be checked, which is a
+// Static: each response the description declares for an operation served
+// over http is held to the redirect on its own, as each answer is live —
+// a permanent redirect beside it does not excuse a 200 or a 302. A Location
+// declared without a pinned value cannot be checked, which is a
 // `rule-skip`, never a pass.
 function staticRedirectVerdict(
   base: string,
-  responses: ThymianHttpResponse[],
+  res: ThymianHttpResponse,
 ): StaticVerdict {
-  const redirects = responses.filter((res) =>
-    PERMANENT_REDIRECTS.includes(res.statusCode),
-  );
-  if (redirects.length === 0) {
-    const other = responses.find((res) =>
-      OTHER_REDIRECTS.includes(res.statusCode),
-    );
+  const locations = pinnedHeaderValues(res, 'location');
+  if (
+    locations === undefined &&
+    PERMANENT_REDIRECTS.includes(res.statusCode) &&
+    declaresHeader(res, 'location')
+  ) {
     return {
-      kind: 'violates',
+      kind: 'undecidable',
       message:
-        other === undefined
-          ? `This operation is served over non-secure transport (http) and declares no redirect. ${SHOULD_REDIRECT}`
-          : statusProblem(
-              'This operation is served over non-secure transport (http) and declares only',
-              other.statusCode,
-            ),
+        'The API description declares the redirect with a Location header field but does not pin its value (const, enum or examples), so its scheme cannot be checked statically.',
     };
   }
 
-  const problems: string[] = [];
-  let unpinned = false;
-
-  for (const res of redirects) {
-    const locations = pinnedHeaderValues(res, 'location');
-    if (locations === undefined) {
-      if (declaresHeader(res, 'location')) {
-        unpinned = true;
-      } else {
-        problems.push(
-          `This operation is served over non-secure transport (http) and declares a ${res.statusCode} without a Location header field, so the redirect names no target. ${SHOULD_REDIRECT}`,
-        );
-      }
-      continue;
-    }
-
-    const insecure = locations.filter(
-      (location) => locationScheme(location, base) !== 'https',
-    );
-    if (insecure.length > 0) {
-      problems.push(
-        insecureTargetProblem(
-          'This operation is served over non-secure transport (http) and redirects to',
-          insecure,
-        ),
-      );
-    }
-  }
-
-  if (problems.length > 0) {
-    return { kind: 'violates', message: problems.join(' ') };
-  }
-  return unpinned
-    ? {
-        kind: 'undecidable',
-        message:
-          'The API description declares the redirect with a Location header field but does not pin its value (const, enum or examples), so its scheme cannot be checked statically.',
-      }
-    : { kind: 'passes' };
+  const problem = redirectProblem(
+    DECLARED,
+    res.statusCode,
+    locations ?? [],
+    base,
+  );
+  return problem === undefined
+    ? { kind: 'passes' }
+    : { kind: 'violates', message: problem };
 }
 
 // The three execution functions of a rule that holds plain-http requests to
@@ -179,29 +165,21 @@ export function redirectRuleFns(ruleName: string): {
   return {
     // A function validator, because the lint context's
     // `validateHttpTransactions` keeps only results carrying a violation and
-    // a skip must surface. One verdict per operation, on its first response.
-    lint: (ctx) => {
-      const judged = new Set<string>();
-
-      return ctx.validateCommonHttpTransactions(
+    // a skip must surface. One verdict per declared response.
+    lint: (ctx) =>
+      ctx.validateCommonHttpTransactions(
         protocol('http'),
         (req, _res, location) => {
-          const described = describedTransaction(ctx, location);
-          if (described === undefined || judged.has(described.thymianReqId)) {
+          const res = describedTransaction(ctx, location)?.thymianRes;
+          if (res === undefined) {
             return [];
           }
-          judged.add(described.thymianReqId);
 
           if (isServerFallbackOrigin(req.origin)) {
             return [serverFallbackSkip(location, ruleName)];
           }
 
-          const verdict = staticRedirectVerdict(
-            requestUri(req),
-            ctx.format
-              .getHttpResponsesOf(described.thymianReqId)
-              .map(([, res]) => res),
-          );
+          const verdict = staticRedirectVerdict(requestUri(req), res);
           switch (verdict.kind) {
             case 'violates':
               return [violation(location, verdict.message)];
@@ -211,8 +189,7 @@ export function redirectRuleFns(ruleName: string): {
               return [];
           }
         },
-      );
-    },
+      ),
 
     // The redirect is a status the description does not declare for the
     // operation, so the step opts out of the status-code check, which would
