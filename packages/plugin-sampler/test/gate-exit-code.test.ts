@@ -65,6 +65,11 @@ vi.mock('@thymian/core', async () => {
   return { ...actual, Thymian: MockThymian };
 });
 
+// Every case drives a real `ts.createProgram`, which sits close to vitest's 5s
+// default on a contended CI runner and timed out on whichever one was busiest.
+// A stopgap until the compile cost itself comes down.
+vi.setConfig({ testTimeout: 20_000 });
+
 /**
  * #131: a legitimate gate failure in human mode must set the exit code and
  * return normally — not throw through `this.exit()`, which routes past this
