@@ -6,6 +6,7 @@ export * from './rule-builder.js';
 export * from './rule-configuration.js';
 export * from './rule-coverage.js';
 export * from './rule-coverage-checker.js';
+export * from './rule-coverage-minimal-profile.js';
 export * from './rule-coverage-renderer.js';
 export * from './rule-execution-invariant.js';
 export * from './rule-filter.js';

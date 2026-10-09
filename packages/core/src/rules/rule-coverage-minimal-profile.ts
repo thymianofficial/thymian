@@ -1,22 +1,26 @@
-import type {
-  CoverageContext,
-  CoverageEntry,
-  CoverageRecord,
-  RulesConfiguration,
-} from '@thymian/core';
-
-// `minimal` (thymianofficial/thymian-workspace#60, #64): the package-boundary
-// decision defined it as error severity plus at least one declared context
-// that is exactly observable -- not heuristic, not impossible -- and the
-// retro-tag sweep ruled it derived from the coverage record, never
-// transcribed, so this is one function instead of a list of ~90 rule names
-// that would drift the moment a batch's cells changed.
+// The `minimal` profile, derived. ADR-0021 §3 defines `minimal` as error
+// severity plus at least one declared context that is exactly observable --
+// not heuristic, not impossible -- and rules it derived from the coverage
+// record, never transcribed, so this is one function instead of a list of
+// rule names that would drift the moment a batch's cells changed.
+//
+// It lives in core, beside the record it reads, because every spec package
+// derives its `minimal` from it: a copy per package would be a second
+// definition of `minimal`, free to drift from the first.
 //
 // Reads `record.rules`' own stamp (`declared.severity`/`declared.types`),
 // not a loaded `Rule`'s live `meta`: a profile is static data assembled at
 // module load, and `loadRules` is async, so there is nothing else this could
 // read synchronously. The stamp is what `checkCoverage`'s own
 // stamp-mismatch assertion keeps honest against the real rule.
+
+import type { RulesConfiguration } from './rule-configuration.js';
+import type {
+  CoverageContext,
+  CoverageEntry,
+  CoverageRecord,
+} from './rule-coverage.js';
+
 export function deriveMinimalProfile(
   record: CoverageRecord,
 ): RulesConfiguration {
@@ -50,8 +54,7 @@ function qualifiesForMinimal(entry: CoverageEntry): boolean {
   }
 
   // A declared context defaults to exactly observable; only an explicit
-  // 'heuristic' cell (never written by this corpus today, but a real,
-  // legal value) overrides that for one context. One exactly-observable
+  // 'heuristic' cell overrides that for one context. One exactly-observable
   // declared context is enough to qualify.
   return types.some(
     (context) => entry.contexts?.[context as CoverageContext] !== 'heuristic',

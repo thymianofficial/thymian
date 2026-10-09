@@ -26,7 +26,7 @@ We will extract the rule system into `@thymian/core` as a first-class concern. S
    - `plugin-http-tester` — listens on `core.test`, implements `RuleRunnerAdapter<TestContext>`
    - `plugin-http-analyzer` — listens on `core.analyze`, implements `RuleRunnerAdapter<AnalyzeContext>`
 4. **Each plugin listens on exactly one core workflow action** and provides its own adapter implementation.
-5. **Rule set packages** (`rules-rfc-9110`, `rules-api-description-validation`) depend only on `@thymian/core` for types — they no longer depend on any plugin package.
+5. **Rule set packages** (`rules-rfc-9110`, `rules-api-description-validation`) depend only on `@thymian/core` at runtime, for types and for everything they execute — they no longer depend on any plugin package. A spec rule set's fixture bar may take the validation plugins as devDependencies ([ADR-0021](0021-http-security-rule-sets.md) §4): demonstrating a declared context means running the rule through that context's real engine, and nothing test-side ships or counts as a runtime dependency. _(Amended 2026-09-24; see Status History.)_
 
 ## Consequences
 
@@ -50,6 +50,7 @@ We will extract the rule system into `@thymian/core` as a first-class concern. S
 
 - [ADR-0007](0007-core-owns-validation-entrypoints-plugins-own-execution.md): Core owns validation entrypoints, plugins own execution
 - [ADR-0008](0008-package-naming-conventions.md): Package naming conventions
+- [ADR-0021](0021-http-security-rule-sets.md): Adding a rule set — its fixture bar (§4) is why a spec rule set takes the validation plugins as devDependencies
 - [Chapter 5: Building Block View](../05-building-block-view.md): Core package decomposition (Section 5.2.1)
 - [Chapter 8: Crosscutting Concepts](../08-crosscutting-concepts.md): Section 8.4 — Rules and Rulesets
 
@@ -57,6 +58,7 @@ We will extract the rule system into `@thymian/core` as a first-class concern. S
 
 ## Status History
 
-| Date       | Status   | Notes                                         |
-| ---------- | -------- | --------------------------------------------- |
-| 2026-04-09 | Accepted | Retroactive documentation of Epic 1 decisions |
+| Date       | Status   | Notes                                                                                                                                                   |
+| ---------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-04-09 | Accepted | Retroactive documentation of Epic 1 decisions                                                                                                           |
+| 2026-09-24 | Amended  | §5: rule sets depend only on `@thymian/core` at runtime; a spec rule set's fixture bar may take the validation plugins as devDependencies (ADR-0021 §4) |
