@@ -2,55 +2,60 @@ import type { HttpResponse, RuleViolationLocation } from '@thymian/core';
 import { getHeader, requestHeader } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
-import { parseRangeHeader } from './utils.js';
+import {
+  type ByteRange,
+  formatByteRange,
+  intRanges,
+  parseRangeHeader,
+  unparsableRangeHeader,
+} from './utils.js';
+
+const NAME = 'rfc9110/client-should-not-request-inefficient-multiple-ranges';
 
 /*
- * 1. Extract all (start, end) pairs from the Range header.
- * 2. Sort them by their start value.
- * 3. Calculate the distance (gap) between the end of range n and the start of range n+1.
- * 4. Trigger an error/warning if (start_{n+1} - end_{n}) < threshold.
- * * @param rangeHeader - The raw Range header string (e.g., "bytes=0-100, 150-200")
+ * 1. Take the int ranges of the range set and sort them by their first position.
+ * 2. Calculate the distance (gap) between the end of range n and the start of range n+1.
+ * 3. Trigger an error/warning if (first_{n+1} - last_{n}) < threshold.
+ * @param ranges - The parsed range set (e.g., of "bytes=0-100, 150-200")
  * @param threshold - The byte gap below which a single range would be more efficient (default 100)
- * @returns An object containing the validity and a message
+ * @returns A message describing the first inefficiency found
  */
 function validateRangeEfficiency(
-  rangeHeader: string | string[],
+  ranges: ByteRange[],
   threshold = 100,
 ): string | undefined {
-  if (Array.isArray(rangeHeader)) {
-    // returns the first error message it finds
-    return rangeHeader
-      .map(validateRangeEfficiency)
-      .reduce((acc, curr) => acc || curr);
-  }
+  // 1. Sort the int ranges by their first position
+  const sorted = intRanges(ranges).sort((a, b) => a.first - b.first);
 
-  // 1. Extract all (start, end) pairs from the Range header.
-  const ranges = parseRangeHeader(rangeHeader);
-
-  // 2. Sort by start value
-  ranges.sort((a, b) => a.start - b.start);
-
-  // 3. & 4. Iterate and check distances
-  for (let i = 0; i < ranges.length - 1; i++) {
-    const current = ranges[i];
-    const next = ranges[i + 1];
+  // 2. & 3. Iterate and check distances
+  for (let i = 0; i < sorted.length - 1; i++) {
+    const current = sorted[i];
+    const next = sorted[i + 1];
 
     if (!current || !next) {
       continue;
     }
 
-    // Calculate gap: start of next minus end of current
-    // Note: We subtract 1 because bytes 100-200 and 201-300 have a gap of 0.
-    const gap = next.start - current.end - 1;
-
-    if (gap < 0) {
-      return `Ranges ${current.start}-${current.end} and ${next.start}-${next.end} overlap. This is highly inefficient.`;
+    // An open-ended range runs to the end of the representation, so every
+    // range sorted after it overlaps it.
+    if (current.last === undefined || next.first <= current.last) {
+      return `Ranges ${formatByteRange(current)} and ${formatByteRange(next)} overlap. This is highly inefficient.`;
     }
 
+    // Calculate gap: start of next minus end of current
+    // Note: We subtract 1 because bytes 100-200 and 201-300 have a gap of 0.
+    const gap = next.first - current.last - 1;
+
     if (gap < threshold) {
-      return `Inefficient request: Gap between ${current.end} and ${next.start} is only ${gap} bytes.
+      const single: ByteRange = {
+        kind: 'int',
+        first: current.first,
+        last: next.last,
+      };
+
+      return `Inefficient request: Gap between ${current.last} and ${next.first} is only ${gap} bytes.
                   This is less than the threshold of ${threshold} bytes.
-                  A single range from ${current.start} to ${next.end} would be more efficient.`;
+                  A single range ${formatByteRange(single)} would be more efficient.`;
     }
   }
 
@@ -58,9 +63,7 @@ function validateRangeEfficiency(
 }
 
 // eslint-disable-next-line thymian-internal/require-rule-tags -- no concern-tag member fits this rule's topic
-export default httpRule(
-  'rfc9110/client-should-not-request-inefficient-multiple-ranges',
-)
+export default httpRule(NAME)
   .severity('warn')
   // A request-side ("client SHOULD NOT") rule, valid only in `analyze` — in
   // `test` Thymian generates the request, so the client's range-splitting choice
@@ -87,11 +90,17 @@ export default httpRule(
       ) => {
         const rangeHeader = getHeader(req.headers, 'range');
 
-        if (!rangeHeader) {
+        if (rangeHeader === undefined) {
           return [];
         }
 
-        const result = validateRangeEfficiency(rangeHeader);
+        const ranges = parseRangeHeader(rangeHeader);
+
+        if (!ranges) {
+          return [unparsableRangeHeader(NAME, location, rangeHeader)];
+        }
+
+        const result = validateRangeEfficiency(ranges);
 
         if (result) {
           return [{ location, violation: { message: result }, findings: [] }];
