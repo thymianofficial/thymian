@@ -47,8 +47,8 @@ ones your change touches, not the set:
   format graph, rule contexts. How the machinery works.
 - `docs/arc42/05-building-block-view.md` — the ports model, and which package owns what.
 
-Vocabulary lives elsewhere: `CONTEXT.md` is canonical for terms, and where
-`docs/arc42/12-glossary.md` disagrees with it, `CONTEXT.md` wins.
+Vocabulary lives elsewhere: `GLOSSARY.md` is canonical for terms, and where
+`docs/arc42/12-glossary.md` disagrees with it, `GLOSSARY.md` wins.
 
 ## Some docs under `astro-docs/` are build output — never commit them
 

@@ -1,21 +1,21 @@
 # Context Map
 
 The index of this project's package contexts. The project glossary is
-[`CONTEXT.md`](./CONTEXT.md); above it sits the workspace's shared glossary, which neither
+[`GLOSSARY.md`](./GLOSSARY.md); above it sits the workspace's shared glossary, which neither
 this file nor anything below it may redefine.
 
-Read from the outside in: workspace `CONTEXT.md` → this project's `CONTEXT.md` → the package
+Read from the outside in: workspace `GLOSSARY.md` → this project's `GLOSSARY.md` → the package
 context, if the package you are in has one.
 
 ## Contexts
 
-- [Sampler](./packages/plugin-sampler/CONTEXT.md) (`packages/plugin-sampler`): the vocabulary
+- [Sampler](./packages/plugin-sampler/GLOSSARY.md) (`packages/plugin-sampler`): the vocabulary
   of authoring hooks — what a hook is, how it is aimed, and what a transaction earned once it
   ran.
 
 No other package has one yet, and most will not need one. A package earns a context when it
 introduces vocabulary a user or a neighbouring package has to name and the project glossary
-does not already carry. Until then, the project `CONTEXT.md` is the whole answer.
+does not already carry. Until then, the project `GLOSSARY.md` is the whole answer.
 
 ## Relationships
 

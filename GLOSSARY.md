@@ -5,7 +5,7 @@ Thymian workspace glossary and does not redefine anything in it. The
 terms below are only what this project adds on top.
 
 Package-internal vocabulary belongs one level further down, in the relevant
-`packages/<pkg>/CONTEXT.md`: the event bus and emitter mechanics, action naming, the
+`packages/<pkg>/GLOSSARY.md`: the event bus and emitter mechanics, action naming, the
 rule-authoring API types, and the internals of the report model. What stays here is what a
 user of the tool or a contributor across packages has to name.
 
@@ -189,7 +189,7 @@ cannot silently register a rule that never runs.
 
 The vocabulary of authoring hooks — `Hook`, `Transaction Filter`, `Path Glob`, `Seed`
 and `Outcome` — lives one level down, in
-[`packages/plugin-sampler/CONTEXT.md`](./packages/plugin-sampler/CONTEXT.md). What stays
+[`packages/plugin-sampler/GLOSSARY.md`](./packages/plugin-sampler/GLOSSARY.md). What stays
 here is what the rest of the tool names too.
 
 **Sample**:

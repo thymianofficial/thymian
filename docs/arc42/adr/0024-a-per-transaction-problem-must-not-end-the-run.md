@@ -47,7 +47,7 @@ never an outcome of the run.
   `mediaType`. A Selector says which Transaction
   to _initiate_; it cannot promise the outcome, so the type does not either.
   Generated as a `Responses` map keyed by the **request half of a Selector**,
-  which is the [Operation](../../../CONTEXT.md) — so the union references the
+  which is the [Operation](../../../GLOSSARY.md) — so the union references the
   response types already emitted rather than duplicating them, and the runtime
   checks membership by the same grouping.
 - **An undeclared status throws.** `UndeclaredResponseError` carries

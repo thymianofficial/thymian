@@ -318,8 +318,8 @@ violations, and regenerating the README produces no diff.
 
 ## Step 8 — Close the paper trail
 
-- `CONTEXT-MAP.md` in the workspace: add the package to the `packages/rules-*` line.
-- The package's own `CONTEXT.md`, only where the source introduces vocabulary the project
+- `GLOSSARY-MAP.md` in the workspace: add the package to the `packages/rules-*` line.
+- The package's own `GLOSSARY.md`, only where the source introduces vocabulary the project
   glossary does not already carry.
 - An ADR, only where this walk decided something ADR-0021 did not — a new tag category, a new
   impossibility reason, a source that changes the package boundary.
