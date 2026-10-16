@@ -54,10 +54,10 @@ Not yet covered: none.
 
 | Severity | Keyword | recommended | strict | minimal |
 | -------- | ------- | ----------- | ------ | ------- |
-| error    | MUST    | 14          | 14     | 11      |
-| warn     | SHOULD  | 16          | 16     | 0       |
+| error    | MUST    | 16          | 14     | 11      |
+| warn     | SHOULD  | 15          | 16     | 0       |
 | hint     | MAY     | 4           | 4      | 0       |
-| off      | (off)   | 2           | 2      | 25      |
+| off      | (off)   | 1           | 2      | 25      |
 
 ## Conventions
 
