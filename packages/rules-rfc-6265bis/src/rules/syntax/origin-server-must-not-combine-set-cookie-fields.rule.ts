@@ -1,14 +1,18 @@
 import { httpRule } from '@thymian/core';
 
 import { headerValueRuleFns } from '../utils/header-contexts.js';
-import { readAsProducer, SET_COOKIE_HEADER } from '../utils/set-cookie.js';
+import {
+  onConformingLine,
+  SET_COOKIE_HEADER,
+  TCHAR_CLASS,
+} from '../utils/set-cookie.js';
 
 const NAME = 'rfc-6265bis/origin-server-must-not-combine-set-cookie-fields';
 
 // A comma followed by a token and "=", which reads as the cookie-pair of a
 // second Set-Cookie field joined on with HTTP's usual ", ". An Expires date
 // carries a comma too, but what follows it is a day of the month, never "=".
-const SECOND_COOKIE_PAIR = /,[ \t]*([!#$%&'*+\-.^_`|~0-9A-Za-z]+)[ \t]*=/;
+const SECOND_COOKIE_PAIR = new RegExp(`,[ \\t]*(${TCHAR_CLASS}+)[ \\t]*=`);
 
 // Heuristic: the comma is the only trace of combining, and a comma inside an
 // attribute value reads the same — the draft's own `a=b;path=/c,d=e` is
@@ -18,10 +22,7 @@ const SECOND_COOKIE_PAIR = /,[ \t]*([!#$%&'*+\-.^_`|~0-9A-Za-z]+)[ \t]*=/;
 // rule's alone. Combining that puts the comma in the cookie-value, as in
 // `a=b, c=d`, fails `cookie-octet`, so it is reported there; what is left
 // here is the comma inside an attribute, which the grammar's av-octet allows.
-const { lint, live } = headerValueRuleFns(SET_COOKIE_HEADER, NAME, (line) => {
-  if (!readAsProducer(line).conforms) {
-    return undefined;
-  }
+const check = onConformingLine((_reading, line) => {
   const semicolon = line.indexOf(';');
   const match =
     semicolon === -1
@@ -31,6 +32,8 @@ const { lint, live } = headerValueRuleFns(SET_COOKIE_HEADER, NAME, (line) => {
     ? undefined
     : `The Set-Cookie line "${line}" carries a comma followed by "${match[1]}=", which reads as a second cookie: it looks like several Set-Cookie header fields combined into one. A user agent reads the line as one cookie, with the rest as part of an attribute, so a second cookie it may hold is never stored.`;
 });
+
+const { lint, live } = headerValueRuleFns(SET_COOKIE_HEADER, NAME, check);
 
 export default httpRule(NAME)
   .severity('warn')
