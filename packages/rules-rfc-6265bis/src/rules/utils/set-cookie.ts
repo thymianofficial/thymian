@@ -654,6 +654,15 @@ export function requestedLifetime(
       };
 }
 
+// A line that removes its cookie, with a Max-Age of zero or less or an
+// Expires already past: the user agent evicts an expired cookie from its
+// store (§5.7, after the algorithm), so the line clears a cookie rather than
+// set one, and no rule on a cookie a browser keeps judges it.
+export function removesCookie(cookie: ReceivedCookie): boolean {
+  const lifetime = requestedLifetime(cookie, Date.now());
+  return lifetime !== undefined && lifetime.seconds <= 0;
+}
+
 // The attributes a user agent ignores at one step of §5.6 on a line it
 // keeps; none on a line it ignores entirely, which sets no cookie.
 export function attributesIgnoredAt(
