@@ -22,6 +22,14 @@ For each source unit, ask of **each** of `static`, `test`, `analytics`:
 Three cells, three answers, per unit. A rule then declares exactly the contexts that came
 back observable or heuristically observable.
 
+A **user-agent step** is judged on the server's message that triggers it, read beside the
+request it answered where the step compares the two (a host, a scheme, a path): would a user
+agent following the algorithm drop, ignore or cap something in it? A step where another user
+agent may keep what this one drops is heuristic. A step that turns on state the user agent
+accumulated — what its store already holds, its own policy — is judged on whether the
+messages Thymian holds show the defect; where they cannot, pick the code as below, which is
+`peer-not-observable` when the state lives only inside the user agent.
+
 ## Picking an impossibility code
 
 Ask in this order; the first yes is the code.
@@ -110,6 +118,14 @@ you declare more types, and `('analytics', 'test')` alone yields a `LiveApiConte
 carrying real values. Combinator support is not uniform across contexts, but an unsupported
 combinator **throws** rather than matching nothing silently.
 
+**A header that repeats without combining** — `Set-Cookie`, whose values hold commas —
+arrives in `test` and `analytics` as one value per field line. Read each line on its own and
+never split one on commas.
+
+**A 1xx interim response is not a transaction of its own** in core, so `test` and `analytics`
+never see a header on one. Only `static` can, where the description declares it; the other two
+cells are `tool-limitation`, cited.
+
 ### `static` — the Thymian Format
 
 Pinned header **values** are reachable here, through `.overrideStaticRule()`:
@@ -172,6 +188,11 @@ The status-code gate in step 5 applies to every `test` fixture, probe or not.
 Carries real values and real message pairs, and is the context most likely to be _heuristic_:
 recorded traffic shows what happened, not what should have. A conditional-request rule can
 see an `If-Match` and cannot see whether it ought to have matched — `requires-controlled-input`.
+
+A value relative to the time it was sent — an absolute expiry date, a `Date` — is read against
+the time of the run, not of the recording, unless the recording carries its own timestamp. An
+old recording then reads shorter-lived, so choose the direction the error falls in: towards a
+pass.
 
 ## Handing over mid-source
 
