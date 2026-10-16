@@ -234,5 +234,39 @@ export default defineCoverage({
         },
       },
     },
+
+    // `cookie-header` — §4.2, and §6.1's server paragraphs about the Cookie
+    // header.
+    // One rule for two units: §4.2.1's final cookie-string past the server's
+    // header field limit and §6.1's few and small cookies are both the size
+    // and number of the cookies one server sets. Heuristic everywhere: the
+    // server's own limit is unknown, and 8192 octets is a common default, not
+    // a rule.
+    'rfc-6265bis/server-should-avoid-large-cookies': {
+      covers: ['4.2.1/1', '6.1/1'],
+      declared: { types: ['static', 'test', 'analytics'], severity: 'warn' },
+      contexts: {
+        static: 'heuristic',
+        test: 'heuristic',
+        analytics: 'heuristic',
+      },
+    },
+    // Informational, so its three cells come from the rule's whole-rule
+    // reason: `tool-limitation`, citing the ticket that would let `test`
+    // send a split Cookie field. `static` and `analytics` are impossible
+    // regardless (not-representable, requires-controlled-input), which the
+    // rule's note says.
+    'rfc-6265bis/server-must-be-tolerant-of-multiple-cookie-headers': {
+      covers: ['4.2.1/2'],
+      declared: { types: ['informational'], severity: 'error' },
+    },
+    'rfc-6265bis/server-should-not-rely-on-cookie-serialization-order': {
+      covers: ['4.2.2/1'],
+      declared: { types: ['informational'], severity: 'warn' },
+    },
+    'rfc-6265bis/server-should-degrade-gracefully-without-cookies': {
+      covers: ['6.1/2'],
+      declared: { types: ['informational'], severity: 'warn' },
+    },
   },
 });
