@@ -18,6 +18,7 @@ import {
   octets,
   type ReceivedCookie,
   receivedCookie,
+  requestedLifetime,
   SET_COOKIE_HEADER,
 } from '../utils/set-cookie.js';
 
@@ -37,19 +38,10 @@ function cookiePair({ name, value }: ReceivedCookie): string {
 }
 
 // A line that removes its cookie, with a Max-Age of zero or less or an
-// Expires already past, takes it out of the store. The last Max-Age wins over
-// any Expires, and the last Expires over an earlier one (§5.7 step 6).
-function removesCookie({ attributes }: ReceivedCookie): boolean {
-  const maxAge = attributes
-    .filter((attribute) => attribute.name === 'Max-Age')
-    .at(-1);
-  if (maxAge !== undefined) {
-    return maxAge.value <= 0;
-  }
-  const expires = attributes
-    .filter((attribute) => attribute.name === 'Expires')
-    .at(-1);
-  return expires !== undefined && expires.value.getTime() <= Date.now();
+// Expires already past, takes it out of the store.
+function removesCookie(cookie: ReceivedCookie): boolean {
+  const lifetime = requestedLifetime(cookie, Date.now());
+  return lifetime !== undefined && lifetime.seconds <= 0;
 }
 
 function hostOf(origin: string): string {
