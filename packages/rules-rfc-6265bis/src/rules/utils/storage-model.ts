@@ -101,6 +101,11 @@ export function isSecureOnly({ attributes }: ReceivedCookie): boolean {
   return attributes.some((attribute) => attribute.name === 'Secure');
 }
 
+// §5.7 step 14.
+export function isHttpOnly({ attributes }: ReceivedCookie): boolean {
+  return attributes.some((attribute) => attribute.name === 'HttpOnly');
+}
+
 // §5.7 step 17: the last SameSite attribute's enforcement, provided one of
 // them names Strict, Lax or None; "Default" otherwise.
 export function sameSiteFlag({

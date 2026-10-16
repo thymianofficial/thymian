@@ -420,5 +420,88 @@ export default defineCoverage({
       covers: ['6.1/2'],
       declared: { types: ['informational'], severity: 'warn' },
     },
+
+    // `considerations` — the server paragraphs of §7 and §8, and the two
+    // convention rules.
+    // Heuristic everywhere, as the two SHOULDs with no ground truth: what is
+    // reasonable for a cookie needs its purpose, so only a name that reads as
+    // a session identifier is judged, against §7.4's own two weeks; and an
+    // opaque value and an encrypted one look alike, so only a legible value
+    // is flagged. The expiry rule judges lifetimes below the cap and leaves
+    // those above it to the cap rule.
+    'rfc-6265bis/server-should-select-reasonable-cookie-expiration': {
+      covers: ['7.4/1'],
+      declared: { types: ['static', 'test', 'analytics'], severity: 'warn' },
+      contexts: {
+        static: 'heuristic',
+        test: 'heuristic',
+        analytics: 'heuristic',
+      },
+    },
+    'rfc-6265bis/server-should-encrypt-and-sign-cookie-contents': {
+      covers: ['8.3/1'],
+      declared: { types: ['static', 'test', 'analytics'], severity: 'warn' },
+      contexts: {
+        static: 'heuristic',
+        test: 'heuristic',
+        analytics: 'heuristic',
+      },
+    },
+    // One unit, two rules. Its first clause binds only a server that requires
+    // a higher level of security, a choice no exchange shows, so its rule is
+    // heuristic everywhere; its second binds every server that uses cookies
+    // over a secure channel, and is exact. Both skip exactly the server URL
+    // fallback in `static` and `test`.
+    'rfc-6265bis/server-requiring-higher-security-should-use-cookies-only-over-secure-channel':
+      {
+        covers: ['8.3/2'],
+        declared: {
+          types: ['static', 'test', 'analytics'],
+          severity: 'warn',
+        },
+        contexts: {
+          static: 'heuristic',
+          test: 'heuristic',
+          analytics: 'heuristic',
+        },
+      },
+    'rfc-6265bis/server-should-set-secure-on-every-cookie-over-secure-channel':
+      {
+        covers: ['8.3/2'],
+        declared: {
+          types: ['static', 'test', 'analytics'],
+          severity: 'warn',
+        },
+      },
+    'rfc-6265bis/server-should-avoid-session-fixation': {
+      covers: ['8.4/1'],
+      declared: { types: ['informational'], severity: 'warn' },
+    },
+    'rfc-6265bis/server-should-not-share-sensitive-cookies-across-distrusting-ports':
+      {
+        covers: ['8.5/1'],
+        declared: { types: ['informational'], severity: 'warn' },
+      },
+    'rfc-6265bis/server-should-not-share-sensitive-cookies-across-distrusting-paths':
+      {
+        covers: ['8.6/1'],
+        declared: { types: ['informational'], severity: 'warn' },
+      },
+    'rfc-6265bis/server-should-not-rely-on-user-agents-retaining-cookies': {
+      covers: ['8.6/2'],
+      declared: { types: ['informational'], severity: 'warn' },
+    },
+    // The two convention rules: each asks of every server an obligation
+    // draft-22 imposes on none, so neither covers a unit. The https-only one
+    // is the exact twin of 8.3/2's conditional clause; draft-22 defines
+    // HttpOnly and requires it nowhere.
+    'rfc-6265bis/server-should-send-cookies-only-over-https': {
+      covers: [],
+      declared: { types: ['static', 'test', 'analytics'], severity: 'off' },
+    },
+    'rfc-6265bis/server-should-set-http-only-on-every-cookie': {
+      covers: [],
+      declared: { types: ['static', 'test', 'analytics'], severity: 'off' },
+    },
   },
 });

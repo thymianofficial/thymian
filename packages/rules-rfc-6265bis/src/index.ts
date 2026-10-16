@@ -6,7 +6,8 @@ import {
 
 import coverage from './coverage.js';
 
-// The opinionated layer. Empty until the convention rules it turns on exist.
+// The opinionated layer. Still empty: the convention rules ship `off`, and
+// stay off until it turns them on.
 const recommended: RulesConfiguration = {};
 
 // The source is an Internet-Draft, which has no RFC Editor name, so the
