@@ -33,7 +33,7 @@ export default httpRule(NAME)
     'Server should set the Secure attribute on every cookie it sets over https.',
   )
   .explanation(
-    'A browser sends a cookie without Secure over plain http too. An active attacker on the network can make the browser request any http URL of the host, even one nothing listens on, and read the cookie from that request: a session cookie set over https is stolen as easily as one set over http. Set Secure on every cookie a server sends over https.',
+    'A browser sends a cookie without Secure over plain http too. An active attacker on the network can make the browser request any http URL of the host, even one nothing listens on, and read the cookie from that request: a session cookie set over https is stolen as easily as one set over http. Set Secure on every cookie a server sends over https. The recommended profile raises this SHOULD from warn to error because, unlike the clause before it, it binds every server that uses cookies over a secure channel, and the check is exact: the scheme and the attribute are both on the exchange.',
   )
   .appliesTo('server')
   // `static` and `test` carry the described origin, so both skip the server
