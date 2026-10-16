@@ -34,10 +34,10 @@ describe('coverage record', () => {
   // Exact counts, not only "no violations": a checker that skipped every rule
   // would report none too.
   describe('the census', () => {
-    it('loads 26 rules, with one entry per loaded rule', async () => {
+    it('loads 36 rules, with one entry per loaded rule', async () => {
       const rules = await loadBaselineRules();
 
-      expect(rules.length).toBe(26);
+      expect(rules.length).toBe(36);
       expect(Object.keys(coverage.rules).length).toBe(rules.length);
     }, 30_000);
 
@@ -50,8 +50,10 @@ describe('coverage record', () => {
     // the lifetime cap and the 1xx permission, each stated in more than one
     // unit, and one rule each the other four steps.
     // Its `prefixes` and `storage-model` rows: one rule per unit, nine units
-    // by nine rules.
-    it('covers 42 units, by 26 rules', () => {
+    // by nine rules. Its `considerations` rows: one rule per unit, except
+    // §8.3's second paragraph, which has two, one per clause; the two
+    // convention rules cover no unit.
+    it('covers all 49 units, by 34 rules', () => {
       const covering = Object.values(coverage.rules).filter(
         (entry) => entry.covers.length > 0,
       );
@@ -101,9 +103,17 @@ describe('coverage record', () => {
           '5.7/step-22',
           '6.1/1',
           '6.1/2',
+          '7.4/1',
+          '8.3/1',
+          '8.3/2',
+          '8.4/1',
+          '8.5/1',
+          '8.6/1',
+          '8.6/2',
         ].sort(),
       );
-      expect(covering.length).toBe(26);
+      expect([...covered].sort()).toEqual(Object.keys(coverage.units).sort());
+      expect(covering.length).toBe(34);
     });
 
     // The ids a recount of the pinned text yields under the counting rule:
