@@ -6,8 +6,10 @@ import {
 
 import coverage from './coverage.js';
 
-// The opinionated layer. It turns both convention rules on, at the severity
-// each one's explanation argues for. The https-only convention asks of every
+// The opinionated layer. It turns both convention rules on: HttpOnly at
+// `warn`, because a cookie a script must read is a deliberate exception, and
+// cookies only over https at `error`, because a cookie set over plain http
+// has no exception that protects it. The https-only convention asks of every
 // server, exactly, what §8.3 asks only of a server that requires a higher
 // level of security, which no exchange shows; it replaces the heuristic rule
 // that reports the same wire fact, so one response is reported once. §8.3's

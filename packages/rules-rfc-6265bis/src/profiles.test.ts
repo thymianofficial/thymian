@@ -107,8 +107,8 @@ describe('rfc-6265bis rule-configuration profiles', () => {
     );
   }, 30_000);
 
-  // The opinionated layer: both conventions on, at the severity each one's
-  // explanation argues for; the heuristic §8.3 rule the https-only twin
+  // The opinionated layer: both conventions on, HttpOnly at `warn` and
+  // https-only at `error`; the heuristic §8.3 rule the https-only twin
   // replaces off; and §8.3's exact Secure clause promoted from its keyword's
   // `warn`.
   it('turns the conventions on, the rule the twin replaces off, and promotes the Secure clause in recommended', () => {
