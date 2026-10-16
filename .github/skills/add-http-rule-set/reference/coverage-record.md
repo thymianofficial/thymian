@@ -82,7 +82,15 @@ can be trusted for the checker's citation-requirement assertion.
 
 Key units by the source's own structure. Where one section holds several units, key each
 `<section>/<n>`, with n its position among that section's units, so the ids stay
-re-derivable from the counting rule alone.
+re-derivable from the counting rule alone. A unit that is a step of a numbered algorithm keeps
+the source's own step number, `<section>/step-<k>`; an unnumbered step paragraph is
+`<section>/<n>` like any other.
+
+An **informational** rule's entry carries no cells: the checker refuses them, and the README
+derives all three of its cells from the rule's one whole-rule reason. Where its contexts are
+impossible for different reasons — one a `tool-limitation`, another `not-representable` —
+the rule's note names each; the README renders the reason code and not the issue a
+`tool-limitation` cites.
 
 `substituteLabel` names what stands in where units are not statements: for RFC 9110 §17, the
 14–15 sections it cross-references.
