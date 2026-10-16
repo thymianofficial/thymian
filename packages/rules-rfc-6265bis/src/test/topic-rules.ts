@@ -8,7 +8,7 @@ import { pathToFileURL } from 'node:url';
 
 import type { Rule } from '@thymian/core';
 
-import { SECURE, setCookieInputsAt } from './builders.js';
+import { type Origin, SECURE, setCookieInputsAt } from './builders.js';
 import { type FixtureContext, runInContext } from './harness.js';
 
 // Every `*.rule.ts` in `dir`, informational rules left out: they run in no
@@ -36,7 +36,7 @@ export async function reportedBy(
   rules: Rule[],
   context: FixtureContext,
   lines: string[],
-  origin: Parameters<typeof setCookieInputsAt>[0] = SECURE,
+  origin: Origin = SECURE,
 ): Promise<string[]> {
   const names: string[] = [];
   for (const rule of rules.filter((r) => r.meta.type.includes(context))) {

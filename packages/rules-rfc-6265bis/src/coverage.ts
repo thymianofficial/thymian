@@ -451,7 +451,12 @@ export default defineCoverage({
     // a higher level of security, a choice no exchange shows, so its rule is
     // heuristic everywhere; its second binds every server that uses cookies
     // over a secure channel, and is exact. Both skip exactly the server URL
-    // fallback in `static` and `test`.
+    // fallback in `static` and `test`. Both judge the cookies a server sets,
+    // and a cookie a browser keeps: a line that clears its cookie carries
+    // nothing to protect, and a cookie a §5.7 step ignores is that step's.
+    // The server's use of the Cookie request header follows from where it
+    // sets its cookies: a cookie without Secure set over plain http is the
+    // one a browser sends back over plain http.
     'rfc-6265bis/server-requiring-higher-security-should-use-cookies-only-over-secure-channel':
       {
         covers: ['8.3/2'],

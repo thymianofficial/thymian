@@ -6,28 +6,19 @@
 // A Secure cookie set over plain http is §5.7 step 13's, which a browser
 // ignores, so neither check reports it: what is left over plain http is a
 // cookie without Secure, which the browser stores and sends back over plain
-// http as well.
+// http as well. That is how a server comes to receive cookies in a Cookie
+// header over plain http, so the checks judge the Set-Cookie that caused it,
+// not the request a browser sends.
 
 import {
   type CookieExchangeCheck,
   TRANSPORT_NOT_JUDGED,
 } from './exchange-contexts.js';
-import { type ReceivedCookie, removesCookie } from './set-cookie.js';
 import {
-  type CookieExchange,
-  ignoredInStorage,
   isSecureConnection,
   isSecureOnly,
+  keptByBrowser,
 } from './storage-model.js';
-
-function keptByBrowser(
-  cookie: ReceivedCookie,
-  exchange: CookieExchange,
-): boolean {
-  return (
-    !removesCookie(cookie) && ignoredInStorage(cookie, exchange) === undefined
-  );
-}
 
 // A cookie a browser keeps from a response over plain http. `advice` is the
 // sentence that tells the server what to do instead.
@@ -54,16 +45,17 @@ export function cookieKeptOverPlainHttp(advice: string): CookieExchangeCheck {
 // Where the transport is not judged, a cookie without Secure leaves the rule
 // undecided: over https it is this check's, over plain http it is
 // `cookieKeptOverPlainHttp`'s.
-export function cookieWithoutSecureOverHttps(): CookieExchangeCheck {
-  return (cookie, exchange) => {
-    if (isSecureOnly(cookie) || !keptByBrowser(cookie, exchange)) {
-      return undefined;
-    }
-    if (!exchange.transportJudged) {
-      return TRANSPORT_NOT_JUDGED;
-    }
-    return isSecureConnection(exchange.origin)
-      ? `The cookie "${cookie.name}" is set over https without the Secure attribute, so a browser also sends it over plain http: an active attacker who sends the browser to an http URL of this host reads it there, and the protection https gives it is largely moot (§8.3). Add the Secure attribute.`
-      : undefined;
-  };
-}
+export const cookieWithoutSecureOverHttps: CookieExchangeCheck = (
+  cookie,
+  exchange,
+) => {
+  if (isSecureOnly(cookie) || !keptByBrowser(cookie, exchange)) {
+    return undefined;
+  }
+  if (!exchange.transportJudged) {
+    return TRANSPORT_NOT_JUDGED;
+  }
+  return isSecureConnection(exchange.origin)
+    ? `The cookie "${cookie.name}" is set over https without the Secure attribute, so a browser also sends it over plain http: an active attacker who sends the browser to an http URL of this host reads it there, and the protection https gives it is largely moot (§8.3). Add the Secure attribute.`
+    : undefined;
+};

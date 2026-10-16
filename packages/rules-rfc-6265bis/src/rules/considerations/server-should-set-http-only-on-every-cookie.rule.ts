@@ -1,8 +1,7 @@
 import { httpRule } from '@thymian/core';
 
 import { cookieExchangeRuleFns } from '../utils/exchange-contexts.js';
-import { removesCookie } from '../utils/set-cookie.js';
-import { ignoredInStorage, isHttpOnly } from '../utils/storage-model.js';
+import { isHttpOnly, keptByBrowser } from '../utils/storage-model.js';
 
 const NAME = 'rfc-6265bis/server-should-set-http-only-on-every-cookie';
 
@@ -17,9 +16,7 @@ const NAME = 'rfc-6265bis/server-should-set-http-only-on-every-cookie';
 const { lint, test, analytics } = cookieExchangeRuleFns(
   NAME,
   (cookie, exchange) =>
-    isHttpOnly(cookie) ||
-    removesCookie(cookie) ||
-    ignoredInStorage(cookie, exchange) !== undefined
+    isHttpOnly(cookie) || !keptByBrowser(cookie, exchange)
       ? undefined
       : `The cookie "${cookie.name}" has no HttpOnly attribute, so a script running in the page can read it through a non-HTTP API such as document.cookie. Add the HttpOnly attribute, unless a script must read the cookie.`,
 );
