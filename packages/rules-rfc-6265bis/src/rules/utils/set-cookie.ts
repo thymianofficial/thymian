@@ -337,7 +337,7 @@ export function isDefinedAttribute(name: string): boolean {
 
 // A cookie-av's name, as both readings take it: what precedes its first
 // "=", or the whole cookie-av without one, trimmed.
-function attributeNameOf(cookieAv: string): string {
+export function attributeNameOf(cookieAv: string): string {
   const eq = cookieAv.indexOf('=');
   return trimWsp(eq === -1 ? cookieAv : cookieAv.slice(0, eq));
 }
@@ -651,6 +651,31 @@ export function receivedCookie(line: string): ReceivedCookie | undefined {
     return undefined;
   }
   return reading.cookie;
+}
+
+// The lifetime a cookie asks for, before any user agent's age limit: the
+// last Max-Age, which wins over any Expires, or else the last Expires
+// (§5.7 step 6), in seconds from `now`. `undefined` is a session cookie;
+// zero or less removes the cookie.
+export function requestedLifetime(
+  { attributes }: ReceivedCookie,
+  now: number,
+): { attribute: 'Max-Age' | 'Expires'; seconds: number } | undefined {
+  const maxAge = attributes
+    .filter((attribute) => attribute.name === 'Max-Age')
+    .at(-1);
+  if (maxAge !== undefined) {
+    return { attribute: 'Max-Age', seconds: maxAge.value };
+  }
+  const expires = attributes
+    .filter((attribute) => attribute.name === 'Expires')
+    .at(-1);
+  return expires === undefined
+    ? undefined
+    : {
+        attribute: 'Expires',
+        seconds: (expires.value.getTime() - now) / 1000,
+      };
 }
 
 // A cookie-av as the server wrote it. `text` keeps the whitespace around
