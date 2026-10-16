@@ -26,6 +26,10 @@ const NON_MATCHING_DOMAIN =
   'rfc-6265bis/user-agent-must-ignore-cookie-with-non-matching-domain';
 const SAME_SITE_NONE =
   'rfc-6265bis/user-agent-must-ignore-same-site-none-cookie-without-secure';
+const SECURE_PREFIX =
+  'rfc-6265bis/user-agent-must-ignore-secure-prefixed-cookie-without-secure';
+const PUBLIC_SUFFIX =
+  'rfc-6265bis/user-agent-must-ignore-cookie-with-public-suffix-domain';
 
 const rules = [
   grammarRule,
@@ -50,6 +54,34 @@ const cases: [string, string, string[]][] = [
     '__Host-SID=31d4; SameSite=None; Secure',
     [HOST_PREFIX],
   ],
+  ['a __Host- cookie without Secure', '__Host-SID=31d4; Path=/', [HOST_PREFIX]],
+  [
+    'a __Host- cookie on a path other than /',
+    '__Host-SID=31d4; Secure; Path=/app',
+    [HOST_PREFIX],
+  ],
+  // §5.6.4 records such a Path as the default-path, here /, so the cookie
+  // is host-locked after all.
+  [
+    'a __Host- cookie whose Path does not start with /, read as the default-path /',
+    '__Host-SID=31d4; Secure; Path=app',
+    [],
+  ],
+  [
+    'a __Secure- cookie without Secure, its prefix in upper case',
+    '__SECURE-SID=31d4',
+    [SECURE_PREFIX],
+  ],
+  [
+    'a public-suffix Domain on a cookie with SameSite=None and no Secure',
+    'SID=31d4; Domain=com; SameSite=None',
+    [SAME_SITE_NONE],
+  ],
+  [
+    'a public-suffix Domain on a cookie a browser otherwise keeps',
+    'SID=31d4; Domain=com; Secure',
+    [PUBLIC_SUFFIX],
+  ],
   [
     'a __Secure- cookie without Secure for a foreign Domain',
     '__Secure-SID=31d4; Domain=example.org',
@@ -73,7 +105,10 @@ const cases: [string, string, string[]][] = [
 ];
 
 describe.each(fixtureContexts)('in %s', (context) => {
-  it.each(cases)('reports %s once', async (_name, line, expected) => {
-    expect(await reportedBy(rules, context, [line])).toEqual(expected);
-  });
+  it.each(cases)(
+    'reports %s once, or not at all',
+    async (_name, line, expected) => {
+      expect(await reportedBy(rules, context, [line])).toEqual(expected);
+    },
+  );
 });

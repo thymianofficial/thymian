@@ -8,7 +8,8 @@ import { citeStep } from '../utils/set-cookie.js';
 import {
   canonicalHost,
   domainAttribute,
-  domainMatches,
+  ignoredInStorage,
+  publicSuffixDomain,
 } from '../utils/storage-model.js';
 
 const NAME =
@@ -16,18 +17,13 @@ const NAME =
 
 const STEP = '5.7/step-9';
 
-// Heuristic everywhere. Thymian carries no public suffix list, but a
-// single-label Domain, such as "com" or "example", is a public suffix under
-// any of them, by the list's implicit "*" rule; a multi-label suffix such as
-// "co.uk" is missed. And the step binds only a browser configured to reject
-// public suffixes, which every major browser is.
-//
-// A Domain identical to the request host is not ignored: the browser makes
-// the cookie host-only instead. A Domain the request host does not
-// domain-match is ignored at step 10 whatever the browser's configuration,
-// and that rule reports it, so this one flags only a suffix the host does
-// domain-match. Where the request host may be Thymian's server URL fallback,
-// a single-label Domain is left unjudged.
+// Heuristic everywhere: without a public suffix list, only a single-label
+// Domain is recognized, and the step binds only a browser configured to
+// reject public suffixes, which every major browser is. One dropped cookie,
+// one violation: a cookie that a later, exact step also ignores, such as
+// SameSite=None without Secure, is reported by that step's rule. Where the
+// request host may be Thymian's server URL fallback, a single-label Domain
+// is left unjudged.
 const { lint, test, analytics } = cookieExchangeRuleFns(
   NAME,
   (cookie, exchange) => {
@@ -39,7 +35,9 @@ const { lint, test, analytics } = cookieExchangeRuleFns(
       return TRANSPORT_NOT_JUDGED;
     }
     const host = canonicalHost(exchange.origin);
-    return host === undefined || host === domain || !domainMatches(host, domain)
+    return host === undefined ||
+      publicSuffixDomain(cookie, host) === undefined ||
+      ignoredInStorage(cookie, exchange) !== undefined
       ? undefined
       : `A user agent that rejects public suffixes ignores the cookie "${cookie.name}" entirely (${citeStep(STEP)}): its Domain attribute, ${domain}, is a single label, which every public suffix list treats as a public suffix, and it is not the request host ${host}. Set the Domain to the registrable domain the host belongs to, or leave it out.`;
   },

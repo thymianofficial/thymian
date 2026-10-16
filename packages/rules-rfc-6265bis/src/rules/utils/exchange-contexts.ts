@@ -27,11 +27,16 @@ import {
 } from './headers.js';
 import { type RuleOptions, ruleSkip, violation } from './results.js';
 import {
+  citeStep,
   type ReceivedCookie,
   receivedCookie,
   SET_COOKIE_HEADER,
 } from './set-cookie.js';
-import type { CookieExchange } from './storage-model.js';
+import {
+  type CookieExchange,
+  ignoredInStorage,
+  type StorageStep,
+} from './storage-model.js';
 import { isServerFallbackOrigin, serverFallbackSkip } from './transport.js';
 
 // What a check returns for a cookie whose step needs the request host or
@@ -131,5 +136,19 @@ export function cookieExchangeRuleFns(
       ),
     test: live({ skipServerFallback: true }),
     analytics: live({ skipServerFallback: false }),
+  };
+}
+
+// The check of a rule on one exact §5.7 step: a violation where that step is
+// the first that ignores the cookie, with what the server should do instead.
+export function ignoredAtStep(
+  step: StorageStep,
+  advice: string,
+): CookieExchangeCheck {
+  return (cookie, exchange) => {
+    const ignored = ignoredInStorage(cookie, exchange);
+    return ignored?.step === step
+      ? `A user agent ignores the cookie "${cookie.name}" entirely (${citeStep(step)}): ${ignored.reason}. ${advice}`
+      : undefined;
   };
 }

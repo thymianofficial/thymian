@@ -1,8 +1,9 @@
 import { httpRule } from '@thymian/core';
 
-import { cookieExchangeRuleFns } from '../utils/exchange-contexts.js';
-import { citeStep } from '../utils/set-cookie.js';
-import { ignoredInStorage } from '../utils/storage-model.js';
+import {
+  cookieExchangeRuleFns,
+  ignoredAtStep,
+} from '../utils/exchange-contexts.js';
 
 const NAME =
   'rfc-6265bis/user-agent-must-ignore-secure-prefixed-cookie-without-secure';
@@ -15,12 +16,7 @@ const STEP = '5.7/step-20';
 // SameSite=None is ignored at step 19 first, for the same missing Secure.
 const { lint, test, analytics } = cookieExchangeRuleFns(
   NAME,
-  (cookie, exchange) => {
-    const ignored = ignoredInStorage(cookie, exchange);
-    return ignored?.step === STEP
-      ? `A user agent ignores the cookie "${cookie.name}" entirely (${citeStep(STEP)}): ${ignored.reason}. Add the Secure attribute.`
-      : undefined;
-  },
+  ignoredAtStep(STEP, 'Add the Secure attribute.'),
 );
 
 // The storage model is a MUST ("the user agent MUST process the cookie as

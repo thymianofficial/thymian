@@ -1,11 +1,15 @@
 import { httpRule } from '@thymian/core';
 
 import { cookieExchangeRuleFns } from '../utils/exchange-contexts.js';
-import { hasCookiePrefix, requestedLifetime } from '../utils/set-cookie.js';
+import { type ReceivedCookie, requestedLifetime } from '../utils/set-cookie.js';
 import {
-  hostPrefixFailures,
+  canonicalHost,
+  type CookieExchange,
+  hasEnforcedPrefix,
   ignoredInStorage,
+  isHostLocked,
   isSecureOnly,
+  publicSuffixDomain,
 } from '../utils/storage-model.js';
 
 const NAME = 'rfc-6265bis/server-should-use-cookie-name-prefixes';
@@ -18,26 +22,33 @@ const NAME = 'rfc-6265bis/server-should-use-cookie-name-prefixes';
 //
 // Not flagged: a cookie without Secure, which meets neither prefix; a line
 // that removes its cookie, whose name must stay the one it removes; and a
-// cookie a browser ignores at an exact step of §5.7, which that step's rule
-// reports.
+// cookie a browser ignores at a step of §5.7, which that step's rule
+// reports, the public-suffix one included.
+function isPublicSuffixCookie(
+  cookie: ReceivedCookie,
+  { origin }: CookieExchange,
+): boolean {
+  const host = canonicalHost(origin);
+  return host !== undefined && publicSuffixDomain(cookie, host) !== undefined;
+}
+
 const { lint, test, analytics } = cookieExchangeRuleFns(
   NAME,
   (cookie, exchange) => {
     const lifetime = requestedLifetime(cookie, Date.now());
     if (
-      hasCookiePrefix(cookie.name, '__Secure-') ||
-      hasCookiePrefix(cookie.name, '__Host-') ||
+      hasEnforcedPrefix(cookie) ||
       !isSecureOnly(cookie) ||
       (lifetime !== undefined && lifetime.seconds <= 0) ||
-      ignoredInStorage(cookie, exchange) !== undefined
+      ignoredInStorage(cookie, exchange) !== undefined ||
+      isPublicSuffixCookie(cookie, exchange)
     ) {
       return undefined;
     }
 
-    const [prefix, requirements] =
-      hostPrefixFailures(cookie, exchange).length === 0
-        ? ['__Host-', 'Secure, no Domain and Path=/']
-        : ['__Secure-', 'Secure'];
+    const [prefix, requirements] = isHostLocked(cookie, exchange)
+      ? ['__Host-', 'Secure, no Domain and Path=/']
+      : ['__Secure-', 'Secure'];
     return `The cookie "${cookie.name}" meets the requirements of the ${prefix} prefix (${requirements}), but its name does not carry it. Named ${prefix}${cookie.name}, a browser would refuse any cookie of that name that does not meet them, whoever sets it.`;
   },
 );

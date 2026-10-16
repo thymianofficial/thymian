@@ -16,8 +16,9 @@ const STEP = '5.7/step-18';
 // `analytics` only, and heuristic there: Fetch Metadata request headers show
 // a cross-site request that is no top-level navigation where the browser
 // sends them, and their absence shows nothing, so a request without them is
-// passed. A cookie a browser already ignored for its Domain or its
-// connection is those rules'.
+// passed. One dropped cookie, one violation: a cookie that an exact step
+// also ignores, for its Domain, its connection or a prefix, is reported by
+// that step's rule, though step 18 comes first in the draft.
 const { analytics } = cookieExchangeRuleFns(NAME, (cookie, exchange) => {
   const flag = sameSiteFlag(cookie);
   if (
@@ -26,8 +27,8 @@ const { analytics } = cookieExchangeRuleFns(NAME, (cookie, exchange) => {
   ) {
     return undefined;
   }
-  const ignored = ignoredInStorage(cookie, exchange);
-  if (ignored?.step === '5.7/step-10' || ignored?.step === '5.7/step-13') {
+  // A cookie an exact step ignores is that step's rule's.
+  if (ignoredInStorage(cookie, exchange) !== undefined) {
     return undefined;
   }
   const asked = flag === 'Default' ? 'no SameSite of None' : `SameSite=${flag}`;

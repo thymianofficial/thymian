@@ -2,10 +2,10 @@ import { httpRule } from '@thymian/core';
 
 import {
   cookieExchangeRuleFns,
+  ignoredAtStep,
   TRANSPORT_NOT_JUDGED,
 } from '../utils/exchange-contexts.js';
-import { citeStep } from '../utils/set-cookie.js';
-import { ignoredInStorage, isSecureOnly } from '../utils/storage-model.js';
+import { isSecureOnly } from '../utils/storage-model.js';
 
 const NAME =
   'rfc-6265bis/user-agent-must-ignore-secure-cookie-over-insecure-connection';
@@ -17,16 +17,15 @@ const STEP = '5.7/step-13';
 // `analytics`. Where the scheme may be Thymian's server URL fallback, a
 // Secure cookie is left unjudged. A cookie a browser already ignored at
 // step 10, for its Domain, is that rule's.
+const atStep = ignoredAtStep(STEP, 'Set Secure cookies over https only.');
+
 const { lint, test, analytics } = cookieExchangeRuleFns(
   NAME,
   (cookie, exchange) => {
     if (!exchange.transportJudged) {
       return isSecureOnly(cookie) ? TRANSPORT_NOT_JUDGED : undefined;
     }
-    const ignored = ignoredInStorage(cookie, exchange);
-    return ignored?.step === STEP
-      ? `A user agent ignores the cookie "${cookie.name}" entirely (${citeStep(STEP)}): ${ignored.reason}. Set Secure cookies over https only.`
-      : undefined;
+    return atStep(cookie, exchange);
   },
 );
 

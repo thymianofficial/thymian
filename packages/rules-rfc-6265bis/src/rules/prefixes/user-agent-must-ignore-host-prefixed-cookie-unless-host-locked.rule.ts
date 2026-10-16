@@ -1,8 +1,9 @@
 import { httpRule } from '@thymian/core';
 
-import { cookieExchangeRuleFns } from '../utils/exchange-contexts.js';
-import { citeStep } from '../utils/set-cookie.js';
-import { ignoredInStorage } from '../utils/storage-model.js';
+import {
+  cookieExchangeRuleFns,
+  ignoredAtStep,
+} from '../utils/exchange-contexts.js';
 
 const NAME =
   'rfc-6265bis/user-agent-must-ignore-host-prefixed-cookie-unless-host-locked';
@@ -17,12 +18,10 @@ const STEP = '5.7/step-21';
 // is ignored at step 19 first.
 const { lint, test, analytics } = cookieExchangeRuleFns(
   NAME,
-  (cookie, exchange) => {
-    const ignored = ignoredInStorage(cookie, exchange);
-    return ignored?.step === STEP
-      ? `A user agent ignores the cookie "${cookie.name}" entirely (${citeStep(STEP)}): ${ignored.reason}. A __Host- cookie must have the Secure attribute, no Domain attribute and Path=/.`
-      : undefined;
-  },
+  ignoredAtStep(
+    STEP,
+    'A __Host- cookie must have the Secure attribute, no Domain attribute and Path=/.',
+  ),
 );
 
 // The storage model is a MUST ("the user agent MUST process the cookie as
