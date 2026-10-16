@@ -126,20 +126,29 @@ export function respondByScheme(answers: {
 }
 
 // One recorded transaction, as an origin server answered a user agent.
+// `headers` are the response's; `requestHeaders` what the user agent sent,
+// such as its Fetch Metadata.
 export function recorded({
   origin = SECURE,
   path = '/',
   statusCode = 200,
   headers = {},
+  requestHeaders = {},
 }: {
   origin?: Origin;
   path?: string;
   statusCode?: number;
   headers?: HttpResponse['headers'];
+  requestHeaders?: NonNullable<HttpRequest['headers']>;
 }): CapturedTransaction {
   return {
     request: {
-      data: { origin: originOf(origin), path, method: 'get', headers: {} },
+      data: {
+        origin: originOf(origin),
+        path,
+        method: 'get',
+        headers: requestHeaders,
+      },
       meta: { role: 'user-agent' },
     },
     response: {
@@ -156,22 +165,32 @@ export function setCookieLines(lines: string[]): HttpResponse['headers'] {
   return { [SET_COOKIE_HEADER]: lines.length === 1 ? lines[0] : lines };
 }
 
-// Set-Cookie lines in every context, all on one response: pinned by an API
-// description, answered by a server under test, and recorded. In `test` the
-// description declares no header at all: the server sending one anyway is
-// what a response-side candidate filter would never see.
-export function setCookieInputs(...lines: string[]): CaseOf {
+// Set-Cookie lines in every context, all on one response to a request served
+// from `origin`: pinned by an API description, answered by a server under
+// test, and recorded. In `test` the description declares no header at all:
+// the server sending one anyway is what a response-side candidate filter
+// would never see.
+export function setCookieInputsAt(origin: Origin, lines: string[]): CaseOf {
   const headers = setCookieLines(lines);
 
   return {
     static: {
       format: apiDescription({
+        request: origin,
         response: { headers: setCookieHeader(...lines) },
       }),
     },
-    test: { format: apiDescription({}), respond: respondWith({ headers }) },
-    analytics: { transactions: [recorded({ headers })] },
+    test: {
+      format: apiDescription({ request: origin }),
+      respond: respondWith({ headers }),
+    },
+    analytics: { transactions: [recorded({ origin, headers })] },
   };
+}
+
+// The same, served from `SECURE`.
+export function setCookieInputs(...lines: string[]): CaseOf {
+  return setCookieInputsAt(SECURE, lines);
 }
 
 // The fixtures of a rule that holds every Set-Cookie line to one
