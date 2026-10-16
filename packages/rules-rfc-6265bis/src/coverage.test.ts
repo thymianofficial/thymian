@@ -225,31 +225,17 @@ describe('coverage record', () => {
       }
     });
 
-    // Cells, split by verdict: a heuristic cell marks a declared context no
+    // The cells the record carries, keyed by rule and context, keeping the
+    // ones `keep` accepts: a heuristic cell marks a declared context no
     // single exchange settles, an impossible cell an undeclared one.
-    function cellsBy(verdict: 'heuristic' | 'impossible') {
+    function cellsWhere(keep: (cell: unknown) => boolean) {
       return Object.fromEntries(
         Object.entries(coverage.rules).flatMap(([name, entry]) => {
           const cells = Object.entries(entry.contexts ?? {}).filter(
-            ([, cell]) =>
-              verdict === 'heuristic'
-                ? cell === 'heuristic'
-                : typeof cell === 'object',
+            ([, cell]) => keep(cell),
           );
 
-          return cells.length === 0
-            ? []
-            : [
-                [
-                  name,
-                  Object.fromEntries(
-                    cells.map(([context, cell]) => [
-                      context,
-                      typeof cell === 'object' ? cell.reason : cell,
-                    ]),
-                  ),
-                ],
-              ];
+          return cells.length === 0 ? [] : [[name, Object.fromEntries(cells)]];
         }),
       );
     }
@@ -264,7 +250,7 @@ describe('coverage record', () => {
         analytics: 'heuristic',
       };
 
-      expect(cellsBy('heuristic')).toEqual({
+      expect(cellsWhere((cell) => cell === 'heuristic')).toEqual({
         'rfc-6265bis/origin-server-must-not-combine-set-cookie-fields':
           everywhere,
         'rfc-6265bis/server-requiring-higher-security-should-use-cookies-only-over-secure-channel':
@@ -288,19 +274,34 @@ describe('coverage record', () => {
     });
 
     // The contexts an executable rule leaves undeclared, each with the
-    // reason it cannot see the assertion.
+    // reason it cannot see the assertion and a note that says why; a
+    // `tool-limitation` cites its ticket.
     it('carries 5 impossible cells on 3 rules', () => {
-      expect(cellsBy('impossible')).toEqual({
+      const note = expect.stringMatching(/\S/);
+      const impossible = (reason: string, issue?: string) => ({
+        verdict: 'impossible',
+        reason,
+        note,
+        ...(issue === undefined ? {} : { issue }),
+      });
+
+      expect(cellsWhere((cell) => cell !== 'heuristic')).toEqual({
         'rfc-6265bis/server-must-send-only-one-set-cookie-per-cookie-name': {
-          static: 'not-representable',
+          static: impossible('not-representable'),
         },
         'rfc-6265bis/user-agent-may-ignore-set-cookie-in-1xx-response': {
-          test: 'tool-limitation',
-          analytics: 'tool-limitation',
+          test: impossible(
+            'tool-limitation',
+            'thymianofficial/thymian-workspace#111',
+          ),
+          analytics: impossible(
+            'tool-limitation',
+            'thymianofficial/thymian-workspace#111',
+          ),
         },
         'rfc-6265bis/user-agent-must-ignore-same-site-cookie-set-cross-site': {
-          static: 'not-representable',
-          test: 'participant-not-reachable',
+          static: impossible('not-representable'),
+          test: impossible('participant-not-reachable'),
         },
       });
     });
