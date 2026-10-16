@@ -208,6 +208,10 @@ export default defineCoverage({
       covers: ['4.1.1/4'],
       declared: { types: ['static', 'test', 'analytics'], severity: 'hint' },
     },
+    // Exact on the side a line can show. The grammar puts OWS between ";"
+    // and a cookie-av, so whitespace before an extension-av cannot be told
+    // from it; whitespace after one, before the next ";", is the defect
+    // every observable line carries.
     'rfc-6265bis/server-must-not-send-whitespace-around-extension-attributes': {
       covers: ['4.1.1/5'],
       declared: {
