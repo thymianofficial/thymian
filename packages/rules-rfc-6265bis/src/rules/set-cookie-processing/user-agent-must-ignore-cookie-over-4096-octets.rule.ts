@@ -17,7 +17,7 @@ const NAME = 'rfc-6265bis/user-agent-must-ignore-cookie-over-4096-octets';
 const check = onConformingLine(({ name }, line) => {
   const reading = readAsUserAgent(line);
   return reading.ignored && reading.step === '5.6/step-5'
-    ? `The Set-Cookie line for the cookie "${name}" is one a user agent ignores entirely, because ${reading.reason} (${citeStep(reading.step)}, and §5.7 step 4 for a cookie from any other source): the cookie is never set.`
+    ? `The Set-Cookie line for the cookie "${name}" is one a user agent ignores entirely, because ${reading.reason} (${citeStep(reading.step)}, and ${citeStep('5.7/step-4')} for a cookie from any other source): the cookie is never set.`
     : undefined;
 });
 

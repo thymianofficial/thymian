@@ -3,9 +3,9 @@ import { httpRule } from '@thymian/core';
 import { headerValueRuleFns } from '../utils/header-contexts.js';
 import {
   attributeNameOf,
+  attributesIgnoredAt,
   citeStep,
   onConformingLine,
-  readAsUserAgent,
   SET_COOKIE_HEADER,
 } from '../utils/set-cookie.js';
 
@@ -20,15 +20,9 @@ const NAME =
 // reported once. A line the user agent ignores entirely sets no cookie, and
 // the rule on why reports it.
 const check = onConformingLine(({ name }, line) => {
-  const reading = readAsUserAgent(line);
-  if (reading.ignored) {
-    return undefined;
-  }
-  const oversized = reading.ignoredAttributes
-    .filter(({ step }) => step === '5.6/step-6')
-    .map(
-      ({ cookieAv, reason }) => `${attributeNameOf(cookieAv)}, as ${reason}`,
-    );
+  const oversized = attributesIgnoredAt(line, '5.6/step-6').map(
+    ({ cookieAv, reason }) => `${attributeNameOf(cookieAv)}, as ${reason}`,
+  );
 
   return oversized.length === 0
     ? undefined

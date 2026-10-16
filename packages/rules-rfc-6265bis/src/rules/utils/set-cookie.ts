@@ -655,12 +655,17 @@ export function receivedCookie(line: string): ReceivedCookie | undefined {
 
 // The lifetime a cookie asks for, before any user agent's age limit: the
 // last Max-Age, which wins over any Expires, or else the last Expires
-// (§5.7 step 6), in seconds from `now`. `undefined` is a session cookie;
-// zero or less removes the cookie.
+// (§5.7 step 6), in seconds from `now`, and the attribute it came from.
+// `undefined` is a session cookie; zero or less removes the cookie.
+export type RequestedLifetime = {
+  attribute: 'Max-Age' | 'Expires';
+  seconds: number;
+};
+
 export function requestedLifetime(
   { attributes }: ReceivedCookie,
   now: number,
-): { attribute: 'Max-Age' | 'Expires'; seconds: number } | undefined {
+): RequestedLifetime | undefined {
   const maxAge = attributes
     .filter((attribute) => attribute.name === 'Max-Age')
     .at(-1);
@@ -676,6 +681,18 @@ export function requestedLifetime(
         attribute: 'Expires',
         seconds: (expires.value.getTime() - now) / 1000,
       };
+}
+
+// The attributes a user agent ignores at one step of §5.6 on a line it
+// keeps; none on a line it ignores entirely, which sets no cookie.
+export function attributesIgnoredAt(
+  line: string,
+  step: IgnoredAttributeStep,
+): IgnoredAttribute[] {
+  const reading = readAsUserAgent(line);
+  return reading.ignored
+    ? []
+    : reading.ignoredAttributes.filter((ignored) => ignored.step === step);
 }
 
 // A cookie-av as the server wrote it. `text` keeps the whitespace around

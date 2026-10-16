@@ -2,6 +2,7 @@ import { httpRule } from '@thymian/core';
 
 import { headerValueRuleFns } from '../utils/header-contexts.js';
 import {
+  citeStep,
   onReceivedCookie,
   requestedLifetime,
   SET_COOKIE_HEADER,
@@ -9,8 +10,10 @@ import {
 
 const NAME = 'rfc-6265bis/user-agent-must-cap-cookie-lifetime-at-400-days';
 
+const SECONDS_PER_DAY = 24 * 60 * 60;
+
 // §5.5: 400 days, in seconds.
-const AGE_LIMIT_SECONDS = 400 * 24 * 60 * 60;
+const AGE_LIMIT_SECONDS = 400 * SECONDS_PER_DAY;
 
 // The lifetime is the one the cookie keeps: the last Max-Age, which wins
 // over any Expires, or else the last Expires (§5.7 step 6). An attribute
@@ -28,8 +31,11 @@ const check = onReceivedCookie((cookie) => {
   if (lifetime === undefined || lifetime.seconds <= AGE_LIMIT_SECONDS) {
     return undefined;
   }
-  const days = Math.floor(lifetime.seconds / (24 * 60 * 60));
-  return `The cookie "${cookie.name}" asks, in its ${lifetime.attribute} attribute, for a lifetime of ${days} days, more than the 400 days a user agent following draft-22 keeps a cookie (§5.5, ${lifetime.attribute === 'Max-Age' ? '§5.6.2 step 6' : '§5.6.1 step 4'}): it expires after 400 days instead.`;
+  // In seconds, rounded up: a lifetime just past the cap is still past it.
+  const seconds = Math.ceil(lifetime.seconds);
+  const step =
+    lifetime.attribute === 'Max-Age' ? '5.6.2/step-6' : '5.6.1/step-4';
+  return `The cookie "${cookie.name}" asks, in its ${lifetime.attribute} attribute, for a lifetime of ${seconds} seconds (${Math.ceil(seconds / SECONDS_PER_DAY)} days), more than the ${AGE_LIMIT_SECONDS} seconds (400 days) a user agent following draft-22 keeps a cookie (§5.5, ${citeStep(step)}): it expires after 400 days instead.`;
 });
 
 const { lint, live } = headerValueRuleFns(SET_COOKIE_HEADER, NAME, check);
@@ -49,7 +55,7 @@ export default httpRule(NAME)
     'https://datatracker.ietf.org/doc/html/draft-ietf-httpbis-rfc6265bis-22#section-5.5',
   )
   .description(
-    'When processing cookies with a specified lifetime, either with the Expires or with the Max-Age attribute, the user agent MUST limit the maximum age of the cookie. The limit SHOULD NOT be greater than 400 days (34560000 seconds) in the future. The RECOMMENDED limit is 400 days in the future, but the user agent MAY adjust the limit (see Section 7.2). Expires or Max-Age attributes that specify a lifetime longer than the limit MUST be reduced to the limit.',
+    'When processing cookies with a specified lifetime, either with the Expires or with the Max-Age attribute, the user agent MUST limit the maximum age of the cookie. The limit SHOULD NOT be greater than 400 days (34560000 seconds) in the future. The RECOMMENDED limit is 400 days in the future, but the user agent MAY adjust the limit (see Section 7.2). Expires or Max-Age attributes that specify a lifetime longer than the limit MUST be reduced to the limit. (Section 5.6.1, step 4:) If the expiry-time is more than cookie-age-limit, the user agent MUST set the expiry time to cookie-age-limit in seconds. (Section 5.6.2, step 6:) Set delta-seconds to the smaller of its present value and cookie-age-limit.',
   )
   .summary(
     'User agent must cap a cookie lifetime longer than 400 days at its limit.',

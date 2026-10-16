@@ -3,9 +3,9 @@ import { httpRule } from '@thymian/core';
 import { headerValueRuleFns } from '../utils/header-contexts.js';
 import {
   attributeNameOf,
+  attributesIgnoredAt,
   citeStep,
   onConformingLine,
-  readAsUserAgent,
   SET_COOKIE_HEADER,
 } from '../utils/set-cookie.js';
 
@@ -18,13 +18,9 @@ const NAME =
 // the browser does, this step included, so the defect is reported once. A
 // value past 1024 octets is ignored first, by the step its own rule reports.
 const check = onConformingLine(({ name }, line) => {
-  const reading = readAsUserAgent(line);
-  if (reading.ignored) {
-    return undefined;
-  }
-  const unrecognized = reading.ignoredAttributes
-    .filter(({ step }) => step === '5.6/step-7')
-    .map(({ cookieAv }) => `"${attributeNameOf(cookieAv)}"`);
+  const unrecognized = attributesIgnoredAt(line, '5.6/step-7').map(
+    ({ cookieAv }) => `"${attributeNameOf(cookieAv)}"`,
+  );
 
   return unrecognized.length === 0
     ? undefined

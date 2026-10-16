@@ -1,12 +1,10 @@
-import { readdirSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-import type { Rule } from '@thymian/core';
 import { describe, expect, it } from 'vitest';
 
-import { setCookieInputs } from '../../test/builders.js';
-import { fixtureContexts, runInContext } from '../../test/harness.js';
+import { fixtureContexts } from '../../test/harness.js';
+import { loadTopicRules, reportedBy } from '../../test/topic-rules.js';
 import grammarRule from '../syntax/server-must-send-set-cookie-conforming-to-grammar.rule.js';
 
 // One defect, one violation. On a line the grammar rejects, the grammar rule
@@ -16,49 +14,17 @@ import grammarRule from '../syntax/server-must-send-set-cookie-conforming-to-gra
 // it speaks. The lifetime cap is a defect of its own, on a lifetime the user
 // agent did read, so it is reported beside the grammar's.
 
-const GRAMMAR = grammarRule.meta.name;
+const GRAMMAR = 'rfc-6265bis/server-must-send-set-cookie-conforming-to-grammar';
 const COOKIE_SIZE =
   'rfc-6265bis/user-agent-must-ignore-cookie-over-4096-octets';
 const ATTRIBUTE_SIZE =
   'rfc-6265bis/user-agent-must-ignore-attribute-value-over-1024-octets';
 const LIFETIME = 'rfc-6265bis/user-agent-must-cap-cookie-lifetime-at-400-days';
 
-const topicDir = dirname(fileURLToPath(import.meta.url));
-
-const rules: Rule[] = [
+const rules = [
   grammarRule,
-  ...(await Promise.all(
-    readdirSync(topicDir)
-      .filter((file) => file.endsWith('.rule.ts'))
-      .sort()
-      .map(
-        async (file) =>
-          (
-            (await import(pathToFileURL(join(topicDir, file)).href)) as {
-              default: Rule;
-            }
-          ).default,
-      ),
-  )),
+  ...(await loadTopicRules(dirname(fileURLToPath(import.meta.url)))),
 ];
-
-async function reportedBy(
-  context: (typeof fixtureContexts)[number],
-  lines: string[],
-): Promise<string[]> {
-  const names: string[] = [];
-  for (const rule of rules.filter((r) => r.meta.type.includes(context))) {
-    const results = await runInContext(
-      context,
-      rule,
-      setCookieInputs(...lines)[context],
-    );
-    if (results.some((result) => result.violation !== undefined)) {
-      names.push(rule.meta.name);
-    }
-  }
-  return names.sort();
-}
 
 const LONG_PATH = `Path=/${'a'.repeat(1024)}`;
 const PAST_THE_CAP = 'Expires=Wed, 01 Jan 2200 00:00:00 GMT';
@@ -115,6 +81,6 @@ const cases: [string, string, string[]][] = [
 
 describe.each(fixtureContexts)('in %s', (context) => {
   it.each(cases)('reports %s once', async (_name, line, expected) => {
-    expect(await reportedBy(context, [line])).toEqual(expected);
+    expect(await reportedBy(rules, context, [line])).toEqual(expected);
   });
 });
