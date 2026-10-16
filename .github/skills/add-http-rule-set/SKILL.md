@@ -89,6 +89,12 @@ for a source without one, the slug.
 `@thymian/rules-rfc-6797` prefixes its rules `rfc6797/`, as `@thymian/rules-rfc-9110` does
 `rfc9110/`. ADR-0021 records the split.
 
+**A source that is still an Internet-Draft** has no RFC Editor name yet, so the slug is the
+name in all three places, and `RuleSet.url` is the draft's **versioned** page, the revision
+you pinned, never the unversioned one that moves to the next revision and then to the RFC.
+Say in the README that the package and its rule ids are renamed to the RFC's name once it is
+published, as a breaking change announced in the release. ADR-0021 §1 records the policy.
+
 Copy the package scaffolding from `packages/rules-rfc-6797`, the first package built by this
 route — `package.json`, `project.json`, `tsconfig*.json`, `vitest.config.ts`,
 `eslint.config.mjs`, and `src/index.ts`'s `pattern: 'rules/**/*.rule.js'` glob. Unlike
@@ -136,10 +142,31 @@ Write `src/coverage.ts` with `units`, the `countingRule` prose, the source `revi
 `substituteLabel` where the document has no enumerable unit. Populate the unit list; leave
 the per-unit verdicts to step 3.
 
-Denominators genuinely differ, so derive rather than assume: Cookies splits producer from
-consumer itself (N≈24); Fetch's CORS surface contains **zero** BCP 14 keywords; RFC 9110 §17
-has none either, so its substitute is the 14–15 sections it cross-references. A keyword count
-is a counting rule; so is "one per author-facing directive". Either is fine, declared.
+Denominators genuinely differ, so derive rather than assume: a source may bind several
+actors, and its own conformance section says which paragraphs bind which;
+Fetch's CORS surface contains **zero** BCP 14 keywords; RFC 9110 §17 has none either, so its
+substitute is the 14–15 sections it cross-references. A keyword count is a counting rule; so
+is "one per author-facing directive". Either is fine, declared.
+
+**A user-agent step counts when the counting rule names it.** Some requirements bind the user
+agent, yet their consequence shows on the server's own message: an algorithm step at which a
+browser ignores, drops or caps what the server sent, or replaces a value it sent with the one it
+would take without it. The server never learns of it, and the
+message that triggers it is one Thymian holds. Where the slice includes such steps, name them
+in the counting rule — which algorithm, which kind of step — and count each as one unit in the
+same N as the paragraphs that bind the server. A step that nothing
+on the server's message triggers, such as one for a value that reached the user agent another
+way, stays outside N by the same rule.
+
+**One rule may cover a server unit and a user-agent step that share a wire fact.** A grammar
+`MUST` on the server and the step at which a browser ignores a line that breaks it describe
+one defect in one message, so one rule covers both units and reports it once. Units stay
+separate in `units`, and the rule's `coverage.ts` entry lists both.
+
+Count mechanically where you can, from the source's plain-text rendering, and put the
+procedure in the pull request that declares the denominator: which paragraphs carried a
+keyword, which actor each binds, and why each dropped one was dropped, so a reviewer can
+re-run it.
 
 **Done when** `units` is complete against the pinned revision and `countingRule` states, in
 one sentence, what made something a unit.
@@ -220,6 +247,30 @@ export default httpRule('<prefix>/<actor>-<keyword>-<constraint>')
   per context, use `.overrideStaticRule()` / `.overrideTest()` / `.overrideAnalyticsRule()` with helpers shared
   inside the same file. Both are single-source-of-truth; the rule **file** is the source of
   truth, not the common interface.
+- A rule written for a user-agent step is named after the user agent's requirement, with the
+  user agent as its actor, and judges the server's message that triggers the step.
+
+**A header user agents parse leniently gets one parser with two readings**, shared inside the
+package, so every rule reads a field value the same way:
+
+- the **producer reading** — does the value conform to the grammar the source requires of the
+  sender, and if not, what is its first problem;
+- the **user-agent reading** — what a user agent following the source's parsing algorithm
+  keeps from the value, and what it ignores, at which step and why.
+
+Server-directed rules use the first; rules for user-agent steps use the second. Key the steps
+the user-agent reading reports exactly as `coverage.ts` keys its units, so a rule can name the
+unit it saw. Rules are tested through their fixtures (step 5), but the parser earns a table
+test of its own over the grammar's and the algorithm's corners: it is a pure function whose
+contract is the source's grammar and parsing algorithm.
+
+**One defect, one violation.** The grammar rule owns every parse failure, and its message says
+what a user agent does with the value. Every other rule on that header runs only where the
+parser leaves it something to judge — a value the user-agent reading kept, or one the grammar
+accepted — through guards shared inside the package, so a malformed value is reported once
+rather than once per rule. Where the source's algorithm stops at the first
+step that drops a value, the rules stop there too: the first exact step that drops it reports
+it, and a heuristic step defers to any exact step that also drops it.
 
 **Done when** `nx build`, the package's lint and step 1's `tsc` pass, and every rule's
 declared contexts match its row in step 3's table.
@@ -253,6 +304,11 @@ Pass `run({ checkStatusCode: false })` on the step whose status you are delibera
 gets a fixture whose server answers with a status the description does not declare, so the
 suite goes red if the opt-out is ever lost.
 
+Where several rules of one topic read one header, add an **overlap test** beside them: a table
+of values, each run through every rule of the topic in every context, asserting exactly which
+rules report it. It is what proves step 4's one defect, one violation; a per-rule fixture
+cannot see a second rule speaking on its input.
+
 **Done when** the meta-test passes with zero exemptions and `nx test rules-<slug>` is green.
 
 ## Step 6 — Ship all three profiles
@@ -262,8 +318,16 @@ user config, and the `ruleSeverity: 'error'` floor filter runs **after** the pro
 
 - **`strict`** — source fidelity. For a source with no BCP 14 keywords, fidelity has a **`warn`
   ceiling**; inventing `error` there would be Thymian's opinion wearing the source's authority.
+  A heuristic rule never ships at `error`: a heuristic `MUST` or `MUST NOT` ships at `warn`,
+  and a heuristic `SHOULD` keeps its `warn`. A rule for a user-agent step takes the keyword
+  that binds its algorithm, so a step of an algorithm the user agent MUST follow is `error`,
+  unless step 3 judged it heuristic.
 - **`recommended`** — convention rules on, plus promotions **gated on a concern tag and
-  non-heuristic status**. State the promotion's reason in `explanation`.
+  non-heuristic status**. State the promotion's reason in `explanation`. The coverage checker
+  reads a promotion only off a rule that ships `off`, so a profile that raises a shipped rule,
+  `warn` to `error`, is not checked by the gate. Assert it in the coverage meta-test: hand the
+  checker that rule and its entry as if both shipped `off`, expect zero violations, and expect
+  `undocumented-promoted-rule` once its explanation is removed.
 - **`minimal`** — `error` + non-heuristic + exactly-observable, **derived from `coverage.ts`**
   by core's `deriveMinimalProfile`, never transcribed.
 
