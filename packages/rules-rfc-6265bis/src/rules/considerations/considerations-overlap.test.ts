@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
-import { INSECURE, SECURE } from '../../test/builders.js';
+import { INSECURE, type Origin, SECURE } from '../../test/builders.js';
 import { fixtureContexts } from '../../test/harness.js';
 import { loadTopicRules, reportedBy } from '../../test/topic-rules.js';
 import grammarRule from '../syntax/server-must-send-set-cookie-conforming-to-grammar.rule.js';
@@ -48,8 +48,6 @@ const rules = [
   ...(await loadTopicRules(join(here, '../storage-model'))),
   ...(await loadTopicRules(join(here, '../prefixes'))),
 ];
-
-type Origin = typeof SECURE | typeof INSECURE;
 
 const cases: [string, Origin, string, string[]][] = [
   [

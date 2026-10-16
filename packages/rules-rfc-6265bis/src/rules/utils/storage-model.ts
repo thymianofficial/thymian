@@ -14,7 +14,11 @@
 
 import { getHeader, type HttpRequest } from '@thymian/core';
 
-import { hasCookiePrefix, type ReceivedCookie } from './set-cookie.js';
+import {
+  hasCookiePrefix,
+  type ReceivedCookie,
+  removesCookie,
+} from './set-cookie.js';
 
 // The request a cookie was received from, as a rule can see it in each
 // context: the described origin and path in `static` and `test`, the
@@ -242,6 +246,20 @@ export function ignoredInStorage(
     }
   }
   return undefined;
+}
+
+// Whether a browser keeps the cookie it received: neither a step above
+// ignores it, nor does its line clear it. A rule on a cookie a browser keeps,
+// its attributes or its contents, judges no other: a cookie a step ignores is
+// that step's rule's, and a line that clears its cookie sets none.
+export function keptByBrowser(
+  cookie: ReceivedCookie,
+  exchange: CookieExchange,
+): boolean {
+  return (
+    !removesCookie(cookie, exchange.responseDate) &&
+    ignoredInStorage(cookie, exchange) === undefined
+  );
 }
 
 // Fetch Metadata (W3C), where a browser sends it: a request from a site other

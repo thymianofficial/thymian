@@ -14,7 +14,7 @@ const NAME =
 // that step's rule's.
 const { lint, test, analytics } = cookieExchangeRuleFns(
   NAME,
-  cookieWithoutSecureOverHttps(),
+  cookieWithoutSecureOverHttps,
 );
 
 // A SHOULD, so a `warn`. `security:transport` beside `security:cookies`: the

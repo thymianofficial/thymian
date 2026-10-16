@@ -1,8 +1,7 @@
 import { httpRule } from '@thymian/core';
 
 import { cookieExchangeRuleFns } from '../utils/exchange-contexts.js';
-import { removesCookie } from '../utils/set-cookie.js';
-import { ignoredInStorage } from '../utils/storage-model.js';
+import { keptByBrowser } from '../utils/storage-model.js';
 
 const NAME = 'rfc-6265bis/server-should-encrypt-and-sign-cookie-contents';
 
@@ -73,10 +72,7 @@ function legibleContents(value: string): string | undefined {
 const { lint, test, analytics } = cookieExchangeRuleFns(
   NAME,
   (cookie, exchange) => {
-    if (
-      removesCookie(cookie, exchange.responseDate) ||
-      ignoredInStorage(cookie, exchange) !== undefined
-    ) {
+    if (!keptByBrowser(cookie, exchange)) {
       return undefined;
     }
     const contents = legibleContents(cookie.value);
