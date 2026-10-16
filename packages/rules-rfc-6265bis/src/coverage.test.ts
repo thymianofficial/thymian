@@ -44,8 +44,9 @@ describe('coverage record', () => {
     // The verdict table's `syntax` rows: G1, the grammar rule, covers every
     // unit whose trigger is a line §4.1.1's grammar rejects, and one rule
     // each covers the other seven units of §3 and §4.1.1. Its
-    // `cookie-header` rows: G5 covers the two units on the size and number
-    // of cookies, and one informational rule each the other three.
+    // `cookie-header` rows: the large-cookies rule covers the two units on
+    // the size and number of cookies, and one informational rule each the
+    // other three.
     it('covers 26 units, by 12 rules', () => {
       const covering = Object.values(coverage.rules).filter(
         (entry) => entry.covers.length > 0,

@@ -37,9 +37,9 @@ function cookiePair({ name, value }: ReceivedCookie): string {
 }
 
 // A line that removes its cookie, with a Max-Age of zero or less or an
-// Expires already past, adds none to the store. The last Max-Age wins over
+// Expires already past, takes it out of the store. The last Max-Age wins over
 // any Expires, and the last Expires over an earlier one (§5.7 step 6).
-function deletes({ attributes }: ReceivedCookie): boolean {
+function removesCookie({ attributes }: ReceivedCookie): boolean {
   const maxAge = attributes
     .filter((attribute) => attribute.name === 'Max-Age')
     .at(-1);
@@ -71,7 +71,9 @@ function hostOf(origin: string): string {
 // - a line a browser ignores sets no cookie, and the rule on why reports it:
 //   one over 4096 octets, and every line the grammar rule owns;
 // - every cookie is assumed sent back with every request to its host, as a
-//   cookie of Path "/" and no Domain is.
+//   cookie of Path "/" and no Domain is;
+// - a line that deletes a cookie takes it out of the jar, so a cookie the
+//   server set and later cleared no longer counts.
 //
 // One defect, one violation: a host is reported once, on the response whose
 // cookies first take it past either number.
@@ -93,7 +95,12 @@ function cookieVolume(): (
     hosts.set(host, cookies);
     for (const line of lines) {
       const cookie = receivedCookie(line);
-      if (cookie !== undefined && !deletes(cookie)) {
+      if (cookie === undefined) {
+        continue;
+      }
+      if (removesCookie(cookie)) {
+        cookies.delete(cookie.name);
+      } else {
         const size = octets(cookiePair(cookie));
         cookies.set(cookie.name, Math.max(cookies.get(cookie.name) ?? 0, size));
       }
@@ -131,7 +138,7 @@ function cookieVolume(): (
 // response, every pinned value a cookie the server may set; a Set-Cookie it
 // does not pin is a `rule-skip`.
 function checkLint(ctx: LintContext) {
-  const add = cookieVolume();
+  const judgeVolume = cookieVolume();
   return ctx.validateCommonHttpTransactions(
     responseHeader(SET_COOKIE_HEADER),
     (req, _res, location) => {
@@ -149,7 +156,7 @@ function checkLint(ctx: LintContext) {
               `The API description declares ${SET_COOKIE_HEADER} without pinning its value (const, enum or examples), so the size of the cookie it sets cannot be checked statically.`,
             ),
           ]
-        : add(location, req.origin, lines);
+        : judgeVolume(location, req.origin, lines);
     },
   );
 }
@@ -159,15 +166,21 @@ function checkLint(ctx: LintContext) {
 // where its description declares no Set-Cookie is the case a response-side
 // candidate would never see.
 function checkLive(ctx: LiveApiContext) {
-  const add = cookieVolume();
+  const judgeVolume = cookieVolume();
   return ctx.validateHttpTransactions(constant(true), (req, res, location) =>
-    add(location, req.origin, liveHeaderValues(res.headers, SET_COOKIE_HEADER)),
+    judgeVolume(
+      location,
+      req.origin,
+      liveHeaderValues(res.headers, SET_COOKIE_HEADER),
+    ),
   );
 }
 
 // One rule for two units: §4.2.1's cookie-string past the header field limit
 // and §6.1's few and small cookies are both the size and number of cookies
-// one server sets.
+// one server sets. `security:dos` beside `security:cookies`: past the header
+// field limit, the server refuses every request that carries the cookies,
+// which is resource exhaustion the server inflicts on its own users.
 export default httpRule(NAME)
   .severity('warn')
   .type('static', 'test', 'analytics')

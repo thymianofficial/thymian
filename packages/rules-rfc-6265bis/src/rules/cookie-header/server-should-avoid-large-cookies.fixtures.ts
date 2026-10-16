@@ -1,3 +1,5 @@
+import type { HttpResponse } from '@thymian/core';
+
 import {
   apiDescription,
   recorded,
@@ -32,6 +34,21 @@ const small = (count: number) =>
 
 const OTHER_HOST = { ...SECURE, host: 'www.example.com' } as const;
 
+// Two requests to one host: the first sets fifty cookies, the second clears
+// one of them and sets another, which leaves fifty in the store.
+const replacing = {
+  format: apiDescription(
+    { request: { path: '/0' } },
+    { request: { path: '/1' } },
+  ),
+  respond: ({ path }: { path: string }): HttpResponse =>
+    respondWith({
+      headers: setCookieLines(
+        path === '/0' ? small(50) : ['c0=; Max-Age=0', 'replacement=1'],
+      ),
+    })(),
+};
+
 export default {
   rule,
   static: {
@@ -48,10 +65,7 @@ export default {
       format: apiDescription({}),
       respond: respondWith({ headers: setCookieLines(small(51)) }),
     },
-    conforms: {
-      format: apiDescription({}),
-      respond: respondWith({ headers: setCookieLines(small(50)) }),
-    },
+    conforms: replacing,
   },
   // The cookies of two responses add up for the host that set them both; the
   // same two responses from two hosts are two cookie-strings.
