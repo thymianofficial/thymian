@@ -24,7 +24,8 @@ import {
 import { SET_COOKIE_HEADER } from '../rules/utils/set-cookie.js';
 import type { CaseOf, RuleFixtures } from './harness.js';
 
-type Origin = Pick<ThymianHttpRequest, 'protocol' | 'host' | 'port'>;
+// Where a request is served from.
+export type Origin = Pick<ThymianHttpRequest, 'protocol' | 'host' | 'port'>;
 
 export const SECURE = {
   protocol: 'https',

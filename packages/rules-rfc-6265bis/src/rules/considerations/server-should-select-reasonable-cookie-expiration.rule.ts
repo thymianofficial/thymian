@@ -2,7 +2,7 @@ import { httpRule } from '@thymian/core';
 
 import { cookieExchangeRuleFns } from '../utils/exchange-contexts.js';
 import { requestedLifetime } from '../utils/set-cookie.js';
-import { ignoredInStorage } from '../utils/storage-model.js';
+import { keptByBrowser } from '../utils/storage-model.js';
 
 const NAME = 'rfc-6265bis/server-should-select-reasonable-cookie-expiration';
 
@@ -41,7 +41,7 @@ const { lint, test, analytics } = cookieExchangeRuleFns(
   (cookie, exchange) => {
     if (
       !readsAsSessionIdentifier(cookie.name) ||
-      ignoredInStorage(cookie, exchange) !== undefined
+      !keptByBrowser(cookie, exchange)
     ) {
       return undefined;
     }

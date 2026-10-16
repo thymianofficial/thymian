@@ -1,4 +1,4 @@
-import { checkCoverage, loadRules } from '@thymian/core';
+import { checkCoverage, type CoverageEntry, loadRules } from '@thymian/core';
 import { describe, expect, it } from 'vitest';
 
 import coverage from './coverage.js';
@@ -193,5 +193,35 @@ describe('coverage record', () => {
       expect(steps.length).toBe(27);
       expect(ids.length - steps.length).toBe(24);
     });
+  });
+
+  // A convention rule ships off and covers no unit: draft-22 imposes no such
+  // obligation, and a profile turns it on for a reason its explanation
+  // states. The checker does not enforce either, so they are asserted here.
+  // That the explanation states the reason is left to review: ADR-0021 §3
+  // accepts it cannot be tested mechanically.
+  describe('the two convention rules', () => {
+    const conventions = [
+      'rfc-6265bis/server-should-send-cookies-only-over-https',
+      'rfc-6265bis/server-should-set-http-only-on-every-cookie',
+    ];
+
+    it('are exactly the rules shipped off and not informational, covering no unit', async () => {
+      const rules = await loadBaselineRules();
+      const shippedOffExecutable = rules
+        .filter(
+          (rule) =>
+            rule.meta.severity === 'off' &&
+            !rule.meta.type.includes('informational'),
+        )
+        .map((rule) => rule.meta.name)
+        .sort();
+      const entries: Record<string, CoverageEntry> = coverage.rules;
+
+      expect(shippedOffExecutable).toEqual(conventions);
+      for (const name of conventions) {
+        expect(entries[name]?.covers, name).toEqual([]);
+      }
+    }, 30_000);
   });
 });
