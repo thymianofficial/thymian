@@ -380,7 +380,7 @@ of this.
   which contradict this ADR on the points listed under Context. Those two files still carry
   their original descriptions, so redirecting them is follow-on work; until it lands,
   `AGENTS.md` is what points an agent at the right one.
-- `CONTEXT.md`: this ADR defines `Source`, `Source Unit`, `Denominator`, `Coverage Record`,
+- `GLOSSARY.md`: this ADR defines `Source`, `Source Unit`, `Denominator`, `Coverage Record`,
   `Rule Tag`, `Impossibility Reason` and `Convention Rule` for its own use. They land in the
   project glossary with the implementation, not with this record.
 
