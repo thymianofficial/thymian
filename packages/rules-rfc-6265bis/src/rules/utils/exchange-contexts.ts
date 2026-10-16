@@ -28,6 +28,7 @@ import {
 import { type RuleOptions, ruleSkip, violation } from './results.js';
 import {
   citeStep,
+  dateOf,
   type ReceivedCookie,
   receivedCookie,
   SET_COOKIE_HEADER,
@@ -101,6 +102,7 @@ export function cookieExchangeRuleFns(
             transportJudged: !(
               skipServerFallback && isServerFallbackOrigin(req.origin)
             ),
+            responseDate: dateOf(liveHeaderValues(res.headers, 'Date')),
           }),
       );
 
@@ -116,7 +118,7 @@ export function cookieExchangeRuleFns(
               ? undefined
               : pinnedHeaderValues(res, SET_COOKIE_HEADER);
 
-          if (lines === undefined) {
+          if (res === undefined || lines === undefined) {
             return [
               ruleSkip(
                 location,
@@ -131,6 +133,7 @@ export function cookieExchangeRuleFns(
             path: req.path,
             headers: {},
             transportJudged: !isServerFallbackOrigin(req.origin),
+            responseDate: dateOf(pinnedHeaderValues(res, 'Date')),
           });
         },
       ),
