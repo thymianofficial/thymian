@@ -328,6 +328,12 @@ const DEFINED_ATTRIBUTES: Record<
   },
 };
 
+// Whether an attribute name is one the draft defines, compared
+// case-insensitively; any other cookie-av is an extension-av.
+export function isDefinedAttribute(name: string): boolean {
+  return Object.hasOwn(DEFINED_ATTRIBUTES, name.toLowerCase());
+}
+
 function readCookieAv(
   cookieAv: string,
 ):
@@ -626,4 +632,32 @@ export function ignoredOnReceipt(
     };
   }
   return undefined;
+}
+
+// The cookie a user agent keeps from one line, for what the line alone
+// shows: its user-agent reading, unless §5.6 ignores the line or §5.7 the
+// cookie on receipt. A rule on one attribute, or on the cookie-names of a
+// response, reads only such a line; one a user agent ignores entirely is the
+// grammar rule's alone, so its defect is reported once.
+export function receivedCookie(line: string): ReceivedCookie | undefined {
+  const reading = readAsUserAgent(line);
+  if (reading.ignored || ignoredOnReceipt(reading.cookie) !== undefined) {
+    return undefined;
+  }
+  return reading.cookie;
+}
+
+// A cookie-av as the server wrote it. `text` keeps the whitespace around
+// it; `name` is what precedes its first "=", trimmed, as §5.6 reads it.
+export type SentCookieAv = { text: string; name: string };
+
+// The cookie-avs of one line, split as both readings split it: on every ";"
+// after the cookie-pair. The last loses its trailing whitespace, which is no
+// part of a field value (RFC 9110 §5.5).
+export function sentCookieAvs(line: string): SentCookieAv[] {
+  const [, ...cookieAvs] = line.replace(/[ \t]+$/, '').split(';');
+  return cookieAvs.map((text) => {
+    const eq = text.indexOf('=');
+    return { text, name: trimWsp(eq === -1 ? text : text.slice(0, eq)) };
+  });
 }
