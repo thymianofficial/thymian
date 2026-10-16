@@ -2,10 +2,10 @@ import { httpRule } from '@thymian/core';
 
 import {
   cookieExchangeRuleFns,
+  ignoredAtStep,
   TRANSPORT_NOT_JUDGED,
 } from '../utils/exchange-contexts.js';
-import { citeStep } from '../utils/set-cookie.js';
-import { domainAttribute, ignoredInStorage } from '../utils/storage-model.js';
+import { domainAttribute } from '../utils/storage-model.js';
 
 const NAME =
   'rfc-6265bis/user-agent-must-ignore-cookie-with-non-matching-domain';
@@ -16,16 +16,18 @@ const STEP = '5.7/step-10';
 // server's in `static` and `test` and the recorded one in `analytics`. Where
 // that host may be Thymian's server URL fallback, a cookie with a Domain is
 // left unjudged: only one with something to judge makes the response a skip.
+const atStep = ignoredAtStep(
+  STEP,
+  'Set a Domain that is the request host or one of its parent domains, or none, which makes the cookie host-only.',
+);
+
 const { lint, test, analytics } = cookieExchangeRuleFns(
   NAME,
   (cookie, exchange) => {
     if (!exchange.transportJudged) {
       return domainAttribute(cookie) === '' ? undefined : TRANSPORT_NOT_JUDGED;
     }
-    const ignored = ignoredInStorage(cookie, exchange);
-    return ignored?.step === STEP
-      ? `A user agent ignores the cookie "${cookie.name}" entirely (${citeStep(STEP)}): ${ignored.reason}. Set a Domain that is the request host or one of its parent domains, or none, which makes the cookie host-only.`
-      : undefined;
+    return atStep(cookie, exchange);
   },
 );
 

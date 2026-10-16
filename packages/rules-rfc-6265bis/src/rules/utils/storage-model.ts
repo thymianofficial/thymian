@@ -56,8 +56,7 @@ export function domainMatches(host: string, domain: string): boolean {
 // other plain-http origin.
 export function isSecureConnection(origin: string): boolean {
   try {
-    const { protocol } = new URL(origin);
-    return protocol === 'https:' || protocol === 'wss:';
+    return new URL(origin).protocol === 'https:';
   } catch {
     return false;
   }
@@ -138,9 +137,44 @@ export function hostPrefixFailures(
   ].filter((failure): failure is string => failure !== undefined);
 }
 
+// Whether a cookie meets every requirement of the `__Host-` prefix.
+export function isHostLocked(
+  cookie: ReceivedCookie,
+  exchange: CookieExchange,
+): boolean {
+  return hostPrefixFailures(cookie, exchange).length === 0;
+}
+
+// The prefixes a user agent enforces (§5.7 steps 20 and 21), matched
+// case-insensitively.
+export function hasEnforcedPrefix({ name }: ReceivedCookie): boolean {
+  return hasCookiePrefix(name, '__Secure-') || hasCookiePrefix(name, '__Host-');
+}
+
+// §5.7 step 9, as far as Thymian can tell without a public suffix list: a
+// single-label Domain, such as "com", is a public suffix under any list, by
+// its implicit "*" rule, and a multi-label suffix such as "co.uk" is missed.
+// A browser that rejects public suffixes ignores the cookie unless the
+// Domain is the request host itself, which makes it host-only; a Domain the
+// host does not domain-match is step 10's. `undefined` where the step does
+// not ignore the cookie.
+export function publicSuffixDomain(
+  cookie: ReceivedCookie,
+  host: string,
+): string | undefined {
+  const domain = domainAttribute(cookie);
+  return domain === '' ||
+    domain.includes('.') ||
+    host === domain ||
+    !domainMatches(host, domain)
+    ? undefined
+    : domain;
+}
+
 // The steps of §5.7 at which a user agent ignores a cookie for what one
 // exchange shows, exactly. Steps 9 and 18 are heuristic, so they never stand
-// in front of these.
+// in front of these: their rules defer to an exact step that also ignores
+// the cookie, although the draft puts them earlier.
 export type StorageStep =
   '5.7/step-10' | '5.7/step-13' | '5.7/step-19' | '5.7/step-20' | '5.7/step-21';
 
@@ -174,7 +208,8 @@ export function ignoredInStorage(
   ) {
     return {
       step: '5.7/step-13',
-      reason: `it has the Secure attribute and was received over a non-secure connection, ${new URL(exchange.origin).protocol.slice(0, -1)}`,
+      reason:
+        'it has the Secure attribute and was received over a connection that is not https',
     };
   }
   if (sameSiteFlag(cookie) === 'None' && !isSecureOnly(cookie)) {
