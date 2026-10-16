@@ -18,7 +18,7 @@ import {
   octets,
   type ReceivedCookie,
   receivedCookie,
-  requestedLifetime,
+  removesCookie,
   SET_COOKIE_HEADER,
 } from '../utils/set-cookie.js';
 
@@ -35,13 +35,6 @@ const COOKIES_PER_DOMAIN = 50;
 // "=" and the value, or the value alone for an empty name.
 function cookiePair({ name, value }: ReceivedCookie): string {
   return name === '' ? value : `${name}=${value}`;
-}
-
-// A line that removes its cookie, with a Max-Age of zero or less or an
-// Expires already past, takes it out of the store.
-function removesCookie(cookie: ReceivedCookie): boolean {
-  const lifetime = requestedLifetime(cookie, Date.now());
-  return lifetime !== undefined && lifetime.seconds <= 0;
 }
 
 function hostOf(origin: string): string {

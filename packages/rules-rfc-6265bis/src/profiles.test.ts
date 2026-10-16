@@ -37,7 +37,7 @@ describe('rfc-6265bis rule-configuration profiles', () => {
     expect(rfc6265bis.profiles?.strict).toEqual({});
   });
 
-  it('ships an empty recommended profile while no convention rule exists', () => {
+  it('ships an empty recommended profile: no profile turns the conventions on yet', () => {
     expect(rfc6265bis.profiles?.recommended).toEqual({});
   });
 });
