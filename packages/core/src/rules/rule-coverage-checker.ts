@@ -246,10 +246,10 @@ export function checkCoverage(input: CoverageCheckInput): CoverageViolation[] {
 
     // Assertion: an error-severity rule in a package whose source declares
     // no keyword basis must carry a cited source. When a source counts no
-    // per-statement BCP 14 keyword (Cookies' producer/consumer split,
-    // Fetch's zero-keyword CORS surface, RFC 9110 §17's section
-    // substitute), nothing backs an `error` severity on its own, so the
-    // rule needs its own `.url()`. Read off `record.source.hasKeywordBasis`
+    // per-statement BCP 14 keyword (Fetch's zero-keyword CORS surface,
+    // RFC 9110 §17's section substitute), nothing backs an `error`
+    // severity on its own, so the rule needs its own `.url()`. Read off
+    // `record.source.hasKeywordBasis`
     // — a declared fact, not derived from `countingRule`'s prose, which is
     // written for a human reader and cannot be trusted for this (a real
     // keyword-based source can describe its counting rule without the word
