@@ -15,11 +15,11 @@ import {
 } from '../utils/headers.js';
 import { ruleSkip, violation } from '../utils/results.js';
 import {
+  dateOf,
   octets,
-  parseCookieDate,
   type ReceivedCookie,
   receivedCookie,
-  requestedLifetime,
+  removesCookie,
   SET_COOKIE_HEADER,
 } from '../utils/set-cookie.js';
 
@@ -36,27 +36,6 @@ const COOKIES_PER_DOMAIN = 50;
 // "=" and the value, or the value alone for an empty name.
 function cookiePair({ name, value }: ReceivedCookie): string {
   return name === '' ? value : `${name}=${value}`;
-}
-
-// A line that removes its cookie takes it out of the store: a requested
-// lifetime of zero or less (§5.6.2 step 7, §5.7 step 6). It is measured from
-// the Date of the response that carries the line, never from the time of the
-// run: an old recording, or a description's example date, would otherwise
-// read as cleared. Without a Date, it is measured from the epoch, so only an
-// Expires at or before it removes the cookie, the form the grammar rule's
-// message names for deleting one.
-function removesCookie(
-  cookie: ReceivedCookie,
-  responseDate: Date | undefined,
-): boolean {
-  const lifetime = requestedLifetime(cookie, responseDate?.getTime() ?? 0);
-  return lifetime !== undefined && lifetime.seconds <= 0;
-}
-
-// The Date of a response, read as a user agent reads a cookie-date.
-function dateOf(values: string[] | undefined): Date | undefined {
-  const [value] = values ?? [];
-  return value === undefined ? undefined : parseCookieDate(value);
 }
 
 function hostOf(origin: string): string {
