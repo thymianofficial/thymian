@@ -89,6 +89,17 @@ clickjacking package: grouping by threat is what a tag does. §17 stays in
   `rules-rfc-6797`'s rules are `rfc6797/…` and `rules-rfc-9110`'s `rfc9110/` already
   conforms; for a source without one, the slug. `rules-api-description-validation`'s
   `thymian/` rule-id prefix is renamed to its slug.
+- **A source that is still an Internet-Draft is named by its slug until it is published.**
+  A draft has no RFC Editor name yet, so its rule-id prefix and `RuleSet.name` are the slug,
+  as for any source without one: `rules-rfc-6265bis`'s rules are `rfc-6265bis/…`.
+  `RuleSet.url` cites the draft's versioned revision, the text every rule's anchor was
+  checked against, because the unversioned page moves to the next revision and then to the
+  RFC. Once the RFC is published, the package and its rule ids are renamed to the RFC's name
+  (`@thymian/rules-rfc-<n>`, `rfc<n>/…`) and every citation is re-pointed at it. The rename
+  changes every config key that names one of its rules, so it ships as a breaking change
+  announced in the release. Waiting for the RFC would leave a source that servers already
+  follow unchecked, and keeping the slug after publication would leave every rule id naming
+  a document the RFC replaced. _(Amended 2026-10-16; see Status History.)_
 - **No floor package and no aggregate package.** The thin packages carry real grammar and
   vocabulary conformance; a `rules-http-security` umbrella would group by concern, which is
   a tag.
@@ -265,7 +276,8 @@ of this.
   written** — a denominator derived from a package's own anchors makes coverage 100% by
   construction, the one number this whole convention exists to keep honest. A source with no
   denominator never refuses a package; an **undeclared counting rule does**. Denominators
-  genuinely differ — Cookies splits producer from consumer itself (N≈24), Fetch's CORS
+  genuinely differ — Cookies counts its server paragraphs and the user-agent steps that ignore,
+  drop or cap what a server sent in one N (51 in draft-22), Fetch's CORS
   surface has zero BCP 14 keywords, and RFC 9110 §17 has none either, so its substitute is
   the 14–15 sections it cross-references.
 - **Verdict tables are profile-independent** — observability does not vary by profile, only
@@ -393,3 +405,4 @@ of this.
 | 2026-09-10 | Accepted | Route for adding an HTTP rule set one slice at a time; `--tag` filter and catalogs deferred                                                                                                                                                                                                                                                                                          |
 | 2026-09-18 | Amended  | §4: a BCP 14 `MAY` is checkable at `hint` and is never `nothing-to-check`; `nothing-to-check` narrowed to statements of fact, definitions, and requirements on specification authors                                                                                                                                                                                                 |
 | 2026-09-22 | Amended  | §5: corrected to the shipped shape — the record is authored per rule (no `.covers()` on the builder), a declared context defaults to `observable`, the denominator is counted from the document and never from a package's own rules, `.url()`'s anchor belongs to the document the rule set's own `url` names, and the package's own meta-test — not a bare `--check` — is the gate |
+| 2026-10-16 | Amended  | §1: a source that is still an Internet-Draft carries its slug as rule-id prefix and `RuleSet.name`, cites its versioned revision, and is renamed to the RFC's name, as a breaking change announced in the release, once the RFC is published; §5: the Cookies denominator example corrected to the recount of draft-22                                                               |
