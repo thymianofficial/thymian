@@ -29,6 +29,8 @@ export type CookieExchange = {
   path: string;
   headers: NonNullable<HttpRequest['headers']>;
   transportJudged: boolean;
+  // The Date of the response, against which an Expires is measured.
+  responseDate: Date | undefined;
 };
 
 // §5.1.2: the canonicalized request-host — lower case, IDNA-encoded, as the
@@ -99,6 +101,11 @@ function cookiePath(
 // §5.7 step 12.
 export function isSecureOnly({ attributes }: ReceivedCookie): boolean {
   return attributes.some((attribute) => attribute.name === 'Secure');
+}
+
+// §5.7 step 14.
+export function isHttpOnly({ attributes }: ReceivedCookie): boolean {
+  return attributes.some((attribute) => attribute.name === 'HttpOnly');
 }
 
 // §5.7 step 17: the last SameSite attribute's enforcement, provided one of
