@@ -76,7 +76,7 @@ export function header(
 // An API description's header map holds one Set-Cookie declaration, so
 // several lines are several pinned values of it.
 export function setCookieHeader(...lines: string[]): Record<string, Parameter> {
-  return header('Set-Cookie', ...lines);
+  return header(SET_COOKIE_HEADER, ...lines);
 }
 
 type DescribedTransaction = {

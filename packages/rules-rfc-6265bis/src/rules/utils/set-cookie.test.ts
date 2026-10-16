@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   type CookieAttribute,
   hasCookiePrefix,
+  ignoredOnReceipt,
   readAsProducer,
   readAsUserAgent,
 } from './set-cookie.js';
@@ -96,9 +97,10 @@ describe('the producer reading, against the §4.1.1 grammar', () => {
     ['SID=1; Expires=Wed, 09 Jun 21 10:18:14 GMT', /IMF-fixdate/],
     ['SID=1; Expires=wed, 09 Jun 2021 10:18:14 GMT', /IMF-fixdate/],
     ['SID=1; Expires=Wed, 09 Jun 2021 10:18:14 UTC', /IMF-fixdate/],
-    ['SID=1; Expires=Wed, 31 Feb 2021 10:18:14 GMT', /IMF-fixdate/],
-    ['SID=1; Expires=Wed, 09 Jun 2021 24:00:00 GMT', /IMF-fixdate/],
-    ['SID=1; Expires=Wed, 09 Jun 1600 10:18:14 GMT', /IMF-fixdate/],
+    ['SID=1; Expires=Wed, 31 Feb 2021 10:18:14 GMT', /cookie-date/],
+    ['SID=1; Expires=Wed, 09 Jun 2021 24:00:00 GMT', /cookie-date/],
+    // An IMF-fixdate that §5.1.1 cannot read: a year before 1601.
+    ['SID=1; Expires=Wed, 09 Jun 1600 10:18:14 GMT', /cookie-date/],
     // Max-Age.
     ['SID=1; Max-Age', /Max-Age/],
     ['SID=1; Max-Age=', /Max-Age/],
@@ -114,6 +116,7 @@ describe('the producer reading, against the §4.1.1 grammar', () => {
     ['SID=1; Domain=-site.example', /Domain/],
     ['SID=1; Domain=sïte.example', /Domain/],
     [`SID=1; Domain=${'a'.repeat(64)}.example`, /Domain/],
+    [`SID=1; Domain=${'a.'.repeat(128)}example`, /Domain/],
     // Path, Secure, HttpOnly, SameSite.
     ['SID=1; Path', /Path/],
     ['SID=1; Secure=true', /Secure/],
@@ -209,7 +212,11 @@ describe('the user-agent reading, following §5.6', () => {
     ['SID=31d4\n', '5.6/step-1'],
     // The name and the value together, after trimming.
     [`${NAME_4096}=${VALUE_96}x`, '5.6/step-5'],
+    // A name alone, and a value alone, past the limit.
+    [`${'n'.repeat(4097)}=v`, '5.6/step-5'],
     [`${'n'.repeat(4097)}`, '5.6/step-5'],
+    // Octets, not characters: "é" is two in UTF-8.
+    [`SID=${'\u00e9'.repeat(2047)}`, '5.6/step-5'],
   ] as const)('ignores "%s" entirely, by %s', (line, step) => {
     expect(readAsUserAgent(line)).toEqual({
       ignored: true,
@@ -275,6 +282,37 @@ describe('the user-agent reading, following §5.6', () => {
     expect(readAsUserAgent(`SID=1; Expires=${date}`)).toMatchObject({
       cookie: { attributes: [{ name: 'Expires', value: new Date(expected) }] },
     });
+  });
+});
+
+describe('the cookies §5.7 ignores on receipt, from the line alone', () => {
+  const received = (line: string) => {
+    const reading = readAsUserAgent(line);
+    return reading.ignored ? undefined : ignoredOnReceipt(reading.cookie);
+  };
+
+  it.each([
+    ['=', '5.7/step-2'],
+    ['SID=1; Domain=sïte.example', '5.7/step-8'],
+    // The last Domain is the one that counts.
+    ['SID=1; Domain=site.example; Domain=sïte.example', '5.7/step-8'],
+    ['=__Secure-SID', '5.7/step-22'],
+    ['__host-SID', '5.7/step-22'],
+  ] as const)('ignores "%s", by %s', (line, step) => {
+    expect(received(line)).toEqual({
+      step,
+      reason: expect.stringMatching(/\S/),
+    });
+  });
+
+  it.each([
+    'SID=',
+    '=31d4',
+    'SID=1; Domain=sïte.example; Domain=site.example',
+    '__Host-SID=1; Secure; Path=/',
+    'SID=__Host-1',
+  ])('keeps "%s"', (line) => {
+    expect(received(line)).toBeUndefined();
   });
 });
 

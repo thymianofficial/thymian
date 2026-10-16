@@ -4,19 +4,27 @@
 // server by whichever reading its requirement is about:
 //
 // - the **producer reading** says whether the line conforms to §4.1.1's
-//   grammar, and gives its first problem if not. Rules on a server
-//   requirement use it; the grammar rule owns every parse failure, so a
-//   malformed line is reported once.
+//   grammar, and gives its first problem if not. The grammar rule owns
+//   every parse failure, so a malformed line is reported once.
 // - the **user-agent reading** gives the name, value and attributes a user
 //   agent following §5.6 would record, and what it ignored and why. Rules on
 //   a user-agent step use it: what the browser drops is visible on the
-//   server's own message.
+//   server's own message. An attribute-level rule runs only on a line whose
+//   user-agent reading succeeded; one the user agent ignores entirely is the
+//   grammar rule's alone.
 //
 // Each reading takes one field line. Several Set-Cookie lines on one
 // response are read one by one, and nothing here splits a line on commas:
 // an Expires date carries one.
 
-export const SET_COOKIE_HEADER = 'set-cookie';
+// As a message spells it; header names compare case-insensitively.
+export const SET_COOKIE_HEADER = 'Set-Cookie';
+
+// A step id as the coverage record keys it, `5.6.2/step-3`, as prose cites
+// it: `§5.6.2 step 3`.
+export function citeStep(step: string): string {
+  return `§${step.replace('/step-', ' step ')}`;
+}
 
 // The steps of §5.6 at which a user agent ignores the whole line.
 export type IgnoredLineStep = '5.6/step-1' | '5.6/step-5';
@@ -59,6 +67,10 @@ export type IgnoredAttribute = {
   step: IgnoredAttributeStep;
   reason: string;
 };
+
+// The steps of §5.7 at which a user agent ignores a cookie it received for
+// what the line alone shows.
+export type IgnoredCookieStep = '5.7/step-2' | '5.7/step-8' | '5.7/step-22';
 
 export type UserAgentReading =
   | { ignored: true; step: IgnoredLineStep; reason: string }
@@ -225,13 +237,21 @@ export function parseCookieDate(text: string): Date | undefined {
 }
 
 // sane-cookie-date = IMF-fixdate (RFC 9110 §5.6.7), whose day-name, month
-// and "GMT" are case-sensitive. It must also name a date a user agent can
-// read: §5.6.1 ignores an Expires that fails as a cookie-date.
+// and "GMT" are case-sensitive.
 const IMF_FIXDATE =
   /^(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun), \d{2} (?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d{4} \d{2}:\d{2}:\d{2} GMT$/;
 
-function isSaneCookieDate(text: string): boolean {
-  return IMF_FIXDATE.test(text) && parseCookieDate(text) !== undefined;
+// The producer reading goes one step past the ABNF here. An IMF-fixdate can
+// still fail as a §5.1.1 cookie-date — a year before 1601, an hour of 24, a
+// 31 February — and §5.6.1 step 2 then ignores the attribute. Such a date is
+// rejected too, so the grammar rule owns that step without a second rule.
+function checkExpires(value: string): string | undefined {
+  if (!IMF_FIXDATE.test(value)) {
+    return `the Expires value "${value}" is not an IMF-fixdate, such as "Wed, 09 Jun 2021 10:18:14 GMT"`;
+  }
+  return parseCookieDate(value) === undefined
+    ? `the Expires value "${value}" is an IMF-fixdate a user agent cannot read as a cookie-date: it names no such date, an hour past 23, or a year before 1601`
+    : undefined;
 }
 
 // domain-value = <subdomain> (RFC 1034 §3.5, as RFC 1123 §2.1 lets a label
@@ -240,9 +260,10 @@ function isSaneCookieDate(text: string): boolean {
 const LABEL = /^[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?$/;
 
 function isSubdomain(text: string): boolean {
-  return text
-    .split('.')
-    .every((label) => label.length <= 63 && LABEL.test(label));
+  return (
+    text.length <= 255 &&
+    text.split('.').every((label) => label.length <= 63 && LABEL.test(label))
+  );
 }
 
 // What each attribute the draft defines requires of its cookie-av, as its
@@ -255,10 +276,7 @@ const DEFINED_ATTRIBUTES: Record<
 > = {
   expires: {
     valued: true,
-    check: (value) =>
-      isSaneCookieDate(value)
-        ? undefined
-        : `the Expires value "${value}" is not an IMF-fixdate naming a real date, such as "Wed, 09 Jun 2021 10:18:14 GMT"`,
+    check: checkExpires,
   },
   'max-age': {
     valued: true,
@@ -536,4 +554,47 @@ export function readAsUserAgent(line: string): UserAgentReading {
     cookie: { name, value, attributes },
     ignoredAttributes,
   };
+}
+
+// §5.7: whether a user agent ignores a received cookie for what the line
+// alone shows, and by which step. Steps 3 and 4 repeat §5.6's control and
+// size checks, which a line received over HTTP has already passed; the
+// steps that need the request, the connection or the cookie store are
+// left to the rules on them.
+export function ignoredOnReceipt(
+  cookie: ReceivedCookie,
+): { step: IgnoredCookieStep; reason: string } | undefined {
+  if (cookie.name === '' && cookie.value === '') {
+    return {
+      step: '5.7/step-2',
+      reason: 'its name and value are both empty',
+    };
+  }
+  // Step 7: the last Domain attribute is the one that counts.
+  const domain = cookie.attributes
+    .filter((attribute) => attribute.name === 'Domain')
+    .at(-1);
+  // CHAR is %x01-7F, and §5.6 step 1 has already ignored a line holding
+  // %x00, so what is left outside CHAR is a non-ASCII character.
+  if (
+    domain !== undefined &&
+    [...domain.value].some((char) => char.charCodeAt(0) > 0x7f)
+  ) {
+    return {
+      step: '5.7/step-8',
+      reason: 'its Domain holds a character outside US-ASCII',
+    };
+  }
+  if (
+    cookie.name === '' &&
+    (hasCookiePrefix(cookie.value, '__Secure-') ||
+      hasCookiePrefix(cookie.value, '__Host-'))
+  ) {
+    return {
+      step: '5.7/step-22',
+      reason:
+        'its name is empty and its value starts with a cookie name prefix',
+    };
+  }
+  return undefined;
 }
