@@ -2,7 +2,7 @@ import { httpRule } from '@thymian/core';
 
 import { headerValueRuleFns } from '../utils/header-contexts.js';
 import {
-  receivedCookie,
+  onReceivedCookie,
   type SentCookieAv,
   sentCookieAvs,
   SET_COOKIE_HEADER,
@@ -14,13 +14,10 @@ const NAME = 'rfc-6265bis/server-must-not-repeat-cookie-attributes';
 // compare case-insensitively (§4.1.1's note). The grammar allows the
 // repetition; this MUST forbids it.
 //
-// An attribute-level rule runs only on a line whose user-agent reading
-// succeeded; one a user agent ignores is the grammar rule's alone. An empty
-// cookie-av has no name to repeat, and the grammar rule reports it.
-const { lint, live } = headerValueRuleFns(SET_COOKIE_HEADER, NAME, (line) => {
-  if (receivedCookie(line) === undefined) {
-    return undefined;
-  }
+// It reads only the cookie a user agent keeps; a line it ignores is the
+// grammar rule's alone. An empty cookie-av has no name to repeat, and the
+// grammar rule reports it.
+const check = onReceivedCookie((_cookie, line) => {
   const byName = new Map<string, SentCookieAv[]>();
   for (const cookieAv of sentCookieAvs(line)) {
     if (cookieAv.name !== '') {
@@ -41,6 +38,8 @@ const { lint, live } = headerValueRuleFns(SET_COOKIE_HEADER, NAME, (line) => {
     ? undefined
     : `The Set-Cookie line "${line}" carries the attribute ${repeated.join(' and ')}. Servers must not produce two attributes with the same name in one Set-Cookie line: of an attribute it recognizes, a user agent uses only the last, so the others have no effect.`;
 });
+
+const { lint, live } = headerValueRuleFns(SET_COOKIE_HEADER, NAME, check);
 
 export default httpRule(NAME)
   .severity('error')

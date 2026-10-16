@@ -3,7 +3,7 @@ import { httpRule } from '@thymian/core';
 import { headerValueRuleFns } from '../utils/header-contexts.js';
 import {
   isDefinedAttribute,
-  receivedCookie,
+  onReceivedCookie,
   sentCookieAvs,
   SET_COOKIE_HEADER,
 } from '../utils/set-cookie.js';
@@ -18,14 +18,10 @@ const NAME =
 // generates (RFC 9110 §5.6.3): the server meant it as part of the attribute.
 // After the last attribute it is no part of the field value at all.
 //
-// An attribute-level rule runs only on a line whose user-agent reading
-// succeeded; one a user agent ignores is the grammar rule's alone. A
-// cookie-av that is nothing but whitespace is no extension-av, and the
-// grammar rule reports the empty attribute.
-const { lint, live } = headerValueRuleFns(SET_COOKIE_HEADER, NAME, (line) => {
-  if (receivedCookie(line) === undefined) {
-    return undefined;
-  }
+// It reads only the cookie a user agent keeps; a line it ignores is the
+// grammar rule's alone. A cookie-av that is nothing but whitespace is no
+// extension-av, and the grammar rule reports the empty attribute.
+const check = onReceivedCookie((_cookie, line) => {
   const padded = sentCookieAvs(line)
     .filter(
       ({ text, name }) =>
@@ -37,6 +33,8 @@ const { lint, live } = headerValueRuleFns(SET_COOKIE_HEADER, NAME, (line) => {
     ? undefined
     : `The Set-Cookie line "${line}" has whitespace after the extension attribute ${padded.join(', ')}, before the ";" that ends it. An extension-av must not end in whitespace: draft-22 reads it as BWS and a user agent removes it, so the attribute is not received as written.`;
 });
+
+const { lint, live } = headerValueRuleFns(SET_COOKIE_HEADER, NAME, check);
 
 export default httpRule(NAME)
   .severity('error')

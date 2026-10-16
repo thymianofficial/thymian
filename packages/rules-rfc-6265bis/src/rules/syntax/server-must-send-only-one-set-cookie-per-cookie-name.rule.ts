@@ -5,7 +5,8 @@ import { violation } from '../utils/results.js';
 import { receivedCookie, SET_COOKIE_HEADER } from '../utils/set-cookie.js';
 
 // The cookie-names of a response as a user agent records them: a line it
-// ignores sets no cookie, and the grammar rule reports it. Cookie names are
+// ignores, entirely or on receipt, sets no cookie, and the grammar rule
+// reports it. Cookie names are
 // case-sensitive, so "SID" and "sid" are two cookies.
 function repeatedNames(lines: string[]): string[] {
   const counts = new Map<string, number>();

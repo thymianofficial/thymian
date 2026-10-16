@@ -1,21 +1,22 @@
 import { httpRule } from '@thymian/core';
 
 import { headerValueRuleFns } from '../utils/header-contexts.js';
-import { readAsProducer, SET_COOKIE_HEADER } from '../utils/set-cookie.js';
+import { onConformingLine, SET_COOKIE_HEADER } from '../utils/set-cookie.js';
 
 const NAME = 'rfc-6265bis/server-may-wrap-cookie-value-in-double-quotes';
 
 // A MAY is checkable at `hint`: the finding is "the grammar offers this
 // form and this cookie does not use it", which claims no non-conformance.
-// The permission is the grammar's own alternative, so the rule reads the
-// producer reading, and a line the grammar rejects — a DQUOTE no DQUOTE
-// closes among them — is the grammar rule's alone.
-const { lint, live } = headerValueRuleFns(SET_COOKIE_HEADER, NAME, (line) => {
-  const reading = readAsProducer(line);
-  return !reading.conforms || reading.value.startsWith('"')
+// The permission is the grammar's own alternative, so the rule reads only a
+// line the grammar accepts, and one it rejects — a DQUOTE no DQUOTE closes
+// among them — is the grammar rule's alone.
+const check = onConformingLine(({ value }, line) =>
+  value.startsWith('"')
     ? undefined
-    : `The cookie-value of the Set-Cookie line "${line}" is not wrapped in DQUOTE characters. Draft-22 lets a server wrap it; this cookie does not use that form.`;
-});
+    : `The cookie-value of the Set-Cookie line "${line}" is not wrapped in DQUOTE characters. Draft-22 lets a server wrap it; this cookie does not use that form.`,
+);
+
+const { lint, live } = headerValueRuleFns(SET_COOKIE_HEADER, NAME, check);
 
 export default httpRule(NAME)
   .severity('hint')
