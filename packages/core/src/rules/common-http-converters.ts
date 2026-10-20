@@ -3,7 +3,8 @@ import type {
   ThymianHttpResponse,
 } from '../format/index.js';
 import type { HttpRequest, HttpResponse } from '../http.js';
-import { getHeader } from '../utils.js';
+import type { Logger } from '../logger/logger.js';
+import { getHeader, httpResponseToLabel } from '../utils.js';
 import type { CommonHttpRequest, CommonHttpResponse } from './contexts.js';
 
 export function thymianToCommonHttpRequest(
@@ -33,7 +34,7 @@ export function thymianToCommonHttpResponse(
   return {
     body: !!node.schema,
     headers: Object.keys(node.headers),
-    mediaType: node.mediaType,
+    mediaType: normalizeMediaType(node.mediaType),
     statusCode: node.statusCode,
     trailers: [],
   };
@@ -74,16 +75,52 @@ export function httpRequestToCommonHttpRequest(
   };
 }
 
+// RFC 9110 §8.3.1: type "/" subtype, each a token (RFC 9110 §5.6.2).
+const MEDIA_TYPE = /^[a-z0-9!#$%&'*+.^_`|~-]+\/[a-z0-9!#$%&'*+.^_`|~-]+$/;
+
+/**
+ * The bare, lowercased `type/subtype` of a `Content-Type` value, with
+ * parameters removed. Empty when the value is not a single `type/subtype`.
+ */
+export function normalizeMediaType(value: string | undefined): string {
+  const mediaType = value?.split(';')[0]?.trim().toLowerCase() ?? '';
+
+  return MEDIA_TYPE.test(mediaType) ? mediaType : '';
+}
+
+function getMediaType(
+  response: HttpResponse,
+  { id, label, logger }: HttpResponseConversionOptions,
+): string {
+  const ct = getHeader(response.headers, 'content-type');
+
+  if (Array.isArray(ct) && ct.length > 1) {
+    const name = label ?? httpResponseToLabel(response);
+
+    logger?.warn(
+      `Content-Type is a single valued field, but ${ct.length} values were received for response ${id ? `${id} (${name})` : `"${name}"`}. Using the first one.`,
+    );
+  }
+
+  return normalizeMediaType(Array.isArray(ct) ? ct[0] : ct);
+}
+
+export type HttpResponseConversionOptions = {
+  /** The Thymian node id of the response, when there is one. */
+  id?: string;
+  /** How warnings name the response. Defaults to the response's own label. */
+  label?: string;
+  logger?: Logger;
+};
+
 export function httpResponseToCommonHttpResponse(
   response: HttpResponse,
-  _id?: string,
+  options: HttpResponseConversionOptions = {},
 ): CommonHttpResponse {
-  void _id;
-
   return {
     body: !!response.body,
     headers: Object.keys(response.headers),
-    mediaType: getHeader(response.headers, 'content-type')?.at(0) ?? '',
+    mediaType: getMediaType(response, options),
     statusCode: response.statusCode,
     trailers: Object.keys(response.trailers),
   };
