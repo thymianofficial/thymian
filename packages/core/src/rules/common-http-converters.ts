@@ -90,33 +90,37 @@ export function normalizeMediaType(value: string | undefined): string {
 
 function getMediaType(
   response: HttpResponse,
-  id?: string,
-  logger?: Logger,
+  { id, label, logger }: HttpResponseConversionOptions,
 ): string {
   const ct = getHeader(response.headers, 'content-type');
 
   if (Array.isArray(ct) && ct.length > 1) {
-    const label = httpResponseToLabel(response);
+    const name = label ?? httpResponseToLabel(response);
 
     logger?.warn(
-      `Content-Type is a single valued field, but ${ct.length} values were received for response ${id ? `${id} (${label})` : `"${label}"`}. Using the first one.`,
+      `Content-Type is a single valued field, but ${ct.length} values were received for response ${id ? `${id} (${name})` : `"${name}"`}. Using the first one.`,
     );
   }
 
   return normalizeMediaType(Array.isArray(ct) ? ct[0] : ct);
 }
 
+export type HttpResponseConversionOptions = {
+  /** The Thymian node id of the response, when there is one. */
+  id?: string;
+  /** How warnings name the response. Defaults to the response's own label. */
+  label?: string;
+  logger?: Logger;
+};
+
 export function httpResponseToCommonHttpResponse(
   response: HttpResponse,
-  _id?: string,
-  logger?: Logger,
+  options: HttpResponseConversionOptions = {},
 ): CommonHttpResponse {
-  void _id;
-
   return {
     body: !!response.body,
     headers: Object.keys(response.headers),
-    mediaType: getMediaType(response, _id, logger),
+    mediaType: getMediaType(response, options),
     statusCode: response.statusCode,
     trailers: Object.keys(response.trailers),
   };

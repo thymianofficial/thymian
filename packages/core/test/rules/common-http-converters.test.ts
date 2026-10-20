@@ -43,14 +43,24 @@ describe('httpResponseToCommonHttpResponse', () => {
 
       const common = httpResponseToCommonHttpResponse(
         response({ 'content-type': ['text/html', 'application/json'] }),
-        'res-1',
-        logger,
+        { id: 'res-1', logger },
       );
 
       expect(common.mediaType).toBe('text/html');
       expect(logger.warnings).toHaveLength(1);
       expect(logger.warnings[0]).toContain('res-1');
       expect(logger.warnings[0]).toContain('200');
+    });
+
+    it('names a duplicated Content-Type by the label it is given', () => {
+      const logger = new SpyLogger();
+
+      httpResponseToCommonHttpResponse(
+        response({ 'content-type': ['text/html', 'application/json'] }),
+        { label: 'GET http://localhost/users \u2192 200 OK', logger },
+      );
+
+      expect(logger.warnings[0]).toContain('GET http://localhost/users');
     });
 
     it.each([
@@ -65,11 +75,9 @@ describe('httpResponseToCommonHttpResponse', () => {
     ])('is empty when the Content-Type is %s', (_name, headers) => {
       const logger = new SpyLogger();
 
-      const common = httpResponseToCommonHttpResponse(
-        response(headers),
-        undefined,
+      const common = httpResponseToCommonHttpResponse(response(headers), {
         logger,
-      );
+      });
 
       expect(common.mediaType).toBe('');
       expect(logger.warnings).toEqual([]);

@@ -223,11 +223,10 @@ export class AnalyticsApiContext implements AnalyzeContext {
       results.push(
         ...validateFn(
           httpRequestToCommonHttpRequest(request.data),
-          httpResponseToCommonHttpResponse(
-            response.data,
-            undefined,
-            this.logger,
-          ),
+          httpResponseToCommonHttpResponse(response.data, {
+            label: location,
+            logger: this.logger,
+          }),
           location,
         ),
       );
@@ -277,15 +276,21 @@ export class AnalyticsApiContext implements AnalyzeContext {
       results.push(
         ...violatedWhen(
           key,
-          transactions.map((t) => [
-            httpRequestToCommonHttpRequest(t.request.data),
-            httpResponseToCommonHttpResponse(
+          transactions.map((t) => {
+            const location = httpTransactionToLabel(
+              t.request.data,
               t.response.data,
-              undefined,
-              this.logger,
-            ),
-            httpTransactionToLabel(t.request.data, t.response.data),
-          ]),
+            );
+
+            return [
+              httpRequestToCommonHttpRequest(t.request.data),
+              httpResponseToCommonHttpResponse(t.response.data, {
+                label: location,
+                logger: this.logger,
+              }),
+              location,
+            ];
+          }),
         ),
       );
     }
