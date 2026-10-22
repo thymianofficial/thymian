@@ -1108,7 +1108,7 @@ const coverage: CoverageRecord<typeof units> = defineCoverage({
         static: {
           verdict: 'impossible',
           reason: 'not-representable',
-          note: "This rule's filter (and(requestHeader(...), not(responseTrailer(...)))) is an HttpFilterExpression passed to validateHttpTransactions; static's own version of that method needs a plain predicate function instead.",
+          note: "This rule's filter (responseTrailer(...)) is an HttpFilterExpression passed to validateHttpTransactions; static's own version of that method needs a plain predicate function instead.",
         },
         test: {
           verdict: 'impossible',
