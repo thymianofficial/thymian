@@ -34,6 +34,7 @@ When making commits, use one of the following scopes to indicate the area of the
 | plugin-websocket-proxy           | WebSocket remote-plugin transport                                                      |
 | rules-rfc-9110                   | RFC 9110 rule set                                                                      |
 | rules-rfc-6797                   | RFC 6797 (HSTS) rule set                                                               |
+| rules-rfc-6265bis                | RFC 6265bis (Cookies) rule set                                                         |
 | rules-api-description-validation | API description validation rule set                                                    |
 | e2e                              | End-to-end test workspace                                                              |
 
