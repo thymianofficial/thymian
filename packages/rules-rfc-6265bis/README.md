@@ -43,20 +43,13 @@ ruleSets:
 
 ## Coverage
 
-**14 of 51** units covered, by **1** rule(s).
+**21 of 51** units covered, by **8** rule(s).
 
 - Source: draft-ietf-httpbis-rfc6265bis-22 (December 2025)
 - Counting rule: One unit per paragraph of draft-22 that contains a BCP 14 keyword and binds a cookie-producing implementation (§3.2.1), wherever it stands, plus one unit per step of the user-agent algorithms in §5.5–§5.7 at which the user agent ignores, drops or caps a cookie, or one of its attributes, that it received in a Set-Cookie header field.
 
 Not yet covered:
 
-- `3/1` — Origin servers MAY send a Set-Cookie response header field with any response.
-- `3/2` — Origin servers and intermediaries MUST NOT combine multiple Set-Cookie header fields into a single header field.
-- `3/3` — A cookie's octets MUST be processed as US-ASCII characters.
-- `4.1.1/4` — The cookie-value MAY be wrapped in DQUOTE characters.
-- `4.1.1/5` — An extension-av MUST NOT contain leading or trailing WSP characters, which are interpreted as BWS and removed.
-- `4.1.1/6` — Servers MUST NOT produce two attributes with the same name in the same set-cookie-string.
-- `4.1.1/7` — Servers MUST NOT include more than one Set-Cookie header field in the same response with the same cookie-name.
 - `4.1.3/1` — Servers SHOULD use the `__Secure-` and `__Host-` cookie name prefixes.
 - `4.2.1/1` — Servers SHOULD avoid setting so many large cookies that the final cookie-string exceeds their header field limit.
 - `4.2.1/2` — Servers MUST be tolerant of multiple Cookie header fields.
@@ -92,10 +85,10 @@ Not yet covered:
 
 | Severity | Keyword | recommended | strict | minimal |
 | -------- | ------- | ----------- | ------ | ------- |
-| error    | MUST    | 1           | 1      | 1       |
-| warn     | SHOULD  | 0           | 0      | 0       |
-| hint     | MAY     | 0           | 0      | 0       |
-| off      | (off)   | 0           | 0      | 0       |
+| error    | MUST    | 5           | 5      | 4       |
+| warn     | SHOULD  | 1           | 1      | 0       |
+| hint     | MAY     | 2           | 2      | 0       |
+| off      | (off)   | 0           | 0      | 4       |
 
 ## Conventions
 
@@ -105,9 +98,16 @@ None.
 
 ### syntax
 
-| Rule                                                          | static     | analytics  | test       |
-| ------------------------------------------------------------- | ---------- | ---------- | ---------- |
-| rfc-6265bis/server-must-send-set-cookie-conforming-to-grammar | observable | observable | observable |
+| Rule                                                                    | static                           | analytics                        | test                             |
+| ----------------------------------------------------------------------- | -------------------------------- | -------------------------------- | -------------------------------- |
+| rfc-6265bis/origin-server-may-send-set-cookie-with-any-response         | observable                       | observable                       | observable                       |
+| rfc-6265bis/origin-server-must-not-combine-set-cookie-fields            | heuristic                        | heuristic                        | heuristic                        |
+| rfc-6265bis/server-may-wrap-cookie-value-in-double-quotes               | observable                       | observable                       | observable                       |
+| rfc-6265bis/server-must-not-repeat-cookie-attributes                    | observable                       | observable                       | observable                       |
+| rfc-6265bis/server-must-not-send-whitespace-around-extension-attributes | observable                       | observable                       | observable                       |
+| rfc-6265bis/server-must-process-cookie-octets-as-us-ascii               | impossible (peer-not-observable) | impossible (peer-not-observable) | impossible (peer-not-observable) |
+| rfc-6265bis/server-must-send-only-one-set-cookie-per-cookie-name        | impossible (not-representable)   | observable                       | observable                       |
+| rfc-6265bis/server-must-send-set-cookie-conforming-to-grammar           | observable                       | observable                       | observable                       |
 
 ## Tag status
 
@@ -115,7 +115,7 @@ None.
 
 - `security:transport` — ships empty
 - `security:cors` — ships empty
-- `security:cookies` — 1 rule(s)
+- `security:cookies` — 8 rule(s)
 - `security:csp` — ships empty
 - `security:content-type` — ships empty
 - `security:authentication` — ships empty

@@ -120,8 +120,9 @@ function describeChar(char: string): string {
     : JSON.stringify(char);
 }
 
-// RFC 9110 §5.6.2: tchar.
-const TCHAR = /^[!#$%&'*+\-.^_`|~0-9A-Za-z]$/;
+// RFC 9110 §5.6.2: tchar, as a regular-expression character class.
+export const TCHAR_CLASS = "[!#$%&'*+\\-.^_`|~0-9A-Za-z]";
+const TCHAR = new RegExp(`^${TCHAR_CLASS}$`);
 
 // cookie-octet = %x21 / %x23-2B / %x2D-3A / %x3C-5B / %x5D-7E
 function isCookieOctet(char: string): boolean {
@@ -312,6 +313,19 @@ const DEFINED_ATTRIBUTES: Record<
   },
 };
 
+// Whether an attribute name is one the draft defines, compared
+// case-insensitively; any other cookie-av is an extension-av.
+export function isDefinedAttribute(name: string): boolean {
+  return Object.hasOwn(DEFINED_ATTRIBUTES, name.toLowerCase());
+}
+
+// A cookie-av's name, as both readings take it: what precedes its first
+// "=", or the whole cookie-av without one, trimmed.
+function attributeNameOf(cookieAv: string): string {
+  const eq = cookieAv.indexOf('=');
+  return trimWsp(eq === -1 ? cookieAv : cookieAv.slice(0, eq));
+}
+
 function readCookieAv(
   cookieAv: string,
 ): { attribute: ProducedAttribute } | { problem: string } {
@@ -322,7 +336,7 @@ function readCookieAv(
   }
 
   const eq = cookieAv.indexOf('=');
-  const name = trimWsp(eq === -1 ? cookieAv : cookieAv.slice(0, eq));
+  const name = attributeNameOf(cookieAv);
   const value = eq === -1 ? undefined : trimWsp(cookieAv.slice(eq + 1));
   const attribute = value === undefined ? { name } : { name, value };
   const defined = DEFINED_ATTRIBUTES[name.toLowerCase()];
@@ -525,9 +539,7 @@ export function readAsUserAgent(line: string): UserAgentReading {
   for (const rawCookieAv of semicolon === -1 ? [] : unparsed.split(';')) {
     const cookieAv = trimWsp(rawCookieAv);
     const avEq = rawCookieAv.indexOf('=');
-    const attributeName = trimWsp(
-      avEq === -1 ? rawCookieAv : rawCookieAv.slice(0, avEq),
-    );
+    const attributeName = attributeNameOf(rawCookieAv);
     const attributeValue =
       avEq === -1 ? '' : trimWsp(rawCookieAv.slice(avEq + 1));
 
@@ -597,4 +609,63 @@ export function ignoredOnReceipt(
     };
   }
   return undefined;
+}
+
+// The cookie a user agent keeps from one line, for what the line alone
+// shows: its user-agent reading, unless §5.6 ignores the line or §5.7 the
+// cookie on receipt. A rule on one attribute, or on the cookie-names of a
+// response, reads only such a line; one a user agent ignores entirely is the
+// grammar rule's alone, so its defect is reported once.
+export function receivedCookie(line: string): ReceivedCookie | undefined {
+  const reading = readAsUserAgent(line);
+  if (reading.ignored || ignoredOnReceipt(reading.cookie) !== undefined) {
+    return undefined;
+  }
+  return reading.cookie;
+}
+
+// A cookie-av as the server wrote it. `text` keeps the whitespace around
+// it; `name` is what precedes its first "=", trimmed, as §5.6 reads it.
+export type SentCookieAv = { text: string; name: string };
+
+// The cookie-avs of one line, split as both readings split it: on every ";"
+// after the cookie-pair. The last loses its trailing whitespace, which is no
+// part of a field value (RFC 9110 §5.5).
+export function sentCookieAvs(line: string): SentCookieAv[] {
+  const [, ...cookieAvs] = line.replace(/[ \t]+$/, '').split(';');
+  return cookieAvs.map((text) => ({ text, name: attributeNameOf(text) }));
+}
+
+// Checks one Set-Cookie line; returns a violation message, or undefined.
+export type SetCookieLineCheck = (line: string) => string | undefined;
+
+// One defect, one violation: the grammar rule owns parse failures, so every
+// other rule on a line names which lines it leaves to it. These two wrappers
+// are the only two answers, so the policy is stated once.
+//
+// A rule on the cookie a user agent keeps — its attributes, its name — runs
+// only on a line whose user-agent reading succeeded and whose cookie §5.7
+// does not ignore on receipt. A line the user agent ignores sets no cookie.
+export function onReceivedCookie(
+  check: (cookie: ReceivedCookie, line: string) => string | undefined,
+): SetCookieLineCheck {
+  return (line) => {
+    const cookie = receivedCookie(line);
+    return cookie === undefined ? undefined : check(cookie, line);
+  };
+}
+
+// A rule on a form the grammar itself defines, or one whose evidence the
+// grammar would otherwise also report, runs only on a line the grammar
+// accepts.
+export function onConformingLine(
+  check: (
+    reading: Extract<ProducerReading, { conforms: true }>,
+    line: string,
+  ) => string | undefined,
+): SetCookieLineCheck {
+  return (line) => {
+    const reading = readAsProducer(line);
+    return reading.conforms ? check(reading, line) : undefined;
+  };
 }

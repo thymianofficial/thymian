@@ -4,8 +4,11 @@ import {
   type CookieAttribute,
   hasCookiePrefix,
   ignoredOnReceipt,
+  isDefinedAttribute,
   readAsProducer,
   readAsUserAgent,
+  receivedCookie,
+  sentCookieAvs,
 } from './set-cookie.js';
 
 // The parser's contract is draft-22 itself: §4.1.1's grammar for the
@@ -314,6 +317,75 @@ describe('the cookies §5.7 ignores on receipt, from the line alone', () => {
   ])('keeps "%s"', (line) => {
     expect(received(line)).toBeUndefined();
   });
+});
+
+describe('the cookie a user agent keeps from one line', () => {
+  it('is the user-agent reading of a line neither §5.6 nor §5.7 ignores', () => {
+    expect(receivedCookie('SID=1; Path=/; Foo')).toEqual({
+      name: 'SID',
+      value: '1',
+      attributes: [{ name: 'Path', value: '/' }],
+    });
+  });
+
+  it.each([
+    // §5.6 ignores the line.
+    'SID=31\u0007d4',
+    `${NAME_4096}=${VALUE_96}x`,
+    // §5.7 ignores the cookie on receipt.
+    '=',
+    '=__Host-SID',
+  ])('is none for "%s"', (line) => {
+    expect(receivedCookie(line)).toBeUndefined();
+  });
+});
+
+describe('the cookie-avs as the server wrote them', () => {
+  it.each([
+    ['SID=1', []],
+    // The pair alone, with a ";" and nothing after it.
+    ['SID=1;', [{ text: '', name: '' }]],
+    // Whitespace around each cookie-av stays, but a field value has no
+    // trailing whitespace (RFC 9110 §5.5).
+    [
+      'SID=1; Path=/ ;Secure;  Foo = bar ;\tBaz\t ',
+      [
+        { text: ' Path=/ ', name: 'Path' },
+        { text: 'Secure', name: 'Secure' },
+        { text: '  Foo = bar ', name: 'Foo' },
+        { text: '\tBaz', name: 'Baz' },
+      ],
+    ],
+    // The name is what precedes the first "=", as §5.6 reads it.
+    [
+      'SID=1; Expires=Wed, 09 Jun 2021 10:18:14 GMT; a=b=c',
+      [
+        { text: ' Expires=Wed, 09 Jun 2021 10:18:14 GMT', name: 'Expires' },
+        { text: ' a=b=c', name: 'a' },
+      ],
+    ],
+  ])('splits "%s"', (line, cookieAvs) => {
+    expect(sentCookieAvs(line)).toEqual(cookieAvs);
+  });
+
+  it.each([
+    'Expires',
+    'max-age',
+    'DOMAIN',
+    'Path',
+    'secure',
+    'HttpOnly',
+    'samesite',
+  ])('knows "%s" as a defined attribute, in any case', (name) => {
+    expect(isDefinedAttribute(name)).toBe(true);
+  });
+
+  it.each(['Partitioned', 'Priority', 'Comment', ''])(
+    'reads "%s" as an extension-av',
+    (name) => {
+      expect(isDefinedAttribute(name)).toBe(false);
+    },
+  );
 });
 
 describe('cookie name prefixes', () => {
