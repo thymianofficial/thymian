@@ -104,7 +104,7 @@ export function hasCookiePrefix(text: string, prefix: CookiePrefix): boolean {
 
 // Lengths are in octets. A live field value arrives one octet per character;
 // a value pinned by an API description is text, sent as UTF-8.
-function octets(text: string): number {
+export function octets(text: string): number {
   return new TextEncoder().encode(text).length;
 }
 
