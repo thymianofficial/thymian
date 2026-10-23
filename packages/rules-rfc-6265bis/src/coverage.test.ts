@@ -34,10 +34,10 @@ describe('coverage record', () => {
   // Exact counts, not only "no violations": a checker that skipped every rule
   // would report none too.
   describe('the census', () => {
-    it('loads 17 rules, with one entry per loaded rule', async () => {
+    it('loads 26 rules, with one entry per loaded rule', async () => {
       const rules = await loadBaselineRules();
 
-      expect(rules.length).toBe(17);
+      expect(rules.length).toBe(26);
       expect(Object.keys(coverage.rules).length).toBe(rules.length);
     }, 30_000);
 
@@ -49,7 +49,9 @@ describe('coverage record', () => {
     // other three. Its `set-cookie-processing` rows: one rule each covers
     // the lifetime cap, the 1xx permission and the 4096-octet sum, each
     // stated in more than one unit, and one rule each the other two steps.
-    it('covers 35 units, by 17 rules', () => {
+    // Its `prefixes` and `storage-model` rows: one rule per unit, nine units
+    // by nine rules.
+    it('covers 44 units, by 26 rules', () => {
       const covering = Object.values(coverage.rules).filter(
         (entry) => entry.covers.length > 0,
       );
@@ -69,6 +71,7 @@ describe('coverage record', () => {
           '4.1.1/6',
           '4.1.1/7',
           '4.1.1/8',
+          '4.1.3/1',
           '4.2.1/1',
           '4.2.1/2',
           '4.2.2/1',
@@ -89,12 +92,20 @@ describe('coverage record', () => {
           '5.7/step-3',
           '5.7/step-4',
           '5.7/step-8',
+          '5.7/step-9',
+          '5.7/step-10',
+          '5.7/step-13',
+          '5.7/step-16',
+          '5.7/step-18',
+          '5.7/step-19',
+          '5.7/step-20',
+          '5.7/step-21',
           '5.7/step-22',
           '6.1/1',
           '6.1/2',
         ].sort(),
       );
-      expect(covering.length).toBe(17);
+      expect(covering.length).toBe(26);
     });
 
     // The ids a recount of the pinned text yields under the counting rule:
