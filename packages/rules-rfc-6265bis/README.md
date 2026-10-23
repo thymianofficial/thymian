@@ -43,35 +43,48 @@ ruleSets:
 
 ## Coverage
 
-**44 of 51** units covered, by **26** rule(s).
+**51 of 51** units covered, by **34** rule(s).
 
 - Source: draft-ietf-httpbis-rfc6265bis-22 (December 2025)
 - Counting rule: One unit per paragraph of draft-22 that contains a BCP 14 keyword and binds a cookie-producing implementation (§3.2.1), wherever it stands, plus one unit per step of the user-agent algorithms in §5.5–§5.7 at which the user agent ignores, drops or caps a cookie, or one of its attributes, that it received in a Set-Cookie header field.
 
-Not yet covered:
-
-- `7.4/1` — Servers SHOULD promote user privacy by selecting reasonable cookie expiration periods based on the purpose of the cookie.
-- `8.3/1` — Servers SHOULD encrypt and sign the contents of cookies when transmitting them to the user agent.
-- `8.3/2` — Servers that require a higher level of security SHOULD use the Cookie and Set-Cookie header fields only over a secure channel, and when using cookies over a secure channel SHOULD set the Secure attribute for every cookie.
-- `8.4/1` — The server SHOULD take care to avoid session fixation vulnerabilities.
-- `8.5/1` — Servers SHOULD NOT both run mutually distrusting services on different ports of the same host and use cookies to store security-sensitive information.
-- `8.6/1` — Servers SHOULD NOT both run mutually distrusting services on different paths of the same host and use cookies to store security-sensitive information.
-- `8.6/2` — Servers SHOULD NOT rely upon user agents retaining cookies.
+Not yet covered: none.
 
 ## Severity map
 
 | Severity | Keyword | recommended | strict | minimal |
 | -------- | ------- | ----------- | ------ | ------- |
 | error    | MUST    | 14          | 14     | 11      |
-| warn     | SHOULD  | 8           | 8      | 0       |
+| warn     | SHOULD  | 16          | 16     | 0       |
 | hint     | MAY     | 4           | 4      | 0       |
-| off      | (off)   | 0           | 0      | 15      |
+| off      | (off)   | 2           | 2      | 25      |
 
 ## Conventions
 
-None.
+### rfc-6265bis/server-should-send-cookies-only-over-https
+
+Draft-22 asks for cookies only over a secure channel from servers that require a higher level of security, a condition no exchange shows, and the recommended profile asks it of every server because a cookie set over plain http travels in clear text both ways, where anyone on the network can read, alter or inject it, and the cookies an API sets are nearly always its sessions and credentials.
+
+### rfc-6265bis/server-should-set-http-only-on-every-cookie
+
+Draft-22 defines HttpOnly, in a non-normative section, without requiring it of any server, and the recommended profile asks for it on every cookie because a cookie without it is readable by any script running in the page, so a single cross-site scripting flaw hands an attacker the session cookie, while the few cookies a script must read can be exempted deliberately.
 
 ## Rule verdicts
+
+### considerations
+
+| Rule                                                                                     | static                           | analytics                        | test                             |
+| ---------------------------------------------------------------------------------------- | -------------------------------- | -------------------------------- | -------------------------------- |
+| rfc-6265bis/server-requiring-higher-security-should-use-cookies-only-over-secure-channel | heuristic                        | heuristic                        | heuristic                        |
+| rfc-6265bis/server-should-avoid-session-fixation                                         | impossible (only-origin-knows)   | impossible (only-origin-knows)   | impossible (only-origin-knows)   |
+| rfc-6265bis/server-should-encrypt-and-sign-cookie-contents                               | heuristic                        | heuristic                        | heuristic                        |
+| rfc-6265bis/server-should-not-rely-on-user-agents-retaining-cookies                      | impossible (peer-not-observable) | impossible (peer-not-observable) | impossible (peer-not-observable) |
+| rfc-6265bis/server-should-not-share-sensitive-cookies-across-distrusting-paths           | impossible (only-origin-knows)   | impossible (only-origin-knows)   | impossible (only-origin-knows)   |
+| rfc-6265bis/server-should-not-share-sensitive-cookies-across-distrusting-ports           | impossible (only-origin-knows)   | impossible (only-origin-knows)   | impossible (only-origin-knows)   |
+| rfc-6265bis/server-should-select-reasonable-cookie-expiration                            | heuristic                        | heuristic                        | heuristic                        |
+| rfc-6265bis/server-should-send-cookies-only-over-https                                   | observable                       | observable                       | observable                       |
+| rfc-6265bis/server-should-set-http-only-on-every-cookie                                  | observable                       | observable                       | observable                       |
+| rfc-6265bis/server-should-set-secure-on-every-cookie-over-secure-channel                 | observable                       | observable                       | observable                       |
 
 ### cookie-header
 
@@ -128,9 +141,9 @@ None.
 
 ### security
 
-- `security:transport` — ships empty
+- `security:transport` — 3 rule(s)
 - `security:cors` — ships empty
-- `security:cookies` — 26 rule(s)
+- `security:cookies` — 36 rule(s)
 - `security:csp` — ships empty
 - `security:content-type` — ships empty
 - `security:authentication` — ships empty
@@ -145,7 +158,7 @@ None.
 
 ### privacy
 
-- `privacy:tracking` — 1 rule(s)
+- `privacy:tracking` — 2 rule(s)
 - `privacy:fingerprinting` — ships empty
 - `privacy:referrer` — ships empty
 

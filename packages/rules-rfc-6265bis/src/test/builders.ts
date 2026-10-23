@@ -24,7 +24,8 @@ import {
 import { SET_COOKIE_HEADER } from '../rules/utils/set-cookie.js';
 import type { CaseOf, RuleFixtures } from './harness.js';
 
-type Origin = Pick<ThymianHttpRequest, 'protocol' | 'host' | 'port'>;
+// Where a request is served from.
+export type Origin = Pick<ThymianHttpRequest, 'protocol' | 'host' | 'port'>;
 
 export const SECURE = {
   protocol: 'https',
@@ -216,6 +217,60 @@ export function setCookieValueFixtures(
     analytics: {
       violates: violating.analytics,
       conforms: conforming.analytics,
+    },
+  };
+}
+
+// The fixtures of a rule on cookies set over plain http, §8.3's conditional
+// SHOULD and its convention twin alike: a cookie without Secure over plain
+// http is flagged; the same cookie over https passes, and so does a Secure
+// cookie over plain http, which a browser ignores and §5.7 step 13's rule
+// reports. The server URL fallback is skipped in `static` and `test`, and
+// judged as the plain http it is in `analytics`.
+export function cookiesOverPlainHttpFixtures(rule: Rule): RuleFixtures {
+  const PLAIN_COOKIE = 'SID=31d4d96e407aad42';
+  const SECURE_COOKIE = 'SID=31d4d96e407aad42; Secure';
+
+  const violating = setCookieInputsAt(INSECURE, [PLAIN_COOKIE]);
+  const fallback = setCookieInputsAt(FALLBACK, [PLAIN_COOKIE]);
+
+  return {
+    rule,
+    static: {
+      violates: violating.static,
+      conforms: {
+        format: apiDescription(
+          { response: { headers: setCookieHeader(PLAIN_COOKIE) } },
+          {
+            request: INSECURE,
+            response: { headers: setCookieHeader(SECURE_COOKIE) },
+          },
+        ),
+      },
+      skips: fallback.static,
+    },
+    test: {
+      violates: violating.test,
+      conforms: {
+        format: apiDescription({}, { request: INSECURE }),
+        respond: respondByScheme({
+          https: { headers: setCookieLines([PLAIN_COOKIE]) },
+          http: { headers: setCookieLines([SECURE_COOKIE]) },
+        }),
+      },
+      skips: fallback.test,
+    },
+    analytics: {
+      violates: fallback.analytics,
+      conforms: {
+        transactions: [
+          recorded({ headers: setCookieLines([PLAIN_COOKIE]) }),
+          recorded({
+            origin: INSECURE,
+            headers: setCookieLines([SECURE_COOKIE]),
+          }),
+        ],
+      },
     },
   };
 }
