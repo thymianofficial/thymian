@@ -19,6 +19,7 @@ import {
   parseCookieDate,
   type ReceivedCookie,
   receivedCookie,
+  requestedLifetime,
   SET_COOKIE_HEADER,
 } from '../utils/set-cookie.js';
 
@@ -37,31 +38,19 @@ function cookiePair({ name, value }: ReceivedCookie): string {
   return name === '' ? value : `${name}=${value}`;
 }
 
-// A line that removes its cookie takes it out of the store. The last Max-Age
-// wins over any Expires, and the last Expires over an earlier one (§5.7 step
-// 6). A Max-Age of zero or less always removes it (§5.6.2 step 7). An Expires
-// removes it when it is no later than the Date of the response that carries
-// it, never the time of the run: an old recording, or a description's
-// example date, would otherwise read as cleared. Without a Date, only an
-// Expires at or before the epoch does, the form the grammar rule's message
-// names for deleting a cookie.
+// A line that removes its cookie takes it out of the store: a requested
+// lifetime of zero or less (§5.6.2 step 7, §5.7 step 6). It is measured from
+// the Date of the response that carries the line, never from the time of the
+// run: an old recording, or a description's example date, would otherwise
+// read as cleared. Without a Date, it is measured from the epoch, so only an
+// Expires at or before it removes the cookie, the form the grammar rule's
+// message names for deleting one.
 function removesCookie(
-  { attributes }: ReceivedCookie,
+  cookie: ReceivedCookie,
   responseDate: Date | undefined,
 ): boolean {
-  const maxAge = attributes
-    .filter((attribute) => attribute.name === 'Max-Age')
-    .at(-1);
-  if (maxAge !== undefined) {
-    return maxAge.value <= 0;
-  }
-  const expires = attributes
-    .filter((attribute) => attribute.name === 'Expires')
-    .at(-1);
-  return (
-    expires !== undefined &&
-    expires.value.getTime() <= (responseDate?.getTime() ?? 0)
-  );
+  const lifetime = requestedLifetime(cookie, responseDate?.getTime() ?? 0);
+  return lifetime !== undefined && lifetime.seconds <= 0;
 }
 
 // The Date of a response, read as a user agent reads a cookie-date.
