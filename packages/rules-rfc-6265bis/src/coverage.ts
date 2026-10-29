@@ -238,6 +238,72 @@ export default defineCoverage({
       },
     },
 
+    // `set-cookie-processing` — the other steps of §5.5 and §5.6. Each rule
+    // is named after the user agent's requirement and judges the server's
+    // line by the user agent's reading of it. The steps whose trigger is a
+    // line the grammar rejects are the grammar rule's, above.
+    // One rule for three units: §5.5 states the cap, and §5.6.1 step 4 and
+    // §5.6.2 step 6 apply it to Expires and to Max-Age, one lifetime.
+    // Heuristic everywhere: the limit SHOULD NOT exceed 400 days, and §7.2
+    // lets a user agent set it higher, so not every browser caps a longer
+    // lifetime. In `static`, an Expires date is measured from the time of
+    // the run.
+    'rfc-6265bis/user-agent-must-cap-cookie-lifetime-at-400-days': {
+      covers: ['5.5/1', '5.6.1/step-4', '5.6.2/step-6'],
+      declared: { types: ['static', 'test', 'analytics'], severity: 'warn' },
+      contexts: {
+        static: 'heuristic',
+        test: 'heuristic',
+        analytics: 'heuristic',
+      },
+    },
+    // One rule for two units, the same permission stated twice: §5.6 lets a
+    // user agent ignore the field, §5.7 step 1 the cookie, both by §5.3. A
+    // MAY is checkable at `hint`.
+    'rfc-6265bis/user-agent-may-ignore-set-cookie-in-1xx-response': {
+      covers: ['5.6/1', '5.7/step-1'],
+      declared: { types: ['static'], severity: 'hint' },
+      contexts: {
+        test: {
+          verdict: 'impossible',
+          reason: 'tool-limitation',
+          issue: 'thymianofficial/thymian-workspace#111',
+          note: 'Core does not capture a 1xx interim response as a transaction of its own, so a test run never sees the Set-Cookie on one.',
+        },
+        analytics: {
+          verdict: 'impossible',
+          reason: 'tool-limitation',
+          issue: 'thymianofficial/thymian-workspace#111',
+          note: 'Core does not capture a 1xx interim response as a transaction of its own, so recorded traffic holds only the final response.',
+        },
+      },
+    },
+    // One rule for two units: §5.6 step 5 and §5.7 step 4 check the same
+    // sum, on the line and on the cookie received from it.
+    'rfc-6265bis/user-agent-must-ignore-cookie-over-4096-octets': {
+      covers: ['5.6/step-5', '5.7/step-4'],
+      declared: { types: ['static', 'test', 'analytics'], severity: 'error' },
+    },
+    'rfc-6265bis/user-agent-must-ignore-attribute-value-over-1024-octets': {
+      covers: ['5.6/step-6'],
+      declared: { types: ['static', 'test', 'analytics'], severity: 'error' },
+    },
+    'rfc-6265bis/user-agent-must-replace-path-not-starting-with-slash': {
+      covers: ['5.6.4/step-1'],
+      declared: { types: ['static', 'test', 'analytics'], severity: 'error' },
+    },
+    // Heuristic everywhere, and a hint: an attribute defined elsewhere, such
+    // as Partitioned, or recognized by some browsers, is not a defect.
+    'rfc-6265bis/user-agent-must-ignore-unrecognized-cookie-attributes': {
+      covers: ['5.6/step-7'],
+      declared: { types: ['static', 'test', 'analytics'], severity: 'hint' },
+      contexts: {
+        static: 'heuristic',
+        test: 'heuristic',
+        analytics: 'heuristic',
+      },
+    },
+
     // `cookie-header` — §4.2, and §6.1's server paragraphs about the Cookie
     // header.
     // One rule for two units: §4.2.1's final cookie-string past the server's
