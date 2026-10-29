@@ -37,7 +37,7 @@ describe.each(fixtureContexts)('in %s', (context) => {
     );
 
     expect(messages(results)).toEqual([
-      `The Set-Cookie line "${DEVIATING}" deviates from the draft-22 §4.1.1 grammar: the Max-Age value "0" is not a positive number of seconds without a leading zero (non-zero-digit *DIGIT). A user agent parses Set-Cookie more leniently than the grammar and may still store this cookie, but no cookie consumer is bound to read it as the server meant.`,
+      `The Set-Cookie line "${DEVIATING}" deviates from the draft-22 §4.1.1 grammar: the Max-Age value "0" is not a positive number of seconds without a leading zero (non-zero-digit *DIGIT). A user agent removes the cookie at once (§5.6.2 step 7); to delete a cookie within the grammar, send "Expires=Thu, 01 Jan 1970 00:00:00 GMT".`,
     ]);
   });
 
@@ -45,6 +45,27 @@ describe.each(fixtureContexts)('in %s', (context) => {
     [
       'SID=31d4; Max-Age=1h',
       'A user agent ignores "Max-Age=1h", because the Max-Age value holds a character other than a digit (§5.6.2 step 3).',
+    ],
+    [
+      'SID=31d4; Max-Age=-1',
+      'A user agent removes the cookie at once (§5.6.2 step 7)',
+    ],
+    [
+      'SID=31d4; Max-Age=-0',
+      'A user agent removes the cookie at once (§5.6.2 step 7)',
+    ],
+    // An empty cookie-av is no attribute a browser could ignore.
+    [
+      'SID=31d4;',
+      'A user agent parses Set-Cookie more leniently than the grammar and may still store this cookie',
+    ],
+    [
+      'SID=31d4;; Max-Age=1h',
+      'A user agent ignores "Max-Age=1h", because the Max-Age value holds a character other than a digit (§5.6.2 step 3).',
+    ],
+    [
+      'SID=31d4; Domain=.site.example',
+      'A user agent ignores the leading "." of the Domain value (§5.6.3), so drop it.',
     ],
     [
       'SID=31\u0007d4',
@@ -63,4 +84,44 @@ describe.each(fixtureContexts)('in %s', (context) => {
 
     expect(messages(results)).toEqual([expect.stringContaining(consequence)]);
   });
+
+  it('escapes a control character wherever the message quotes it', async () => {
+    const results = await runInContext(
+      context,
+      rule,
+      setCookieInputs('SID=31\u0007d4')[context],
+    );
+
+    expect(messages(results)).toEqual([
+      expect.stringContaining('The Set-Cookie line "SID=31\\u0007d4" deviates'),
+    ]);
+  });
+
+  it.each([
+    'SID\u0007',
+    'S\u0001D=31d4',
+    'SID="31d4\u0007',
+    'SID=31d4; Max-Age=1\u0007',
+    'SID=31d4; Expires=\u0007',
+    'SID=31d4; Domain=\u0007',
+    'SID=31d4; SameSite=\u0007',
+    'SID=31d4; Foo=\u0000',
+  ])(
+    'writes no raw control character into the message for %j',
+    async (line) => {
+      const results = await runInContext(
+        context,
+        rule,
+        setCookieInputs(line)[context],
+      );
+
+      const isControl = (char: string) =>
+        char.charCodeAt(0) < 0x20 || char.charCodeAt(0) === 0x7f;
+
+      expect(messages(results)).toHaveLength(1);
+      expect(
+        messages(results).flatMap((message) => [...message].filter(isControl)),
+      ).toEqual([]);
+    },
+  );
 });

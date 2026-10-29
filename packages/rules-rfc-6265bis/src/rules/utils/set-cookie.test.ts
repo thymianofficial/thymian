@@ -12,7 +12,7 @@ import {
 // producer reading, §5.6's algorithm for the user-agent reading. Every
 // expectation below is read off the draft, not off the parser.
 
-const NAME_4096 = 'n'.repeat(4000);
+const NAME_4000 = 'n'.repeat(4000);
 const VALUE_96 = 'v'.repeat(96);
 
 describe('the producer reading, against the §4.1.1 grammar', () => {
@@ -46,7 +46,7 @@ describe('the producer reading, against the §4.1.1 grammar', () => {
     // Several attributes of one name are a separate MUST, not the grammar's.
     'SID=1; Path=/; Path=/a',
     // No length limit is part of the grammar.
-    `${NAME_4096}=${VALUE_96}x`,
+    `${NAME_4000}=${VALUE_96}x`,
     `SID=1; Path=/${'p'.repeat(1100)}`,
     // HTTP strips trailing whitespace from a field value (RFC 9110 §5.5).
     'SID=1; Secure ',
@@ -80,7 +80,10 @@ describe('the producer reading, against the §4.1.1 grammar', () => {
     ['SID=31,d4', /cookie-octet/],
     ['SID=31\\d4', /cookie-octet/],
     ['SID=a"b', /cookie-octet/],
-    ['SID="31d4', /DQUOTE/],
+    ['SID="31d4', /no DQUOTE closes/],
+    ['SID="', /no DQUOTE closes/],
+    ['SID="31d4" x', /after the DQUOTE that closes it/],
+    ['SID="31d4"x', /after the DQUOTE that closes it/],
     ['SID="31 d4"', /cookie-octet/],
     ['SID=café', /cookie-octet/],
     // Control characters, anywhere.
@@ -211,12 +214,13 @@ describe('the user-agent reading, following §5.6', () => {
     ['SID=31d4\u007f', '5.6/step-1'],
     ['SID=31d4\n', '5.6/step-1'],
     // The name and the value together, after trimming.
-    [`${NAME_4096}=${VALUE_96}x`, '5.6/step-5'],
+    [`${NAME_4000}=${VALUE_96}x`, '5.6/step-5'],
     // A name alone, and a value alone, past the limit.
     [`${'n'.repeat(4097)}=v`, '5.6/step-5'],
     [`${'n'.repeat(4097)}`, '5.6/step-5'],
-    // Octets, not characters: "é" is two in UTF-8.
-    [`SID=${'\u00e9'.repeat(2047)}`, '5.6/step-5'],
+    // Octets, not characters: "é" is one, "€" is three in UTF-8.
+    [`SID=${'\u00e9'.repeat(4094)}`, '5.6/step-5'],
+    [`SID=${'\u20ac'.repeat(1365)}`, '5.6/step-5'],
   ] as const)('ignores "%s" entirely, by %s', (line, step) => {
     expect(readAsUserAgent(line)).toEqual({
       ignored: true,
@@ -233,7 +237,20 @@ describe('the user-agent reading, following §5.6', () => {
   });
 
   it('keeps a cookie whose name and value are exactly 4096 octets', () => {
-    expect(readAsUserAgent(`${NAME_4096}=${VALUE_96}`).ignored).toBe(false);
+    expect(readAsUserAgent(`${NAME_4000}=${VALUE_96}`).ignored).toBe(false);
+  });
+
+  // A live line arrives one octet per character, decoded as latin1, so a
+  // character up to U+00FF is one octet wherever it came from.
+  it('counts a character up to U+00FF as one octet', () => {
+    const path = `/${'\u00e9'.repeat(1023)}`;
+
+    expect(readAsUserAgent(`SID=${'\u00e9'.repeat(4093)}`).ignored).toBe(false);
+    expect(readAsUserAgent(`SID=1; Path=${path}`)).toMatchObject({
+      ignored: false,
+      cookie: { attributes: [{ name: 'Path', value: path }] },
+      ignoredAttributes: [],
+    });
   });
 
   it.each([
