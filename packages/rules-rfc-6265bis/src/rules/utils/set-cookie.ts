@@ -92,7 +92,8 @@ export type ProducerReading =
       value: string;
       attributes: ProducedAttribute[];
     }
-  | { conforms: false; problem: string };
+  // `cookieAv` is the attribute the first problem lies in, if it lies in one.
+  | { conforms: false; problem: string; cookieAv?: ProducedAttribute };
 
 export type CookiePrefix = '__Secure-' | '__Host-';
 
@@ -102,10 +103,19 @@ export function hasCookiePrefix(text: string, prefix: CookiePrefix): boolean {
   return text.toLowerCase().startsWith(prefix.toLowerCase());
 }
 
-// Lengths are in octets. A live field value arrives one octet per character;
-// a value pinned by an API description is text, sent as UTF-8.
+const UTF8 = new TextEncoder();
+
+// Lengths are in octets. A live field value arrives one octet per character,
+// decoded as latin1, so a character up to U+00FF is one octet. One above it
+// comes from a value pinned by an API description, which is text sent as
+// UTF-8. A pinned character from U+0080 to U+00FF is counted one octet
+// short, on a line the grammar rejects for it anyway.
 function octets(text: string): number {
-  return new TextEncoder().encode(text).length;
+  return [...text].reduce(
+    (sum, char) =>
+      sum + (char.charCodeAt(0) <= 0xff ? 1 : UTF8.encode(char).length),
+    0,
+  );
 }
 
 // WSP = SP / HTAB, the whitespace both readings strip.
@@ -113,11 +123,17 @@ function trimWsp(text: string): string {
   return text.replace(/^[ \t]+|[ \t]+$/g, '');
 }
 
+// Text from the line as a message quotes it: in double quotes, with every
+// control character escaped, so none reaches a terminal or a report raw.
+export function quote(text: string): string {
+  return JSON.stringify(text);
+}
+
 function describeChar(char: string): string {
   const code = char.charCodeAt(0);
   return code < 0x20 || code === 0x7f
     ? `the control character %x${code.toString(16).padStart(2, '0').toUpperCase()}`
-    : JSON.stringify(char);
+    : quote(char);
 }
 
 // RFC 9110 §5.6.2: tchar.
@@ -247,10 +263,10 @@ const IMF_FIXDATE =
 // rejected too, so the grammar rule owns that step without a second rule.
 function checkExpires(value: string): string | undefined {
   if (!IMF_FIXDATE.test(value)) {
-    return `the Expires value "${value}" is not an IMF-fixdate, such as "Wed, 09 Jun 2021 10:18:14 GMT"`;
+    return `the Expires value ${quote(value)} is not an IMF-fixdate, such as "Wed, 09 Jun 2021 10:18:14 GMT"`;
   }
   return parseCookieDate(value) === undefined
-    ? `the Expires value "${value}" is an IMF-fixdate a user agent cannot read as a cookie-date: it names no such date, an hour past 23, or a year before 1601`
+    ? `the Expires value ${quote(value)} is an IMF-fixdate a user agent cannot read as a cookie-date: it names no such date, an hour past 23, or a year before 1601`
     : undefined;
 }
 
@@ -283,14 +299,14 @@ const DEFINED_ATTRIBUTES: Record<
     check: (value) =>
       /^[1-9][0-9]*$/.test(value)
         ? undefined
-        : `the Max-Age value "${value}" is not a positive number of seconds without a leading zero (non-zero-digit *DIGIT)`,
+        : `the Max-Age value ${quote(value)} is not a positive number of seconds without a leading zero (non-zero-digit *DIGIT)`,
   },
   domain: {
     valued: true,
     check: (value) =>
       isSubdomain(value)
         ? undefined
-        : `the Domain value "${value}" is not a domain name of letters, digits and hyphens in dot-separated labels, without a leading or trailing "."`,
+        : `the Domain value ${quote(value)} is not a domain name of letters, digits and hyphens in dot-separated labels, without a leading or trailing "."`,
   },
   path: {
     valued: true,
@@ -308,13 +324,15 @@ const DEFINED_ATTRIBUTES: Record<
     check: (value) =>
       ['strict', 'lax', 'none'].includes(value.toLowerCase())
         ? undefined
-        : `the SameSite value "${value}" is none of Strict, Lax and None`,
+        : `the SameSite value ${quote(value)} is none of Strict, Lax and None`,
   },
 };
 
 function readCookieAv(
   cookieAv: string,
-): { attribute: ProducedAttribute } | { problem: string } {
+):
+  | { attribute: ProducedAttribute }
+  | { problem: string; attribute?: ProducedAttribute } {
   if (cookieAv === '') {
     return {
       problem: 'an attribute is empty, between two ";" or after the last one',
@@ -332,19 +350,26 @@ function readCookieAv(
     return char === undefined
       ? { attribute }
       : {
-          problem: `the attribute "${cookieAv}" holds ${describeChar(char)}, so it is no extension-av`,
+          problem: `the attribute ${quote(cookieAv)} holds ${describeChar(char)}, so it is no extension-av`,
+          attribute,
         };
   }
   if (!defined.valued) {
     return value === undefined
       ? { attribute }
-      : { problem: `the ${name} attribute takes no value, but "=" follows it` };
+      : {
+          problem: `the ${name} attribute takes no value, but "=" follows it`,
+          attribute,
+        };
   }
   if (value === undefined) {
-    return { problem: `the ${name} attribute has no "=" and no value` };
+    return {
+      problem: `the ${name} attribute has no "=" and no value`,
+      attribute,
+    };
   }
   const problem = defined.check?.(value);
-  return problem === undefined ? { attribute } : { problem };
+  return problem === undefined ? { attribute } : { problem, attribute };
 }
 
 // §4.1.1:
@@ -368,7 +393,7 @@ export function readAsProducer(line: string): ProducerReading {
   const eq = pair.indexOf('=');
   if (eq === -1) {
     return fail(
-      `the cookie-pair "${trimWsp(pair)}" has no "=" between a name and a value`,
+      `the cookie-pair ${quote(trimWsp(pair))} has no "=" between a name and a value`,
     );
   }
 
@@ -381,7 +406,7 @@ export function readAsProducer(line: string): ProducerReading {
   const nameChar = firstOutside(name, (char) => TCHAR.test(char));
   if (nameChar !== undefined) {
     return fail(
-      `the cookie-name "${name}" holds ${describeChar(nameChar)}, which is not a token character`,
+      `the cookie-name ${quote(name)} holds ${describeChar(nameChar)}, which is not a token character`,
     );
   }
 
@@ -389,7 +414,9 @@ export function readAsProducer(line: string): ProducerReading {
   const quoted = value.startsWith('"');
   if (quoted && (value.length < 2 || !value.endsWith('"'))) {
     return fail(
-      `the cookie-value ${value} opens a DQUOTE that no DQUOTE closes`,
+      value.indexOf('"', 1) === -1
+        ? `the cookie-value ${quote(value)} opens a DQUOTE that no DQUOTE closes`
+        : `the cookie-value ${quote(value)} goes on after the DQUOTE that closes it`,
     );
   }
   const valueChar = firstOutside(
@@ -406,7 +433,9 @@ export function readAsProducer(line: string): ProducerReading {
   for (const cookieAv of cookieAvs) {
     const read = readCookieAv(trimWsp(cookieAv));
     if ('problem' in read) {
-      return fail(read.problem);
+      return read.attribute === undefined
+        ? fail(read.problem)
+        : { conforms: false, problem: read.problem, cookieAv: read.attribute };
     }
     attributes.push(read.attribute);
   }
@@ -482,7 +511,7 @@ function receiveAttribute(
     default:
       return {
         step: '5.6/step-7',
-        reason: `a user agent does not recognize the attribute name "${name}"`,
+        reason: `a user agent does not recognize the attribute name ${quote(name)}`,
       };
   }
 }
