@@ -110,7 +110,7 @@ const UTF8 = new TextEncoder();
 // comes from a value pinned by an API description, which is text sent as
 // UTF-8. A pinned character from U+0080 to U+00FF is counted one octet
 // short, on a line the grammar rejects for it anyway.
-function octets(text: string): number {
+export function octets(text: string): number {
   return [...text].reduce(
     (sum, char) =>
       sum + (char.charCodeAt(0) <= 0xff ? 1 : UTF8.encode(char).length),
