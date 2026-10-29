@@ -34,10 +34,10 @@ describe('coverage record', () => {
   // Exact counts, not only "no violations": a checker that skipped every rule
   // would report none too.
   describe('the census', () => {
-    it('loads 11 rules, with one entry per loaded rule', async () => {
+    it('loads 17 rules, with one entry per loaded rule', async () => {
       const rules = await loadBaselineRules();
 
-      expect(rules.length).toBe(11);
+      expect(rules.length).toBe(17);
       expect(Object.keys(coverage.rules).length).toBe(rules.length);
     }, 30_000);
 
@@ -46,8 +46,10 @@ describe('coverage record', () => {
     // each covers the other six units of §3 and §4.1.1. Its
     // `cookie-header` rows: the large-cookies rule covers the two units on
     // the size and number of cookies, and one informational rule each the
-    // other three.
-    it('covers 25 units, by 11 rules', () => {
+    // other three. Its `set-cookie-processing` rows: one rule each covers
+    // the lifetime cap, the 1xx permission and the 4096-octet sum, each
+    // stated in more than one unit, and one rule each the other three steps.
+    it('covers 35 units, by 17 rules', () => {
       const covering = Object.values(coverage.rules).filter(
         (entry) => entry.covers.length > 0,
       );
@@ -69,20 +71,30 @@ describe('coverage record', () => {
           '4.2.1/1',
           '4.2.1/2',
           '4.2.2/1',
+          '5.5/1',
+          '5.6/1',
           '5.6/step-1',
+          '5.6/step-5',
+          '5.6/step-6',
+          '5.6/step-7',
           '5.6.1/step-2',
+          '5.6.1/step-4',
           '5.6.2/step-1',
           '5.6.2/step-2',
           '5.6.2/step-3',
+          '5.6.2/step-6',
+          '5.6.4/step-1',
+          '5.7/step-1',
           '5.7/step-2',
           '5.7/step-3',
+          '5.7/step-4',
           '5.7/step-8',
           '5.7/step-22',
           '6.1/1',
           '6.1/2',
         ].sort(),
       );
-      expect(covering.length).toBe(11);
+      expect(covering.length).toBe(17);
     });
 
     // The ids a recount of the pinned text yields under the counting rule:

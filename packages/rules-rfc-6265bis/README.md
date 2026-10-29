@@ -43,7 +43,7 @@ ruleSets:
 
 ## Coverage
 
-**25 of 51** units covered, by **11** rule(s).
+**35 of 51** units covered, by **17** rule(s).
 
 - Source: draft-ietf-httpbis-rfc6265bis-22 (December 2025)
 - Counting rule: One unit per paragraph of draft-22 that contains a BCP 14 keyword and binds a cookie-producing implementation (§3.2.1), wherever it stands, plus one unit per step of the user-agent algorithms in §5.5–§5.7 at which the user agent ignores, drops or caps a cookie, or one of its attributes, that it received in a Set-Cookie header field, or replaces the value of an attribute with the one it would take without the attribute.
@@ -51,16 +51,6 @@ ruleSets:
 Not yet covered:
 
 - `4.1.3/1` — Servers SHOULD use the `__Secure-` and `__Host-` cookie name prefixes.
-- `5.5/1` — A user agent MUST limit the maximum age of a cookie, a limit that SHOULD NOT exceed 400 days, and MUST reduce a longer Expires or Max-Age lifetime to the limit.
-- `5.6/1` — A user agent MAY ignore a Set-Cookie header field in its entirety (§5.3).
-- `5.6/step-5` — A user agent ignores a set-cookie-string whose name and value together exceed 4096 octets.
-- `5.6/step-6` — A user agent ignores an attribute whose value is longer than 1024 octets.
-- `5.6/step-7` — A user agent ignores an attribute whose name it does not recognize.
-- `5.6.1/step-4` — A user agent MUST reduce an Expires expiry-time later than the cookie's age limit to that limit.
-- `5.6.2/step-6` — A user agent reduces a Max-Age delta-seconds to the cookie's age limit.
-- `5.6.4/step-1` — A user agent replaces a Path attribute whose value is empty or does not start with "/" with the default-path.
-- `5.7/step-1` — A user agent MAY ignore a received cookie in its entirety.
-- `5.7/step-4` — A user agent ignores a cookie whose name and value together exceed 4096 octets.
 - `5.7/step-9` — A user agent configured to reject public suffixes ignores a cookie whose Domain attribute is a public suffix other than the request host.
 - `5.7/step-10` — A user agent ignores a cookie whose Domain attribute the request host does not domain-match.
 - `5.7/step-13` — A user agent ignores a cookie with the Secure attribute that was received over a non-secure connection.
@@ -81,10 +71,10 @@ Not yet covered:
 
 | Severity | Keyword | recommended | strict | minimal |
 | -------- | ------- | ----------- | ------ | ------- |
-| error    | MUST    | 5           | 5      | 4       |
-| warn     | SHOULD  | 4           | 4      | 0       |
-| hint     | MAY     | 2           | 2      | 0       |
-| off      | (off)   | 0           | 0      | 7       |
+| error    | MUST    | 8           | 8      | 7       |
+| warn     | SHOULD  | 5           | 5      | 0       |
+| hint     | MAY     | 4           | 4      | 0       |
+| off      | (off)   | 0           | 0      | 10      |
 
 ## Conventions
 
@@ -100,6 +90,17 @@ None.
 | rfc-6265bis/server-should-avoid-large-cookies                    | heuristic                        | heuristic                        | heuristic                        |
 | rfc-6265bis/server-should-degrade-gracefully-without-cookies     | impossible (only-origin-knows)   | impossible (only-origin-knows)   | impossible (only-origin-knows)   |
 | rfc-6265bis/server-should-not-rely-on-cookie-serialization-order | impossible (peer-not-observable) | impossible (peer-not-observable) | impossible (peer-not-observable) |
+
+### set-cookie-processing
+
+| Rule                                                                | static     | analytics                    | test                         |
+| ------------------------------------------------------------------- | ---------- | ---------------------------- | ---------------------------- |
+| rfc-6265bis/user-agent-may-ignore-set-cookie-in-1xx-response        | observable | impossible (tool-limitation) | impossible (tool-limitation) |
+| rfc-6265bis/user-agent-must-cap-cookie-lifetime-at-400-days         | heuristic  | heuristic                    | heuristic                    |
+| rfc-6265bis/user-agent-must-ignore-attribute-value-over-1024-octets | observable | observable                   | observable                   |
+| rfc-6265bis/user-agent-must-ignore-cookie-over-4096-octets          | observable | observable                   | observable                   |
+| rfc-6265bis/user-agent-must-ignore-unrecognized-cookie-attributes   | heuristic  | heuristic                    | heuristic                    |
+| rfc-6265bis/user-agent-must-replace-path-not-starting-with-slash    | observable | observable                   | observable                   |
 
 ### syntax
 
@@ -119,7 +120,7 @@ None.
 
 - `security:transport` — ships empty
 - `security:cors` — ships empty
-- `security:cookies` — 11 rule(s)
+- `security:cookies` — 17 rule(s)
 - `security:csp` — ships empty
 - `security:content-type` — ships empty
 - `security:authentication` — ships empty
@@ -134,7 +135,7 @@ None.
 
 ### privacy
 
-- `privacy:tracking` — ships empty
+- `privacy:tracking` — 1 rule(s)
 - `privacy:fingerprinting` — ships empty
 - `privacy:referrer` — ships empty
 
