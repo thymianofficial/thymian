@@ -200,9 +200,9 @@ describe('coverage record', () => {
       expect(ids.length - steps.length).toBe(24);
     });
 
-    // The units no context can check: one on the browser's store, and seven
-    // that only the origin knows or that the server's peer would have to
-    // show.
+    // The units no context can check: one on the browser's store, four that
+    // only the origin knows, two that the server's peer would have to show,
+    // and one a tool limitation (thymianofficial/thymian-workspace#502).
     it('has 8 informational entries, carrying no cells', () => {
       // Read as a plain string array: the informational and executable
       // branches' tuple types leave `includes` no argument type to accept.
@@ -364,7 +364,9 @@ describe('coverage record', () => {
   // `error`. The checker reads a promotion only off a rule that ships `off`,
   // so the clause is held to the same assertion by handing the checker the
   // rule and its entry as if both shipped `off`: a concern tag, no heuristic
-  // cell in a declared context, and an explanation.
+  // cell in a declared context, and an explanation. The workaround lasts
+  // until the checker reads every promotion above a rule's shipped severity
+  // (thymianofficial/thymian-workspace#614).
   describe('the promoted Secure clause', () => {
     const SET_SECURE =
       'rfc-6265bis/server-should-set-secure-on-every-cookie-over-secure-channel';
