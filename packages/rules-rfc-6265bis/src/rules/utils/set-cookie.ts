@@ -20,10 +20,21 @@
 // As a message spells it; header names compare case-insensitively.
 export const SET_COOKIE_HEADER = 'Set-Cookie';
 
+// §5.6 holds two algorithms, both numbered from 1, and the coverage record's
+// ids don't say which a step belongs to: these are the unparsed-attributes
+// algorithm's. A reader looking up "§5.6 step 6" would land on the first.
+const UNPARSED_ATTRIBUTES_STEPS: ReadonlySet<string> = new Set([
+  '5.6/step-6',
+  '5.6/step-7',
+]);
+
 // A step id as the coverage record keys it, `5.6.2/step-3`, as prose cites
-// it: `§5.6.2 step 3`.
+// it: `§5.6.2 step 3`, or `§5.6, unparsed-attributes step 6` for a step of
+// §5.6's second algorithm.
 export function citeStep(step: string): string {
-  return `§${step.replace('/step-', ' step ')}`;
+  return UNPARSED_ATTRIBUTES_STEPS.has(step)
+    ? `§${step.replace('/step-', ', unparsed-attributes step ')}`
+    : `§${step.replace('/step-', ' step ')}`;
 }
 
 // The steps of §5.6 at which a user agent ignores the whole line.

@@ -30,9 +30,11 @@ const LONG_PATH = `Path=/${'a'.repeat(1024)}`;
 const PAST_THE_CAP = 'Expires=Wed, 01 Jan 2200 00:00:00 GMT';
 
 const cases: [string, string, string[]][] = [
+  // The name and value are 3 + 4095 octets: over the limit, so only the
+  // size rule's guard keeps it silent.
   [
     'a line over 4096 octets the grammar rejects',
-    `SID=${'x'.repeat(4090)} y`,
+    `SID=${'x'.repeat(4093)} y`,
     [GRAMMAR],
   ],
   [
@@ -50,8 +52,8 @@ const cases: [string, string, string[]][] = [
     'SID="31 d4"; Priority=High',
     [GRAMMAR],
   ],
-  // Ignored for its length first (§5.6 step 6), so it is never also an
-  // unrecognized one.
+  // Ignored for its length first (§5.6, unparsed-attributes step 6), so it
+  // is never also an unrecognized one.
   [
     'an unrecognized attribute whose value is over 1024 octets',
     `SID=31d4; Priority=${'a'.repeat(1025)}`,
