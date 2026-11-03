@@ -664,6 +664,11 @@ export function receivedCookie(line: string): ReceivedCookie | undefined {
   return reading.cookie;
 }
 
+export const SECONDS_PER_DAY = 24 * 60 * 60;
+
+// §5.5: the cookie-age-limit draft-22 recommends, 400 days, in seconds.
+export const AGE_LIMIT_SECONDS = 400 * SECONDS_PER_DAY;
+
 // The lifetime a cookie asks for, before any user agent's age limit: the
 // last Max-Age, which wins over any Expires, or else the last Expires
 // (§5.7 step 6), in seconds from `now`, and the attribute it came from.
@@ -692,6 +697,30 @@ export function requestedLifetime(
         attribute: 'Expires',
         seconds: (expires.value.getTime() - now) / 1000,
       };
+}
+
+// A line that removes its cookie, with a requested lifetime of zero or less
+// (§5.6.2 step 7, §5.7 step 6): the user agent evicts an expired cookie from
+// its store (§5.7, after the algorithm), so the line clears a cookie rather
+// than set one, and no rule on a cookie a browser keeps judges it. The
+// lifetime is measured from the Date of the response that carries the line,
+// never from the time of the run: an old recording, or a description's
+// example date, would otherwise read as cleared. Without a Date, it is
+// measured from the epoch, so only an Expires at or before it removes the
+// cookie, the form the grammar rule's message names for deleting one.
+export function removesCookie(
+  cookie: ReceivedCookie,
+  responseDate: Date | undefined,
+): boolean {
+  const lifetime = requestedLifetime(cookie, responseDate?.getTime() ?? 0);
+  return lifetime !== undefined && lifetime.seconds <= 0;
+}
+
+// The Date of a response from its field values, read as a user agent reads
+// a cookie-date; `undefined` without one.
+export function dateOf(values: string[] | undefined): Date | undefined {
+  const [value] = values ?? [];
+  return value === undefined ? undefined : parseCookieDate(value);
 }
 
 // The attributes a user agent ignores at one step of §5.6 on a line it

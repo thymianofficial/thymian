@@ -8,7 +8,7 @@ import { pathToFileURL } from 'node:url';
 
 import type { Rule } from '@thymian/core';
 
-import { setCookieInputs } from './builders.js';
+import { type Origin, SECURE, setCookieInputsAt } from './builders.js';
 import { type FixtureContext, runInContext } from './harness.js';
 
 // Every `*.rule.ts` in `dir`, informational rules left out: they run in no
@@ -31,18 +31,19 @@ export async function loadTopicRules(dir: string): Promise<Rule[]> {
 }
 
 // The names of the rules that report a violation on `lines`, all sent on one
-// response, sorted.
+// response to a request served from `origin`, sorted.
 export async function reportedBy(
   rules: Rule[],
   context: FixtureContext,
   lines: string[],
+  origin: Origin = SECURE,
 ): Promise<string[]> {
   const names: string[] = [];
   for (const rule of rules.filter((r) => r.meta.type.includes(context))) {
     const results = await runInContext(
       context,
       rule,
-      setCookieInputs(...lines)[context],
+      setCookieInputsAt(origin, lines)[context],
     );
     if (results.some((result) => result.violation !== undefined)) {
       names.push(rule.meta.name);

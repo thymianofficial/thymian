@@ -14,7 +14,11 @@
 
 import { getHeader, type HttpRequest } from '@thymian/core';
 
-import { hasCookiePrefix, type ReceivedCookie } from './set-cookie.js';
+import {
+  hasCookiePrefix,
+  type ReceivedCookie,
+  removesCookie,
+} from './set-cookie.js';
 
 // The request a cookie was received from, as a rule can see it in each
 // context: the described origin and path in `static` and `test`, the
@@ -29,6 +33,8 @@ export type CookieExchange = {
   path: string;
   headers: NonNullable<HttpRequest['headers']>;
   transportJudged: boolean;
+  // The Date of the response, against which an Expires is measured.
+  responseDate: Date | undefined;
 };
 
 // §5.1.2: the canonicalized request-host — lower case, IDNA-encoded, as the
@@ -102,6 +108,11 @@ function cookiePath(
 // §5.7 step 12.
 export function isSecureOnly({ attributes }: ReceivedCookie): boolean {
   return attributes.some((attribute) => attribute.name === 'Secure');
+}
+
+// §5.7 step 14.
+export function isHttpOnly({ attributes }: ReceivedCookie): boolean {
+  return attributes.some((attribute) => attribute.name === 'HttpOnly');
 }
 
 // §5.7 step 17: the last SameSite attribute's enforcement, provided one of
@@ -251,6 +262,22 @@ export function ignoredCrossSite(
   return (
     sameSiteFlag(cookie) !== 'None' &&
     isCrossSiteSubresourceOrNestedNavigation(headers)
+  );
+}
+
+// Whether a browser keeps the cookie it received: neither a step above
+// ignores it, the exact ones or the cross-site step 18, nor does its line
+// clear it. A rule on a cookie a browser keeps,
+// its attributes or its contents, judges no other: a cookie a step ignores is
+// that step's rule's, and a line that clears its cookie sets none.
+export function keptByBrowser(
+  cookie: ReceivedCookie,
+  exchange: CookieExchange,
+): boolean {
+  return (
+    !removesCookie(cookie, exchange.responseDate) &&
+    ignoredInStorage(cookie, exchange) === undefined &&
+    !ignoredCrossSite(cookie, exchange)
   );
 }
 
