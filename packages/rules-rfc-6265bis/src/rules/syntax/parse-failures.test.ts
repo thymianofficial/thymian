@@ -18,6 +18,8 @@ import { fixtureContexts, runInContext } from '../../test/harness.js';
 const GRAMMAR_RULE =
   'rfc-6265bis/server-must-send-set-cookie-conforming-to-grammar';
 const REPEAT_RULE = 'rfc-6265bis/server-must-not-repeat-cookie-attributes';
+const COMBINE_RULE =
+  'rfc-6265bis/origin-server-must-not-combine-set-cookie-fields';
 
 const syntaxDir = dirname(fileURLToPath(import.meta.url));
 
@@ -90,5 +92,38 @@ describe.each(fixtureContexts)('in %s', (context) => {
     expect(await reportedBy(context, ['SID="31 d4"; Path=/; path=/a'])).toEqual(
       [GRAMMAR_RULE, REPEAT_RULE].sort(),
     );
+  });
+
+  // A comma in the value of an attribute with its own production breaks
+  // that value, which the grammar rule reports; the cookie is still kept,
+  // so the combining behind it is reported by its own rule.
+  it.each([
+    'SID=31d4; SameSite=Lax, lang=en-US; Path=/',
+    'SID=31d4; Expires=Wed, 09 Jun 2021 10:18:14 GMT, lang=en-US; Path=/',
+    'SID=31d4; Max-Age=3600, lang=en-US; Path=/',
+    'SID=31d4; Domain=example.com, lang=en-US; Path=/',
+  ])(
+    'reports combining that breaks an attribute value from the grammar and the combining rule: %j',
+    async (line) => {
+      expect(await reportedBy(context, [line])).toEqual(
+        [GRAMMAR_RULE, COMBINE_RULE].sort(),
+      );
+    },
+  );
+
+  // Two combined cookies usually share an attribute; the repetition is the
+  // combining, reported once.
+  it('reports combined fields that repeat an attribute once, from the combining rule', async () => {
+    expect(
+      await reportedBy(context, ['SID="31d4"; Path=/, lang=en-US; Path=/']),
+    ).toEqual([COMBINE_RULE]);
+  });
+
+  // A cookie without a name is the grammar rule's (4.1.1/2), so two of
+  // them are not one name set twice.
+  it('reports two nameless cookies once each, from the grammar rule', async () => {
+    expect(await reportedBy(context, ['=31d4', '=en-US'])).toEqual([
+      GRAMMAR_RULE,
+    ]);
   });
 });

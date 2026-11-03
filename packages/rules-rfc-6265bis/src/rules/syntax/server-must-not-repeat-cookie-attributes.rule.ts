@@ -2,6 +2,7 @@ import { httpRule } from '@thymian/core';
 
 import { headerValueRuleFns } from '../utils/header-contexts.js';
 import {
+  combinedCookieName,
   onReceivedCookie,
   type SentCookieAv,
   sentCookieAvs,
@@ -17,7 +18,14 @@ const NAME = 'rfc-6265bis/server-must-not-repeat-cookie-attributes';
 // It reads only the cookie a user agent keeps; a line it ignores is the
 // grammar rule's alone. An empty cookie-av has no name to repeat, and the
 // grammar rule reports it.
+//
+// A line that reads as several fields combined into one carries each
+// cookie's attributes, and the cookies usually share some. That is one
+// defect, and the combining rule reports it, so such a line is skipped.
 const check = onReceivedCookie((_cookie, line) => {
+  if (combinedCookieName(line) !== undefined) {
+    return undefined;
+  }
   const byName = new Map<string, SentCookieAv[]>();
   for (const cookieAv of sentCookieAvs(line)) {
     if (cookieAv.name !== '') {

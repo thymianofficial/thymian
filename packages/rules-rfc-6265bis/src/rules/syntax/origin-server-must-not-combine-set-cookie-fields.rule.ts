@@ -2,35 +2,30 @@ import { httpRule } from '@thymian/core';
 
 import { headerValueRuleFns } from '../utils/header-contexts.js';
 import {
-  onConformingLine,
+  combinedCookieName,
+  onReceivedCookie,
   SET_COOKIE_HEADER,
-  TCHAR_CLASS,
 } from '../utils/set-cookie.js';
 
 const NAME = 'rfc-6265bis/origin-server-must-not-combine-set-cookie-fields';
-
-// A comma followed by a token and "=", which reads as the cookie-pair of a
-// second Set-Cookie field joined on with HTTP's usual ", ". An Expires date
-// carries a comma too, but what follows it is a day of the month, never "=".
-const SECOND_COOKIE_PAIR = new RegExp(`,[ \\t]*(${TCHAR_CLASS}+)[ \\t]*=`);
 
 // Heuristic: the comma is the only trace of combining, and a comma inside an
 // attribute value reads the same — the draft's own `a=b;path=/c,d=e` is
 // either two cookies or one cookie with the path "/c,d=e".
 //
-// One defect, one violation: a line the grammar rejects is the grammar
-// rule's alone. Combining that puts the comma in the cookie-value, as in
-// `a=b, c=d`, fails `cookie-octet`, so it is reported there; what is left
-// here is the comma inside an attribute, which the grammar's av-octet allows.
-const check = onConformingLine((_reading, line) => {
-  const semicolon = line.indexOf(';');
-  const match =
-    semicolon === -1
-      ? null
-      : SECOND_COOKIE_PAIR.exec(line.slice(semicolon + 1));
-  return match === null
+// It reads only the cookie a user agent keeps; a line it ignores is the
+// grammar rule's alone. Combining that puts the comma in the cookie-value,
+// as in `a=b, c=d`, fails `cookie-octet` and is never searched. A comma in
+// a Path or an extension-av is one the grammar's av-octet allows; one in the
+// value of SameSite, Expires, Max-Age or Domain breaks that attribute's
+// production, so the grammar rule reports the broken value and this rule
+// the combining behind it, the way a repeated attribute on a line the
+// grammar rejects is reported by its own rule too.
+const check = onReceivedCookie((_cookie, line) => {
+  const name = combinedCookieName(line);
+  return name === undefined
     ? undefined
-    : `The Set-Cookie line "${line}" carries a comma followed by "${match[1]}=", which reads as a second cookie: it looks like several Set-Cookie header fields combined into one. A user agent reads the line as one cookie, with the rest as part of an attribute, so a second cookie it may hold is never stored.`;
+    : `The Set-Cookie line "${line}" carries a comma followed by "${name}=", which reads as a second cookie: it looks like several Set-Cookie header fields combined into one. A user agent reads the line as one cookie, with the rest as part of an attribute, which may make that attribute invalid, so a second cookie it may hold is never stored.`;
 });
 
 const { lint, live } = headerValueRuleFns(SET_COOKIE_HEADER, NAME, check);

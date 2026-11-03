@@ -50,7 +50,7 @@ export default httpRule(NAME)
     'Server must not send whitespace around an extension attribute of Set-Cookie.',
   )
   .explanation(
-    'An attribute the draft does not define, such as Partitioned or Priority, is passed through as an extension attribute. Whitespace between it and the ";" that follows is not part of it: a browser strips it, so an attribute whose value ends in a space arrives without the space, and code that compares it to what the server meant may disagree. Write "; Name=value;" with no space before the next ";".',
+    'An attribute the draft does not define, such as Partitioned or Priority, is passed through as an extension attribute. Whitespace between it and the ";" that follows is not part of it: a browser strips it, so an attribute whose value ends in a space arrives without the space, and code that compares it to what the server meant may disagree. Write "; Name=value;" with no space before the next ";". Only the space after an extension attribute is reported: the space before one cannot be told apart from the conventional "; " that the grammar allows between attributes.',
   )
   .appliesTo('server')
   // Value-blind common interface, so all three contexts are overridden: the
