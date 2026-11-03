@@ -103,6 +103,18 @@ const cases: [string, string, string[]][] = [
     'SID=31d4; Secure; Path=/',
     [USE_PREFIXES],
   ],
+  // Whether a line clears its cookie is judged against its response's Date,
+  // never the time of the run; without a Date only the epoch clears it.
+  [
+    'a Secure, host-locked cookie whose Expires lies in the past, with no Date',
+    'SID=31d4; Secure; Path=/; Expires=Wed, 21 Oct 2015 07:28:00 GMT',
+    [USE_PREFIXES],
+  ],
+  [
+    'a Secure, host-locked line that clears its cookie with the epoch',
+    'SID=; Secure; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT',
+    [],
+  ],
   // A browser enforces a miscapitalized prefix, a server reading the
   // draft's spelling does not see it.
   [

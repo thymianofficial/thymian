@@ -123,7 +123,7 @@ describe.each(fixtureContexts)('in %s', (context) => {
     'reports %s once, or not at all',
     async (_name, origin, line, expected) => {
       expect(await reportedBy(rules, context, [line], origin)).toEqual(
-        expected.sort(),
+        [...expected].sort(),
       );
     },
   );

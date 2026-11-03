@@ -1,20 +1,20 @@
 import { httpRule } from '@thymian/core';
 
 import { cookieExchangeRuleFns } from '../utils/exchange-contexts.js';
-import { requestedLifetime } from '../utils/set-cookie.js';
+import {
+  AGE_LIMIT_SECONDS,
+  type CookiePrefix,
+  hasCookiePrefix,
+  requestedLifetime,
+  SECONDS_PER_DAY,
+} from '../utils/set-cookie.js';
 import { keptByBrowser } from '../utils/storage-model.js';
 
 const NAME = 'rfc-6265bis/server-should-select-reasonable-cookie-expiration';
 
-const SECONDS_PER_DAY = 24 * 60 * 60;
-
 // §7.4's own example: "a typical session identifier might reasonably be set
 // to expire in two weeks".
 const SESSION_LIFETIME_SECONDS = 14 * SECONDS_PER_DAY;
-
-// §5.5's cap. A longer lifetime is the cap rule's, which says that a browser
-// shortens it; this rule judges the lifetimes a browser keeps.
-const AGE_LIMIT_SECONDS = 400 * SECONDS_PER_DAY;
 
 // A cookie name that reads as a session identifier: "session" or "sessid"
 // anywhere, or "sid" or "sess" as a whole word of the name — SID,
@@ -23,9 +23,12 @@ const AGE_LIMIT_SECONDS = 400 * SECONDS_PER_DAY;
 const SESSION_IDENTIFIER_NAME =
   /session|sessid|(?:^|[_.-])(?:sid|sess)(?:$|[_.-])/;
 
+const PREFIXES: CookiePrefix[] = ['__Secure-', '__Host-'];
+
 function readsAsSessionIdentifier(name: string): boolean {
+  const prefix = PREFIXES.find((candidate) => hasCookiePrefix(name, candidate));
   return SESSION_IDENTIFIER_NAME.test(
-    name.toLowerCase().replace(/^__(?:secure|host)-/, ''),
+    name.slice(prefix?.length ?? 0).toLowerCase(),
   );
 }
 
@@ -33,7 +36,9 @@ function readsAsSessionIdentifier(name: string): boolean {
 // purpose, which no exchange shows. The one purpose a name gives away, and
 // the one the draft gives a lifetime for, is a session identifier, so the
 // rule judges a cookie whose name reads as one against the draft's two
-// weeks, and passes every other. An Expires is measured from the time of the
+// weeks, and passes every other. A lifetime past §5.5's cap is the cap
+// rule's, which says that a browser shortens it; this rule judges the
+// lifetimes a browser keeps. An Expires is measured from the time of the
 // run, as in the cap rule. A cookie a browser ignores, which the rule on why
 // reports, is left out.
 const { lint, test, analytics } = cookieExchangeRuleFns(

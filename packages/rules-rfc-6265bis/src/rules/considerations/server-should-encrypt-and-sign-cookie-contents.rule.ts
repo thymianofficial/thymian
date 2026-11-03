@@ -12,12 +12,27 @@ const EMAIL_ADDRESS =
 
 // One `key=value` or `key:value` pair, its key starting with a letter or "_"
 // and its value not empty, so Base64 padding at the end of a value is none.
-const PAIR = '[A-Za-z_][\\w.-]*[=:][^=:&|]+';
+// Nor does the value start with "-" or ".": that is how a signed token joins
+// its Base64 payload, padding and all, to its signature, as in Rails'
+// `payload--digest` or `payload=.signature`.
+const PAIR = '[A-Za-z_][\\w.-]*[=:][^=:&|.-][^=:&|]*';
 // Two pairs or more, joined by "&" or "|", such as `uid=42&role=admin`.
 const PAIRS = new RegExp(`^${PAIR}(?:[&|]${PAIR})+$`);
 // One pair with "=", such as `user=alice`. A single `key:value` is left out:
 // `s:` and `v1:` are how signed and versioned tokens start.
-const ONE_ASSIGNMENT = /^[A-Za-z_][\w.-]*=[^=:&|]+$/;
+const ONE_ASSIGNMENT = /^[A-Za-z_][\w.-]*=[^=:&|.-][^=:&|]*$/;
+
+// A Base64 run of 16 characters or more that mixes upper case, lower case
+// and digits, as an encoded payload does and a key does not: what stands
+// before the first "=" of `eyJ1c2VyIjoiYWxpY2UifQ=x` is no key.
+function isBase64Run(text: string): boolean {
+  return (
+    /^[A-Za-z0-9+/]{16,}$/.test(text) &&
+    /[A-Z]/.test(text) &&
+    /[a-z]/.test(text) &&
+    /\d/.test(text)
+  );
+}
 
 // The value as a reader of the cookie sees it: without the optional DQUOTEs,
 // and percent-decoded, since a cookie-value cannot carry a raw DQUOTE, comma
@@ -56,7 +71,11 @@ function legibleContents(value: string): string | undefined {
   if (EMAIL_ADDRESS.test(text)) {
     return 'an email address';
   }
-  if (PAIRS.test(text) || ONE_ASSIGNMENT.test(text)) {
+  const firstKey = /^[^=:&|]*/.exec(text)?.[0] ?? '';
+  if (
+    !isBase64Run(firstKey) &&
+    (PAIRS.test(text) || ONE_ASSIGNMENT.test(text))
+  ) {
     return 'key-value pairs';
   }
   return undefined;
@@ -66,7 +85,9 @@ function legibleContents(value: string): string | undefined {
 // a random session identifier, look alike, and both pass. Only a value whose
 // contents anyone can read is flagged — a JSON document, an email address, or
 // key-value pairs, as they are or percent-encoded — and a short word such as
-// a language tag is not, so the rule errs towards passing. A line that clears
+// a language tag is not, so the rule errs towards passing. Base64 is not
+// decoded: a JSON Web Token's payload, or any `eyJ…` value, is legible to
+// anyone who decodes it, and passes. A line that clears
 // its cookie, and a cookie a browser ignores, which the rule on why reports,
 // are left out.
 const { lint, test, analytics } = cookieExchangeRuleFns(
@@ -95,7 +116,7 @@ export default httpRule(NAME)
   )
   .summary('Server should encrypt and sign the contents of its cookies.')
   .explanation(
-    'A browser stores a cookie as the server sent it, and the user, other software on the device, and anyone who intercepts the cookie can read it and change it before it is sent back. A cookie that carries a user id, a role or a profile in plain text both discloses that data and invites the user to edit it. Encrypt and sign cookie contents, or keep the data on the server behind an opaque session identifier. This rule is a warning that flags only contents that are plainly legible, such as JSON, an email address or key-value pairs, because an encrypted value and a random one look alike.',
+    'A browser stores a cookie as the server sent it, and the user, other software on the device, and anyone who intercepts the cookie can read it and change it before it is sent back. A cookie that carries a user id, a role or a profile in plain text both discloses that data and invites the user to edit it. Encrypt and sign cookie contents, or keep the data on the server behind an opaque session identifier. This rule is a warning that flags only contents that are plainly legible, such as JSON, an email address or key-value pairs, because an encrypted value and a random one look alike. Base64 is not decoded, so the payload of a JSON Web Token, which anyone can decode and read, passes too.',
   )
   .appliesTo('server')
   .overrideStaticRule(lint)
