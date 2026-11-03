@@ -20,9 +20,9 @@ function enabled(rule: Rule): Rule {
 }
 
 /**
- * Runs a rule's `analyze` function through the real `AnalyticsApiContext`
- * over an in-memory SQLite repository holding `transactions`, driven by
- * core's `runRules` as `plugin-http-analyzer`'s adapter drives it.
+ * Runs a rule's `analytics` function through core's `runRules` and the real
+ * `AnalyticsApiContext`, as `plugin-http-analyzer` drives it, over an
+ * in-memory repository holding `transactions`.
  */
 export async function runAnalyticsRule(
   rule: Rule,
@@ -32,6 +32,7 @@ export async function runAnalyticsRule(
   const format = new ThymianFormat();
   const repository = new SqliteHttpTransactionRepository(':memory:', logger);
   await repository.init();
+
   for (const transaction of transactions) {
     repository.insertHttpTransaction(transaction);
   }
@@ -43,7 +44,7 @@ export async function runAnalyticsRule(
       format,
       {},
       {
-        errorName: 'AnalyticsRuleTestError',
+        errorName: 'AnalyticsRuleError',
         mode: 'analytics',
         getRuleFn: (r) => r.analyzeRule,
         createContext: (r) =>
@@ -60,4 +61,28 @@ export async function runAnalyticsRule(
   } finally {
     repository.close();
   }
+}
+
+/** A recorded GET from a user agent carrying `range`, answered with a 206. */
+export function rangeRequest(range: string | string[]): CapturedTransaction {
+  return {
+    request: {
+      data: {
+        origin: 'https://example.com',
+        path: '/audio.wav',
+        method: 'get',
+        headers: { range },
+      },
+      meta: { role: 'user-agent' },
+    },
+    response: {
+      data: {
+        statusCode: 206,
+        headers: { 'content-range': 'bytes 0-99/100' },
+        trailers: {},
+        duration: 1,
+      },
+      meta: { role: 'origin server' },
+    },
+  };
 }

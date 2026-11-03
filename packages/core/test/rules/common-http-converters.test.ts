@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
 import type { ThymianHttpResponse } from '../../src/format/index.js';
-import type { HttpResponse } from '../../src/http.js';
+import type { HttpRequest, HttpResponse } from '../../src/http.js';
 import { NoopLogger } from '../../src/logger/noop.logger.js';
 import {
+  httpRequestToCommonHttpRequest,
   httpResponseToCommonHttpResponse,
   thymianToCommonHttpResponse,
 } from '../../src/rules/common-http-converters.js';
@@ -19,6 +20,66 @@ class SpyLogger extends NoopLogger {
 function response(headers: HttpResponse['headers']): HttpResponse {
   return { statusCode: 200, headers, trailers: {}, duration: 0 };
 }
+
+function request(headers: HttpRequest['headers']): HttpRequest {
+  return {
+    origin: 'http://localhost:8080',
+    path: '/users',
+    method: 'post',
+    headers,
+  };
+}
+
+describe('httpRequestToCommonHttpRequest', () => {
+  describe('mediaType', () => {
+    it('is the Content-Type value', () => {
+      const common = httpRequestToCommonHttpRequest(
+        request({ 'content-type': 'application/json' }),
+      );
+
+      expect(common.mediaType).toBe('application/json');
+    });
+
+    it('takes the first value of a duplicated Content-Type and warns once', () => {
+      const logger = new SpyLogger();
+
+      const common = httpRequestToCommonHttpRequest(
+        request({ 'content-type': ['text/plain', 'application/json'] }),
+        { id: 'req-1', logger },
+      );
+
+      expect(common.mediaType).toBe('text/plain');
+      expect(logger.warnings).toHaveLength(1);
+      expect(logger.warnings[0]).toContain('req-1');
+      expect(logger.warnings[0]).toContain('POST http://localhost:8080/users');
+    });
+
+    it('names a duplicated Content-Type by the label it is given', () => {
+      const logger = new SpyLogger();
+
+      httpRequestToCommonHttpRequest(
+        request({ 'content-type': ['text/plain', 'application/json'] }),
+        { label: 'POST http://localhost/users → 201 Created', logger },
+      );
+
+      expect(logger.warnings[0]).toContain('POST http://localhost/users');
+    });
+
+    it.each([
+      ['missing', {}],
+      ['an empty array', { 'content-type': [] }],
+    ])('is empty when the Content-Type is %s', (_name, headers) => {
+      const logger = new SpyLogger();
+
+      const common = httpRequestToCommonHttpRequest(request(headers), {
+        logger,
+      });
+
+      expect(common.mediaType).toBe('');
+      expect(logger.warnings).toEqual([]);
+    });
+  });
+});
 
 describe('httpResponseToCommonHttpResponse', () => {
   describe('mediaType', () => {

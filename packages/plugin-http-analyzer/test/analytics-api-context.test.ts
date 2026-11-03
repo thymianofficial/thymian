@@ -190,6 +190,42 @@ describe('AnalyticsApiContext', () => {
       );
     });
 
+    it('should take the first value of a duplicated request Content-Type and warn', async () => {
+      insertTransaction({
+        request: {
+          data: {
+            method: 'post',
+            origin: 'https://api.example.com',
+            path: '/users',
+            headers: { 'content-type': ['text/plain', 'application/json'] },
+          },
+          meta: {},
+        },
+      });
+
+      const warnings: string[] = [];
+      const spyLogger = new (class extends NoopLogger {
+        override warn(message?: string): void {
+          warnings.push(String(message));
+        }
+      })();
+      const context = new AnalyticsApiContext(
+        repository,
+        spyLogger,
+        createThymianFormat(),
+      );
+
+      const mediaTypes: string[] = [];
+      context.validateCommonHttpTransactions(statusCode(200), (req) => {
+        mediaTypes.push(req.mediaType);
+        return [];
+      });
+
+      expect(mediaTypes).toEqual(['text/plain']);
+      expect(warnings).toHaveLength(1);
+      expect(warnings[0]).toContain('POST https://api.example.com/users');
+    });
+
     it('should ignore skipped origins', async () => {
       insertTransaction({
         request: {

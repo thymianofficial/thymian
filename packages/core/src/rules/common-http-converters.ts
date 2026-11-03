@@ -4,7 +4,11 @@ import type {
 } from '../format/index.js';
 import type { HttpRequest, HttpResponse } from '../http.js';
 import type { Logger } from '../logger/logger.js';
-import { getHeader, httpResponseToLabel } from '../utils.js';
+import {
+  getHeader,
+  httpRequestToLabel,
+  httpResponseToLabel,
+} from '../utils.js';
 import type { CommonHttpRequest, CommonHttpResponse } from './contexts.js';
 
 export function thymianToCommonHttpRequest(
@@ -40,25 +44,21 @@ export function thymianToCommonHttpResponse(
   };
 }
 
-function extractMediaType(req: HttpRequest): string {
-  if (!req.headers) {
-    return '';
-  }
-
-  const ct = getHeader(req.headers, 'content-type');
-
-  if (Array.isArray(ct)) {
-    throw new Error('Content-type is a single valued field.');
-  }
-
-  return ct ?? '';
-}
+export type HttpRequestConversionOptions = {
+  /** The Thymian node id of the request, when there is one. */
+  id?: string;
+  /** How warnings name the request. Defaults to the request's own label. */
+  label?: string;
+  logger?: Logger;
+};
 
 export function httpRequestToCommonHttpRequest(
   request: HttpRequest,
-  _id?: string,
+  options: HttpRequestConversionOptions = {},
 ): CommonHttpRequest {
-  void _id;
+  const ct = request.headers
+    ? getHeader(request.headers, 'content-type')
+    : undefined;
 
   return {
     origin: request.origin,
@@ -70,9 +70,37 @@ export function httpRequestToCommonHttpRequest(
       new URLSearchParams(request.path.split('?')[1] ?? '').keys(),
     ),
     cookies: [],
-    mediaType: extractMediaType(request),
+    mediaType:
+      singleContentType(ct, 'request', options, () =>
+        httpRequestToLabel(request),
+      ) ?? '',
     body: !!request.body,
   };
+}
+
+/**
+ * The one Content-Type value of a message. Content-Type is a single valued
+ * field (RFC 9110 §8.3), so a duplicated one takes the first value and warns.
+ */
+function singleContentType(
+  ct: string | string[] | undefined,
+  message: 'request' | 'response',
+  { id, label, logger }: HttpRequestConversionOptions,
+  defaultLabel: () => string,
+): string | undefined {
+  if (!Array.isArray(ct)) {
+    return ct;
+  }
+
+  if (ct.length > 1) {
+    const name = label ?? defaultLabel();
+
+    logger?.warn(
+      `Content-Type is a single valued field, but ${ct.length} values were received for ${message} ${id ? `${id} (${name})` : `"${name}"`}. Using the first one.`,
+    );
+  }
+
+  return ct[0];
 }
 
 // RFC 9110 §8.3.1: type "/" subtype, each a token (RFC 9110 §5.6.2).
@@ -90,19 +118,16 @@ export function normalizeMediaType(value: string | undefined): string {
 
 function getMediaType(
   response: HttpResponse,
-  { id, label, logger }: HttpResponseConversionOptions,
+  options: HttpResponseConversionOptions,
 ): string {
-  const ct = getHeader(response.headers, 'content-type');
-
-  if (Array.isArray(ct) && ct.length > 1) {
-    const name = label ?? httpResponseToLabel(response);
-
-    logger?.warn(
-      `Content-Type is a single valued field, but ${ct.length} values were received for response ${id ? `${id} (${name})` : `"${name}"`}. Using the first one.`,
-    );
-  }
-
-  return normalizeMediaType(Array.isArray(ct) ? ct[0] : ct);
+  return normalizeMediaType(
+    singleContentType(
+      getHeader(response.headers, 'content-type'),
+      'response',
+      options,
+      () => httpResponseToLabel(response),
+    ),
+  );
 }
 
 export type HttpResponseConversionOptions = {

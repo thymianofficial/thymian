@@ -222,7 +222,10 @@ export class AnalyticsApiContext implements AnalyzeContext {
       const location = httpTransactionToLabel(request.data, response.data);
       results.push(
         ...validateFn(
-          httpRequestToCommonHttpRequest(request.data),
+          httpRequestToCommonHttpRequest(request.data, {
+            label: location,
+            logger: this.logger,
+          }),
           httpResponseToCommonHttpResponse(response.data, {
             label: location,
             logger: this.logger,
@@ -283,7 +286,10 @@ export class AnalyticsApiContext implements AnalyzeContext {
             );
 
             return [
-              httpRequestToCommonHttpRequest(t.request.data),
+              httpRequestToCommonHttpRequest(t.request.data, {
+                label: location,
+                logger: this.logger,
+              }),
               httpResponseToCommonHttpResponse(t.response.data, {
                 label: location,
                 logger: this.logger,
