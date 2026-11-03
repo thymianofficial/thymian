@@ -34,12 +34,41 @@ describe('coverage record', () => {
   // Exact counts, not only "no violations": a checker that skipped every rule
   // would report none too.
   describe('the census', () => {
-    it('loads no rules yet, with one entry per loaded rule', async () => {
+    it('loads 1 rule, with one entry per loaded rule', async () => {
       const rules = await loadBaselineRules();
 
-      expect(rules.length).toBe(0);
+      expect(rules.length).toBe(1);
       expect(Object.keys(coverage.rules).length).toBe(rules.length);
     }, 30_000);
+
+    // The verdict table's G1: the grammar rule covers every unit whose
+    // trigger is a line §4.1.1's grammar rejects.
+    it('covers 14 units, by 1 rule', () => {
+      const covering = Object.values(coverage.rules).filter(
+        (entry) => entry.covers.length > 0,
+      );
+      const covered = new Set(covering.flatMap((entry) => entry.covers));
+
+      expect([...covered].sort()).toEqual(
+        [
+          '1/1',
+          '4.1.1/1',
+          '4.1.1/2',
+          '4.1.1/3',
+          '4.1.1/8',
+          '5.6/step-1',
+          '5.6.1/step-2',
+          '5.6.2/step-1',
+          '5.6.2/step-2',
+          '5.6.2/step-3',
+          '5.7/step-2',
+          '5.7/step-3',
+          '5.7/step-8',
+          '5.7/step-22',
+        ].sort(),
+      );
+      expect(covering.length).toBe(1);
+    });
 
     // The ids a recount of the pinned text yields under the counting rule:
     // the server's keyword paragraphs keyed `<section>/<n>`, the user

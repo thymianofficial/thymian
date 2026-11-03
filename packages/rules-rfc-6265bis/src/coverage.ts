@@ -159,5 +159,34 @@ export default defineCoverage({
     hasKeywordBasis: true,
   },
   units,
-  rules: {},
+  rules: {
+    // `syntax` — §1, §3 and §4.1.1, and every step whose trigger is a line
+    // the grammar rejects.
+    // One defect, one violation: every line that triggers one of these units
+    // is a line §4.1.1's grammar rejects — an empty name fails `token`, a
+    // control character, a non-ASCII octet or unencoded data fails
+    // `cookie-octet` or `av-octet`, an Expires that is no cookie-date is no
+    // IMF-fixdate either, and an empty or non-digit Max-Age fails
+    // `non-zero-digit *DIGIT`. The grammar rule owns parse failures, so each
+    // is reported once, with what the browser does in the message.
+    'rfc-6265bis/server-must-send-set-cookie-conforming-to-grammar': {
+      covers: [
+        '1/1',
+        '4.1.1/1',
+        '4.1.1/2',
+        '4.1.1/3',
+        '4.1.1/8',
+        '5.6/step-1',
+        '5.6.1/step-2',
+        '5.6.2/step-1',
+        '5.6.2/step-2',
+        '5.6.2/step-3',
+        '5.7/step-2',
+        '5.7/step-3',
+        '5.7/step-8',
+        '5.7/step-22',
+      ],
+      declared: { types: ['static', 'test', 'analytics'], severity: 'error' },
+    },
+  },
 });
