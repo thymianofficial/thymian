@@ -664,6 +664,11 @@ export function receivedCookie(line: string): ReceivedCookie | undefined {
   return reading.cookie;
 }
 
+export const SECONDS_PER_DAY = 24 * 60 * 60;
+
+// §5.5: the cookie-age-limit draft-22 recommends, 400 days, in seconds.
+export const AGE_LIMIT_SECONDS = 400 * SECONDS_PER_DAY;
+
 // The lifetime a cookie asks for, before any user agent's age limit: the
 // last Max-Age, which wins over any Expires, or else the last Expires
 // (§5.7 step 6), in seconds from `now`, and the attribute it came from.

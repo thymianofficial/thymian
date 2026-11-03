@@ -267,7 +267,8 @@ export function ignoredCrossSite(
 }
 
 // Whether a browser keeps the cookie it received: neither a step above
-// ignores it, nor does its line clear it. A rule on a cookie a browser keeps,
+// ignores it, the exact ones or the cross-site step 18, nor does its line
+// clear it. A rule on a cookie a browser keeps,
 // its attributes or its contents, judges no other: a cookie a step ignores is
 // that step's rule's, and a line that clears its cookie sets none.
 export function keptByBrowser(
@@ -276,7 +277,8 @@ export function keptByBrowser(
 ): boolean {
   return (
     !removesCookie(cookie, exchange.responseDate) &&
-    ignoredInStorage(cookie, exchange) === undefined
+    ignoredInStorage(cookie, exchange) === undefined &&
+    !ignoredCrossSite(cookie, exchange)
   );
 }
 

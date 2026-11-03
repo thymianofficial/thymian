@@ -5,16 +5,14 @@ import {
   type CookiePrefix,
   hasCookiePrefix,
   type ReceivedCookie,
-  requestedLifetime,
 } from '../utils/set-cookie.js';
 import {
   canonicalHost,
   type CookieExchange,
   hasEnforcedPrefix,
-  ignoredCrossSite,
-  ignoredInStorage,
   isHostLocked,
   isSecureOnly,
+  keptByBrowser,
   publicSuffixDomain,
 } from '../utils/storage-model.js';
 
@@ -56,12 +54,9 @@ function isPublicSuffixCookie(
 const { lint, test, analytics } = cookieExchangeRuleFns(
   NAME,
   (cookie, exchange) => {
-    const lifetime = requestedLifetime(cookie, Date.now());
     if (
-      (lifetime !== undefined && lifetime.seconds <= 0) ||
-      ignoredInStorage(cookie, exchange) !== undefined ||
-      isPublicSuffixCookie(cookie, exchange) ||
-      ignoredCrossSite(cookie, exchange)
+      !keptByBrowser(cookie, exchange) ||
+      isPublicSuffixCookie(cookie, exchange)
     ) {
       return undefined;
     }

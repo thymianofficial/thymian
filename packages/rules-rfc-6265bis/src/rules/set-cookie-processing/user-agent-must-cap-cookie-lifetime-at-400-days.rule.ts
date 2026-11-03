@@ -2,18 +2,15 @@ import { httpRule } from '@thymian/core';
 
 import { headerValueRuleFns } from '../utils/header-contexts.js';
 import {
+  AGE_LIMIT_SECONDS,
   citeStep,
   onReceivedCookie,
   requestedLifetime,
+  SECONDS_PER_DAY,
   SET_COOKIE_HEADER,
 } from '../utils/set-cookie.js';
 
 const NAME = 'rfc-6265bis/user-agent-must-cap-cookie-lifetime-at-400-days';
-
-const SECONDS_PER_DAY = 24 * 60 * 60;
-
-// §5.5: 400 days, in seconds.
-const AGE_LIMIT_SECONDS = 400 * SECONDS_PER_DAY;
 
 // The lifetime is the one the cookie keeps: the last Max-Age, which wins
 // over any Expires, or else the last Expires (§5.7 step 6). An attribute
