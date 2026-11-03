@@ -1,4 +1,4 @@
-import { not, responseTrailer, statusCodeRange } from '@thymian/core';
+import { responseTrailer, statusCodeRange } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
 // eslint-disable-next-line thymian-internal/require-rule-tags -- permissive MAY, delivery-placement choice — no hazard in the permission
@@ -19,7 +19,7 @@ export default httpRule('rfc9110/sender-may-send-etag-in-trailer')
   .rule((ctx) =>
     ctx.validateCommonHttpTransactions({
       appliesTo: statusCodeRange(200, 299),
-      violatedWhen: not(responseTrailer('etag')),
+      violatedWhen: responseTrailer('etag'),
     }),
   )
   .done();
