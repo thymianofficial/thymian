@@ -188,5 +188,54 @@ export default defineCoverage({
       ],
       declared: { types: ['static', 'test', 'analytics'], severity: 'error' },
     },
+    // A MAY is checkable at `hint`: the finding is that the mechanism goes
+    // unused, not that the server is non-conformant.
+    'rfc-6265bis/origin-server-may-send-set-cookie-with-any-response': {
+      covers: ['3/1'],
+      declared: { types: ['static', 'test', 'analytics'], severity: 'hint' },
+    },
+    // A comma followed by what reads as a second cookie-pair is the only
+    // trace of combining, and a comma inside an attribute value reads the
+    // same (the draft's own `a=b;path=/c,d=e`): heuristic everywhere, and
+    // lower than the MUST NOT's `error`.
+    'rfc-6265bis/origin-server-must-not-combine-set-cookie-fields': {
+      covers: ['3/2'],
+      declared: { types: ['static', 'test', 'analytics'], severity: 'warn' },
+      contexts: {
+        static: 'heuristic',
+        test: 'heuristic',
+        analytics: 'heuristic',
+      },
+    },
+    'rfc-6265bis/server-may-wrap-cookie-value-in-double-quotes': {
+      covers: ['4.1.1/4'],
+      declared: { types: ['static', 'test', 'analytics'], severity: 'hint' },
+    },
+    // Exact on the side a line can show. The grammar puts OWS between ";"
+    // and a cookie-av, so whitespace before an extension-av cannot be told
+    // from it; whitespace after one, before the next ";", is the defect
+    // every observable line carries.
+    'rfc-6265bis/server-must-not-send-whitespace-around-extension-attributes': {
+      covers: ['4.1.1/5'],
+      declared: {
+        types: ['static', 'test', 'analytics'],
+        severity: 'error',
+      },
+    },
+    'rfc-6265bis/server-must-not-repeat-cookie-attributes': {
+      covers: ['4.1.1/6'],
+      declared: { types: ['static', 'test', 'analytics'], severity: 'error' },
+    },
+    'rfc-6265bis/server-must-send-only-one-set-cookie-per-cookie-name': {
+      covers: ['4.1.1/7'],
+      declared: { types: ['test', 'analytics'], severity: 'error' },
+      contexts: {
+        static: {
+          verdict: 'impossible',
+          reason: 'not-representable',
+          note: 'An API description declares response headers as a map keyed by name, so it cannot declare two Set-Cookie field lines in one response.',
+        },
+      },
+    },
   },
 });
