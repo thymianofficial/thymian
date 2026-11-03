@@ -97,7 +97,8 @@ clickjacking package: grouping by threat is what a tag does. §17 stays in
   RFC. Once the RFC is published, the package and its rule ids are renamed to the RFC's name
   (`@thymian/rules-rfc-<n>`, `rfc<n>/…`) and every citation is re-pointed at it. The rename
   changes every config key that names one of its rules, so it ships as a breaking change
-  announced in the release. Waiting for the RFC would leave a source that servers already
+  announced in the release, and the draft-named package is deprecated on npm with a pointer
+  to the new name. Waiting for the RFC would leave a source that servers already
   follow unchecked, and keeping the slug after publication would leave every rule id naming
   a document the RFC replaced. _(Amended 2026-10-16; see Status History.)_
 - **No floor package and no aggregate package.** The thin packages carry real grammar and
@@ -277,7 +278,8 @@ of this.
   construction, the one number this whole convention exists to keep honest. A source with no
   denominator never refuses a package; an **undeclared counting rule does**. Denominators
   genuinely differ — Cookies counts its server paragraphs and the user-agent steps that ignore,
-  drop or cap what a server sent in one N (51 in draft-22), Fetch's CORS
+  drop or cap what a server sent, or replace a value it sent with the one it would take
+  without it, in one N (51 in draft-22), Fetch's CORS
   surface has zero BCP 14 keywords, and RFC 9110 §17 has none either, so its substitute is
   the 14–15 sections it cross-references.
 - **Verdict tables are profile-independent** — observability does not vary by profile, only

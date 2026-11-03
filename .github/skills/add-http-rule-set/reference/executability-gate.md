@@ -124,7 +124,9 @@ never split one on commas.
 
 **A 1xx interim response is not a transaction of its own** in core, so `test` and `analytics`
 never see a header on one. Only `static` can, where the description declares it; the other two
-cells are `tool-limitation`, cited.
+cells are `tool-limitation`, citing the core issue for capturing interim responses
+(thymianofficial/thymian-workspace#111). File one only if that issue is closed and the gap
+is still there.
 
 ### `static` — the Thymian Format
 
@@ -189,10 +191,14 @@ Carries real values and real message pairs, and is the context most likely to be
 recorded traffic shows what happened, not what should have. A conditional-request rule can
 see an `If-Match` and cannot see whether it ought to have matched — `requires-controlled-input`.
 
-A value relative to the time it was sent — an absolute expiry date, a `Date` — is read against
-the time of the run, not of the recording, unless the recording carries its own timestamp. An
-old recording then reads shorter-lived, so choose the direction the error falls in: towards a
-pass.
+A value relative to the time it was sent — an absolute expiry date — is read against the
+`Date` of the message that carries it wherever it has one, never the time of the run. Without
+a `Date`, the time of the run is a fallback only where the error it makes is a pass: an old
+recording reads shorter-lived, so a rule that flags a lifetime that is too long misses some,
+and reports nothing false. Never let the time of the run decide whether another rule judges
+a value at all: a cookie whose 2015 `Expires` reads as already deleted is one no rule on a
+kept cookie checks, so its missing `Secure` passes unreported. Where a deletion has to be
+decided without a `Date`, count only the unambiguous form, such as an `Expires` at the epoch.
 
 ## Handing over mid-source
 

@@ -26,7 +26,7 @@ One source document, its **security slice**, one package. A slice is not a subse
 choose for convenience: it is every security-related statement the source makes.
 
 Order for the first walks, smallest real conformance clause first:
-`rules-rfc-6797` (N=14) → `rules-rfc-6265bis` → `rules-whatwg-fetch` → `rules-w3c-csp` →
+`rules-rfc-6797` (N=14) → `rules-rfc-6265bis` (N=51) → `rules-whatwg-fetch` → `rules-w3c-csp` →
 `rules-w3c-referrer-policy` → `rules-rfc-7034`. RFC 9110 §17 folds into the existing
 `rules-rfc-9110`.
 
@@ -142,21 +142,24 @@ Write `src/coverage.ts` with `units`, the `countingRule` prose, the source `revi
 `substituteLabel` where the document has no enumerable unit. Populate the unit list; leave
 the per-unit verdicts to step 3.
 
-Denominators genuinely differ, so derive rather than assume: a source may bind several
-actors, and its own conformance section says which paragraphs bind which;
-Fetch's CORS surface contains **zero** BCP 14 keywords; RFC 9110 §17 has none either, so its
-substitute is the 14–15 sections it cross-references. A keyword count is a counting rule; so
+A source may bind several actors. Where it has a conformance section, that section says
+which paragraphs bind which; where it has none, say in the counting rule how you told them
+apart.
+
+Denominators genuinely differ, so derive rather than assume: Fetch's CORS surface contains
+**zero** BCP 14 keywords; RFC 9110 §17 has none either, so its substitute is the 14–15
+sections it cross-references. A keyword count is a counting rule; so
 is "one per author-facing directive". Either is fine, declared.
 
 **A user-agent step counts when the counting rule names it.** Some requirements bind the user
 agent, yet their consequence shows on the server's own message: an algorithm step at which a
-browser ignores, drops or caps what the server sent, or replaces a value it sent with the one it
-would take without it. The server never learns of it, and the
-message that triggers it is one Thymian holds. Where the slice includes such steps, name them
-in the counting rule — which algorithm, which kind of step — and count each as one unit in the
-same N as the paragraphs that bind the server. A step that nothing
-on the server's message triggers, such as one for a value that reached the user agent another
-way, stays outside N by the same rule.
+browser ignores, drops or caps what the server sent, or replaces a value it sent with the
+one it would take without it. The server never learns of it, and the message that triggers
+it is one Thymian holds. Where the slice includes such steps, name them in the counting
+rule — which algorithm, which kind of step — and count each as one unit in the same N as the
+paragraphs that bind the server. A step that nothing on the server's message triggers, such
+as one for a value that reached the user agent another way, stays outside N by the same
+rule.
 
 **One rule may cover a server unit and a user-agent step that share a wire fact.** A grammar
 `MUST` on the server and the step at which a browser ignores a line that breaks it describe
@@ -268,9 +271,15 @@ contract is the source's grammar and parsing algorithm.
 what a user agent does with the value. Every other rule on that header runs only where the
 parser leaves it something to judge — a value the user-agent reading kept, or one the grammar
 accepted — through guards shared inside the package, so a malformed value is reported once
-rather than once per rule. Where the source's algorithm stops at the first
-step that drops a value, the rules stop there too: the first exact step that drops it reports
-it, and a heuristic step defers to any exact step that also drops it.
+rather than once per rule. Where the source's algorithm stops at the first step that drops a
+value, the rules stop there too: the first exact step that drops it reports it, and a
+heuristic step defers to any exact step that also drops it.
+
+**A deviation every browser handles the same way still ships at its keyword's severity.** A
+`Max-Age=0` that removes the cookie, a `Domain` whose leading dot is ignored: the browser's
+handling is deterministic, but the source rules the form out, so the grammar rule reports it
+at `error` like any other. What the deterministic handling changes is the message: it says
+what the browser does with the value, and names the form that conforms.
 
 **Done when** `nx build`, the package's lint and step 1's `tsc` pass, and every rule's
 declared contexts match its row in step 3's table.
@@ -316,25 +325,33 @@ cannot see a second rule speaking on its input.
 Severity carries strictness, not the RFC keyword. Resolution runs shipped default → profile →
 user config, and the `ruleSeverity: 'error'` floor filter runs **after** the profile.
 
-- **`strict`** — source fidelity. For a source with no BCP 14 keywords, fidelity has a **`warn`
-  ceiling**; inventing `error` there would be Thymian's opinion wearing the source's authority.
-  A heuristic rule never ships at `error`: a heuristic `MUST` or `MUST NOT` ships at `warn`,
-  and a heuristic `SHOULD` keeps its `warn`. A rule for a user-agent step takes the keyword
-  that binds its algorithm, so a step of an algorithm the user agent MUST follow is `error`,
-  unless step 3 judged it heuristic.
+- **`strict`** — source fidelity. A rule ships at its keyword's severity: `MUST` and
+  `MUST NOT` at `error`, `SHOULD` and `SHOULD NOT` at `warn`, `MAY` at `hint`. For a source
+  with no BCP 14 keywords, fidelity has a **`warn` ceiling**; inventing `error` there would be
+  Thymian's opinion wearing the source's authority.
+  A heuristic rule never ships at `error`: a heuristic `MUST` or `MUST NOT` ships at most at
+  `warn`, and a heuristic `SHOULD` keeps its `warn`. It ships lower where most of what the
+  heuristic flags is no defect: an attribute the source does not define may be one another
+  specification does, such as `Partitioned`, so the step that ignores an unrecognized
+  attribute ships at `hint`. A rule for a user-agent step takes the keyword that binds its
+  algorithm, so a step of an algorithm the user agent MUST follow is `error`, unless step 3
+  judged it heuristic.
 - **`recommended`** — convention rules on, plus promotions **gated on a concern tag and
   non-heuristic status**. State the promotion's reason in `explanation`. The coverage checker
   reads a promotion only off a rule that ships `off`, so a profile that raises a shipped rule,
-  `warn` to `error`, is not checked by the gate. Assert it in the coverage meta-test: hand the
+  `warn` to `error`, is not checked by the gate. Until the checker reads every promotion
+  (thymianofficial/thymian-workspace#614), assert it in the coverage meta-test: hand the
   checker that rule and its entry as if both shipped `off`, expect zero violations, and expect
-  `undocumented-promoted-rule` once its explanation is removed.
+  `undocumented-promoted-rule` once its explanation is removed. Cite the ticket beside the
+  assertion, so the workaround goes when the checker is fixed.
 - **`minimal`** — `error` + non-heuristic + exactly-observable, **derived from `coverage.ts`**
   by core's `deriveMinimalProfile`, never transcribed.
 
 **Convention rules** — an obligation no source imposes, over a mechanism a source defines
 (send HSTS at all, set `HttpOnly`) — ship `.severity('off')` with an executable `.type()`, and
 `recommended` promotes them. The executable `.type()` is what distinguishes them from an
-informational rule.
+informational rule. No sentence of the source states the convention, so its `.description()`
+states it in prose rather than quoting the source.
 
 A convention rule **covers no unit**: its `coverage.ts` entry has `covers: []`. The unit it
 resembles gets a rule of its own — a `MAY` its `hint`, a conditional `SHOULD` its heuristic —
