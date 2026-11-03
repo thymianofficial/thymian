@@ -25,4 +25,32 @@ describe('extractServerInfo', () => {
       protocol: 'http',
     });
   });
+
+  it('should prefer a localhost server over the first server', () => {
+    const serverInfo = extractServerInfo([
+      { url: 'https://api.example.com/v1' },
+      { url: 'http://localhost:3000/api' },
+    ]);
+
+    expect(serverInfo).toMatchObject({
+      basePath: '/api',
+      host: 'localhost',
+      port: 3000,
+      protocol: 'http',
+    });
+  });
+
+  it('should use the first server when none is on localhost', () => {
+    const serverInfo = extractServerInfo([
+      { url: 'https://api.example.com/v1' },
+      { url: 'https://staging.example.com/v2' },
+    ]);
+
+    expect(serverInfo).toMatchObject({
+      basePath: '/v1',
+      host: 'api.example.com',
+      port: 443,
+      protocol: 'https',
+    });
+  });
 });

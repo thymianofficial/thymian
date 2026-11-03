@@ -23,9 +23,9 @@ export function extractServerInfo(
   };
 
   const localServer =
-    serverObjects.find((serverObject) => {
-      serverObject.url.includes('localhost');
-    }) ?? serverObjects[0];
+    serverObjects.find((serverObject) =>
+      serverObject.url.includes('localhost'),
+    ) ?? serverObjects[0];
 
   if (localServer) {
     const urlWithVariables = localServer.url.replaceAll(
