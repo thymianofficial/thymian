@@ -238,6 +238,36 @@ export default defineCoverage({
       },
     },
 
+    // `prefixes` — §4.1.3, and the §5.7 steps that enforce the prefixes.
+    // §4.1.3.1 and §4.1.3.2 describe what a prefix implies and carry no
+    // keyword, so they are no units; steps 20 and 21 are what a browser
+    // enforces. A prefix is matched case-insensitively (§5.4).
+    // Heuristic everywhere: which cookies warrant a prefix is application
+    // knowledge. The check flags a cookie that already meets a prefix's
+    // requirements and does not carry it.
+    'rfc-6265bis/server-should-use-cookie-name-prefixes': {
+      covers: ['4.1.3/1'],
+      declared: { types: ['static', 'test', 'analytics'], severity: 'warn' },
+      contexts: {
+        static: 'heuristic',
+        test: 'heuristic',
+        analytics: 'heuristic',
+      },
+    },
+    'rfc-6265bis/user-agent-must-ignore-secure-prefixed-cookie-without-secure':
+      {
+        covers: ['5.7/step-20'],
+        declared: { types: ['static', 'test', 'analytics'], severity: 'error' },
+      },
+    'rfc-6265bis/user-agent-must-ignore-host-prefixed-cookie-unless-host-locked':
+      {
+        covers: ['5.7/step-21'],
+        declared: {
+          types: ['static', 'test', 'analytics'],
+          severity: 'error',
+        },
+      },
+
     // `set-cookie-processing` — the other steps of §5.5 and §5.6. Each rule
     // is named after the user agent's requirement and judges the server's
     // line by the user agent's reading of it. The steps whose trigger is a
@@ -302,6 +332,66 @@ export default defineCoverage({
         test: 'heuristic',
         analytics: 'heuristic',
       },
+    },
+
+    // `storage-model` — the other steps of §5.7. A cookie is ignored once,
+    // at the first step that ignores it, and each rule speaks only where its
+    // step is that one. The steps on the request host and scheme (9, 10, 13)
+    // skip exactly the server URL fallback in `static` and `test`; recorded
+    // traffic in `analytics` is real, so it never skips it.
+    // Heuristic everywhere: Thymian carries no public suffix list, so the
+    // check recognizes a single-label Domain only, which is a public suffix
+    // under any list; and the step binds only a browser configured to reject
+    // public suffixes.
+    'rfc-6265bis/user-agent-must-ignore-cookie-with-public-suffix-domain': {
+      covers: ['5.7/step-9'],
+      declared: { types: ['static', 'test', 'analytics'], severity: 'warn' },
+      contexts: {
+        static: 'heuristic',
+        test: 'heuristic',
+        analytics: 'heuristic',
+      },
+    },
+    'rfc-6265bis/user-agent-must-ignore-cookie-with-non-matching-domain': {
+      covers: ['5.7/step-10'],
+      declared: { types: ['static', 'test', 'analytics'], severity: 'error' },
+    },
+    'rfc-6265bis/user-agent-must-ignore-secure-cookie-over-insecure-connection':
+      {
+        covers: ['5.7/step-13'],
+        declared: {
+          types: ['static', 'test', 'analytics'],
+          severity: 'error',
+        },
+      },
+    'rfc-6265bis/user-agent-must-not-let-insecure-cookie-overlay-secure-cookie':
+      {
+        covers: ['5.7/step-16'],
+        declared: { types: ['informational'], severity: 'error' },
+      },
+    // `analytics` only, and heuristic there: Fetch Metadata request headers
+    // show a cross-site request that is no top-level navigation where the
+    // browser sends them, and their absence shows nothing.
+    'rfc-6265bis/user-agent-must-ignore-same-site-cookie-set-cross-site': {
+      covers: ['5.7/step-18'],
+      declared: { types: ['analytics'], severity: 'warn' },
+      contexts: {
+        static: {
+          verdict: 'impossible',
+          reason: 'not-representable',
+          note: 'An API description does not say which site a request comes from, nor whether it is a top-level navigation.',
+        },
+        test: {
+          verdict: 'impossible',
+          reason: 'participant-not-reachable',
+          note: 'Thymian sends its test requests from no browsing context, so none of them is a cross-site subresource request or a nested navigation.',
+        },
+        analytics: 'heuristic',
+      },
+    },
+    'rfc-6265bis/user-agent-must-ignore-same-site-none-cookie-without-secure': {
+      covers: ['5.7/step-19'],
+      declared: { types: ['static', 'test', 'analytics'], severity: 'error' },
     },
 
     // `cookie-header` — §4.2, and §6.1's server paragraphs about the Cookie

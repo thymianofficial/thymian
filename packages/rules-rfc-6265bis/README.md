@@ -43,22 +43,13 @@ ruleSets:
 
 ## Coverage
 
-**35 of 51** units covered, by **17** rule(s).
+**44 of 51** units covered, by **26** rule(s).
 
 - Source: draft-ietf-httpbis-rfc6265bis-22 (December 2025)
 - Counting rule: One unit per paragraph of draft-22 that contains a BCP 14 keyword and binds a cookie-producing implementation (§3.2.1), wherever it stands, plus one unit per step of the user-agent algorithms in §5.5–§5.7 at which the user agent ignores, drops or caps a cookie, or one of its attributes, that it received in a Set-Cookie header field, or replaces the value of an attribute with the one it would take without the attribute.
 
 Not yet covered:
 
-- `4.1.3/1` — Servers SHOULD use the `__Secure-` and `__Host-` cookie name prefixes.
-- `5.7/step-9` — A user agent configured to reject public suffixes ignores a cookie whose Domain attribute is a public suffix other than the request host.
-- `5.7/step-10` — A user agent ignores a cookie whose Domain attribute the request host does not domain-match.
-- `5.7/step-13` — A user agent ignores a cookie with the Secure attribute that was received over a non-secure connection.
-- `5.7/step-16` — A user agent ignores a non-Secure cookie received over a non-secure connection that would overlay a stored Secure cookie of the same name.
-- `5.7/step-18` — A user agent ignores a cookie whose SameSite is not None when it was set by a cross-site request that is not a top-level navigation.
-- `5.7/step-19` — A user agent ignores a cookie with SameSite=None unless it has the Secure attribute.
-- `5.7/step-20` — A user agent ignores a cookie whose name begins with `__Secure-`, matched case-insensitively, unless it has the Secure attribute.
-- `5.7/step-21` — A user agent ignores a cookie whose name begins with `__Host-`, matched case-insensitively, unless it is Secure, host-only, and has a Path attribute of "/".
 - `7.4/1` — Servers SHOULD promote user privacy by selecting reasonable cookie expiration periods based on the purpose of the cookie.
 - `8.3/1` — Servers SHOULD encrypt and sign the contents of cookies when transmitting them to the user agent.
 - `8.3/2` — Servers that require a higher level of security SHOULD use the Cookie and Set-Cookie header fields only over a secure channel, and when using cookies over a secure channel SHOULD set the Secure attribute for every cookie.
@@ -71,10 +62,10 @@ Not yet covered:
 
 | Severity | Keyword | recommended | strict | minimal |
 | -------- | ------- | ----------- | ------ | ------- |
-| error    | MUST    | 8           | 8      | 7       |
-| warn     | SHOULD  | 5           | 5      | 0       |
+| error    | MUST    | 14          | 14     | 12      |
+| warn     | SHOULD  | 8           | 8      | 0       |
 | hint     | MAY     | 4           | 4      | 0       |
-| off      | (off)   | 0           | 0      | 10      |
+| off      | (off)   | 0           | 0      | 14      |
 
 ## Conventions
 
@@ -91,6 +82,14 @@ None.
 | rfc-6265bis/server-should-degrade-gracefully-without-cookies     | impossible (only-origin-knows)   | impossible (only-origin-knows)   | impossible (only-origin-knows)   |
 | rfc-6265bis/server-should-not-rely-on-cookie-serialization-order | impossible (peer-not-observable) | impossible (peer-not-observable) | impossible (peer-not-observable) |
 
+### prefixes
+
+| Rule                                                                       | static     | analytics  | test       |
+| -------------------------------------------------------------------------- | ---------- | ---------- | ---------- |
+| rfc-6265bis/server-should-use-cookie-name-prefixes                         | heuristic  | heuristic  | heuristic  |
+| rfc-6265bis/user-agent-must-ignore-host-prefixed-cookie-unless-host-locked | observable | observable | observable |
+| rfc-6265bis/user-agent-must-ignore-secure-prefixed-cookie-without-secure   | observable | observable | observable |
+
 ### set-cookie-processing
 
 | Rule                                                                | static     | analytics                    | test                         |
@@ -101,6 +100,17 @@ None.
 | rfc-6265bis/user-agent-must-ignore-cookie-over-4096-octets          | observable | observable                   | observable                   |
 | rfc-6265bis/user-agent-must-ignore-unrecognized-cookie-attributes   | heuristic  | heuristic                    | heuristic                    |
 | rfc-6265bis/user-agent-must-replace-path-not-starting-with-slash    | observable | observable                   | observable                   |
+
+### storage-model
+
+| Rule                                                                      | static                           | analytics                        | test                                   |
+| ------------------------------------------------------------------------- | -------------------------------- | -------------------------------- | -------------------------------------- |
+| rfc-6265bis/user-agent-must-ignore-cookie-with-non-matching-domain        | observable                       | observable                       | observable                             |
+| rfc-6265bis/user-agent-must-ignore-cookie-with-public-suffix-domain       | heuristic                        | heuristic                        | heuristic                              |
+| rfc-6265bis/user-agent-must-ignore-same-site-cookie-set-cross-site        | impossible (not-representable)   | heuristic                        | impossible (participant-not-reachable) |
+| rfc-6265bis/user-agent-must-ignore-same-site-none-cookie-without-secure   | observable                       | observable                       | observable                             |
+| rfc-6265bis/user-agent-must-ignore-secure-cookie-over-insecure-connection | observable                       | observable                       | observable                             |
+| rfc-6265bis/user-agent-must-not-let-insecure-cookie-overlay-secure-cookie | impossible (peer-not-observable) | impossible (peer-not-observable) | impossible (peer-not-observable)       |
 
 ### syntax
 
@@ -120,7 +130,7 @@ None.
 
 - `security:transport` — ships empty
 - `security:cors` — ships empty
-- `security:cookies` — 17 rule(s)
+- `security:cookies` — 26 rule(s)
 - `security:csp` — ships empty
 - `security:content-type` — ships empty
 - `security:authentication` — ships empty
