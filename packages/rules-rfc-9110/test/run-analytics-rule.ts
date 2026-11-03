@@ -11,6 +11,14 @@ import {
   SqliteHttpTransactionRepository,
 } from '@thymian/plugin-http-analyzer';
 
+// `runRules` skips a rule whose severity is `off`, which would make every
+// "stays silent" assertion pass without the rule running; run it at `warn`.
+function enabled(rule: Rule): Rule {
+  return rule.meta.severity === 'off'
+    ? { ...rule, meta: { ...rule.meta, severity: 'warn' } }
+    : rule;
+}
+
 /**
  * Runs a rule's `analytics` function through core's `runRules` and the real
  * `AnalyticsApiContext`, as `plugin-http-analyzer` drives it, over an
@@ -32,7 +40,7 @@ export async function runAnalyticsRule(
   try {
     const results = await runRules(
       logger,
-      [rule],
+      [enabled(rule)],
       format,
       {},
       {
