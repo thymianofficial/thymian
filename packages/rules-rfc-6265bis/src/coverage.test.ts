@@ -34,17 +34,20 @@ describe('coverage record', () => {
   // Exact counts, not only "no violations": a checker that skipped every rule
   // would report none too.
   describe('the census', () => {
-    it('loads 7 rules, with one entry per loaded rule', async () => {
+    it('loads 11 rules, with one entry per loaded rule', async () => {
       const rules = await loadBaselineRules();
 
-      expect(rules.length).toBe(7);
+      expect(rules.length).toBe(11);
       expect(Object.keys(coverage.rules).length).toBe(rules.length);
     }, 30_000);
 
     // The verdict table's `syntax` rows: G1, the grammar rule, covers every
     // unit whose trigger is a line §4.1.1's grammar rejects, and one rule
-    // each covers the other six units of §3 and §4.1.1.
-    it('covers 20 units, by 7 rules', () => {
+    // each covers the other six units of §3 and §4.1.1. Its
+    // `cookie-header` rows: the large-cookies rule covers the two units on
+    // the size and number of cookies, and one informational rule each the
+    // other three.
+    it('covers 25 units, by 11 rules', () => {
       const covering = Object.values(coverage.rules).filter(
         (entry) => entry.covers.length > 0,
       );
@@ -63,6 +66,9 @@ describe('coverage record', () => {
           '4.1.1/6',
           '4.1.1/7',
           '4.1.1/8',
+          '4.2.1/1',
+          '4.2.1/2',
+          '4.2.2/1',
           '5.6/step-1',
           '5.6.1/step-2',
           '5.6.2/step-1',
@@ -72,9 +78,11 @@ describe('coverage record', () => {
           '5.7/step-3',
           '5.7/step-8',
           '5.7/step-22',
+          '6.1/1',
+          '6.1/2',
         ].sort(),
       );
-      expect(covering.length).toBe(7);
+      expect(covering.length).toBe(11);
     });
 
     // The ids a recount of the pinned text yields under the counting rule:
