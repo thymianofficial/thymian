@@ -35,7 +35,7 @@ const check = onReceivedCookie((cookie) => {
   const seconds = Math.ceil(lifetime.seconds);
   const step =
     lifetime.attribute === 'Max-Age' ? '5.6.2/step-6' : '5.6.1/step-4';
-  return `The cookie "${cookie.name}" asks, in its ${lifetime.attribute} attribute, for a lifetime of ${seconds} seconds (${Math.ceil(seconds / SECONDS_PER_DAY)} days), more than the ${AGE_LIMIT_SECONDS} seconds (400 days) a user agent following draft-22 keeps a cookie (§5.5, ${citeStep(step)}): it expires after 400 days instead.`;
+  return `The cookie "${cookie.name}" asks, in its ${lifetime.attribute} attribute, for a lifetime of ${seconds} seconds (${Math.ceil(seconds / SECONDS_PER_DAY)} days), more than the ${AGE_LIMIT_SECONDS} seconds (400 days) draft-22 recommends as the longest a user agent keeps a cookie (§5.5, ${citeStep(step)}): a user agent with that limit expires it after 400 days instead.`;
 });
 
 const { lint, live } = headerValueRuleFns(SET_COOKIE_HEADER, NAME, check);

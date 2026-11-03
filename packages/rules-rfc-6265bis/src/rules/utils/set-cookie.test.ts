@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  citeStep,
   type CookieAttribute,
   hasCookiePrefix,
   ignoredOnReceipt,
@@ -429,4 +430,19 @@ describe('cookie name prefixes', () => {
       expect(hasCookiePrefix(name, '__Host-')).toBe(false);
     },
   );
+});
+
+// §5.6 holds two algorithms numbered from 1; a step of the second is cited
+// with its algorithm's name, so a reader finds the right list.
+describe('citeStep', () => {
+  it.each([
+    ['5.6/step-1', '§5.6 step 1'],
+    ['5.6/step-5', '§5.6 step 5'],
+    ['5.6/step-6', '§5.6, unparsed-attributes step 6'],
+    ['5.6/step-7', '§5.6, unparsed-attributes step 7'],
+    ['5.6.2/step-6', '§5.6.2 step 6'],
+    ['5.7/step-4', '§5.7 step 4'],
+  ])('cites %s as %s', (step, cited) => {
+    expect(citeStep(step)).toBe(cited);
+  });
 });
