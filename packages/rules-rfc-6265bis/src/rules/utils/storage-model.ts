@@ -72,8 +72,11 @@ export function domainAttribute({ attributes }: ReceivedCookie): string {
   return domain?.value ?? '';
 }
 
-// §5.1.4: the default-path of a request path.
+// §5.1.4: the default-path of a request path. The uri-path is the path
+// alone: a recorded path carries the query, as in `/login?next=/app`, and a
+// "/" in it is no directory of the path.
 function defaultPath(path: string): string {
+  path = path.replace(/[?#].*$/s, '');
   if (!path.startsWith('/') || path.indexOf('/', 1) === -1) {
     return '/';
   }
@@ -235,6 +238,20 @@ export function ignoredInStorage(
     }
   }
   return undefined;
+}
+
+// §5.7 step 18, as far as Fetch Metadata shows it: a cookie whose
+// same-site-flag is not "None", received from a cross-site request that is
+// no top-level navigation. Heuristic, and false where the headers are
+// missing, as they are in `static` and `test`.
+export function ignoredCrossSite(
+  cookie: ReceivedCookie,
+  { headers }: CookieExchange,
+): boolean {
+  return (
+    sameSiteFlag(cookie) !== 'None' &&
+    isCrossSiteSubresourceOrNestedNavigation(headers)
+  );
 }
 
 // Fetch Metadata (W3C), where a browser sends it: a request from a site other

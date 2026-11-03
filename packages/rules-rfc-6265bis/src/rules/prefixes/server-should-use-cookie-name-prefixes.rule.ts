@@ -1,11 +1,17 @@
 import { httpRule } from '@thymian/core';
 
 import { cookieExchangeRuleFns } from '../utils/exchange-contexts.js';
-import { type ReceivedCookie, requestedLifetime } from '../utils/set-cookie.js';
+import {
+  type CookiePrefix,
+  hasCookiePrefix,
+  type ReceivedCookie,
+  requestedLifetime,
+} from '../utils/set-cookie.js';
 import {
   canonicalHost,
   type CookieExchange,
   hasEnforcedPrefix,
+  ignoredCrossSite,
   ignoredInStorage,
   isHostLocked,
   isSecureOnly,
@@ -20,10 +26,25 @@ const NAME = 'rfc-6265bis/server-should-use-cookie-name-prefixes';
 // lets every browser enforce what the server already does. `__Host-` where
 // the cookie is host-locked, `__Secure-` where it is only Secure.
 //
+// A cookie whose prefix is miscapitalized, `__secure-SID`, gets the
+// prefix's requirements from a browser, which matches it case-insensitively
+// (§5.4), but not from a server: §4.1.3.1 and §4.1.3.2 define the prefix
+// case-sensitively, so code that reads it as the draft spells it does not
+// recognize the cookie. It is nudged to the draft's spelling.
+//
 // Not flagged: a cookie without Secure, which meets neither prefix; a line
 // that removes its cookie, whose name must stay the one it removes; and a
 // cookie a browser ignores at a step of §5.7, which that step's rule
-// reports, the public-suffix one included.
+// reports, the public-suffix and cross-site ones included.
+const PREFIXES: CookiePrefix[] = ['__Secure-', '__Host-'];
+
+// The prefix a name carries in a capitalization other than the draft's.
+function miscapitalizedPrefix(name: string): CookiePrefix | undefined {
+  return PREFIXES.find(
+    (prefix) => hasCookiePrefix(name, prefix) && !name.startsWith(prefix),
+  );
+}
+
 function isPublicSuffixCookie(
   cookie: ReceivedCookie,
   { origin }: CookieExchange,
@@ -37,12 +58,20 @@ const { lint, test, analytics } = cookieExchangeRuleFns(
   (cookie, exchange) => {
     const lifetime = requestedLifetime(cookie, Date.now());
     if (
-      hasEnforcedPrefix(cookie) ||
-      !isSecureOnly(cookie) ||
       (lifetime !== undefined && lifetime.seconds <= 0) ||
       ignoredInStorage(cookie, exchange) !== undefined ||
-      isPublicSuffixCookie(cookie, exchange)
+      isPublicSuffixCookie(cookie, exchange) ||
+      ignoredCrossSite(cookie, exchange)
     ) {
+      return undefined;
+    }
+
+    const miscapitalized = miscapitalizedPrefix(cookie.name);
+    if (miscapitalized !== undefined) {
+      const named = `${miscapitalized}${cookie.name.slice(miscapitalized.length)}`;
+      return `The cookie "${cookie.name}" starts with the ${miscapitalized} prefix in another capitalization. A browser matches the prefix case-insensitively and enforces its requirements, but draft-22 defines it case-sensitively for servers, so code that checks for ${miscapitalized} as the draft spells it does not recognize the cookie. Name it ${named}.`;
+    }
+    if (hasEnforcedPrefix(cookie) || !isSecureOnly(cookie)) {
       return undefined;
     }
 

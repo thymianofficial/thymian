@@ -3,8 +3,8 @@ import { httpRule } from '@thymian/core';
 import { cookieExchangeRuleFns } from '../utils/exchange-contexts.js';
 import { citeStep } from '../utils/set-cookie.js';
 import {
+  ignoredCrossSite,
   ignoredInStorage,
-  isCrossSiteSubresourceOrNestedNavigation,
   sameSiteFlag,
 } from '../utils/storage-model.js';
 
@@ -20,17 +20,14 @@ const STEP = '5.7/step-18';
 // also ignores, for its Domain, its connection or a prefix, is reported by
 // that step's rule, though step 18 comes first in the draft.
 const { analytics } = cookieExchangeRuleFns(NAME, (cookie, exchange) => {
-  const flag = sameSiteFlag(cookie);
-  if (
-    flag === 'None' ||
-    !isCrossSiteSubresourceOrNestedNavigation(exchange.headers)
-  ) {
+  if (!ignoredCrossSite(cookie, exchange)) {
     return undefined;
   }
   // A cookie an exact step ignores is that step's rule's.
   if (ignoredInStorage(cookie, exchange) !== undefined) {
     return undefined;
   }
+  const flag = sameSiteFlag(cookie);
   const asked = flag === 'Default' ? 'no SameSite of None' : `SameSite=${flag}`;
   return `A user agent ignores the cookie "${cookie.name}" entirely (${citeStep(STEP)}): it has ${asked}, and the request it answers is cross-site and no top-level navigation, by its Sec-Fetch-Site, Sec-Fetch-Mode and Sec-Fetch-Dest headers. Set SameSite=None and Secure on a cookie meant for cross-site use, or set it on a top-level navigation.`;
 });

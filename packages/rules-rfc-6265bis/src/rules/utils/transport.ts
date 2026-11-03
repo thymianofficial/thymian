@@ -6,8 +6,9 @@ import { ruleSkip } from './results.js';
 
 // A document with no `servers` entry, a relative server URL, or a variable
 // in the scheme or port that cannot be resolved is loaded as
-// `http://localhost:8080`: the scheme is Thymian's fallback, not the API's.
-// A rule judging the scheme skips exactly that origin in `static` and in
+// `http://localhost:8080`: the host and scheme are Thymian's fallback, not the
+// API's.
+// A rule judging the host or scheme skips exactly that origin in `static` and in
 // `test`, whose requests carry the described origin even when sent to a
 // target URL, rather than report a transport the description never declared.
 // A description that really declares `http://localhost:8080` is a local
@@ -31,6 +32,6 @@ export function serverFallbackSkip(
   return ruleSkip(
     location,
     ruleName,
-    `This request is served from ${SERVER_FALLBACK_ORIGIN}, which is also what Thymian loads an API description without a usable server URL as, so its scheme may be Thymian's rather than the API's and the transport is not judged.`,
+    `This request is served from ${SERVER_FALLBACK_ORIGIN}, which is also what Thymian loads an API description without a usable server URL as, so its host and scheme may be Thymian's rather than the API's and the transport is not judged.`,
   );
 }
