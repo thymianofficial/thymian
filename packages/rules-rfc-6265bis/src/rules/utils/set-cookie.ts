@@ -665,6 +665,22 @@ export function sentCookieAvs(line: string): SentCookieAv[] {
   return cookieAvs.map((text) => ({ text, name: attributeNameOf(text) }));
 }
 
+// A comma followed by a token and "=", which reads as the cookie-pair of a
+// second Set-Cookie field joined on with HTTP's usual ", ". An Expires date
+// carries a comma too, but what follows it is a day of the month, never "=".
+const SECOND_COOKIE_PAIR = new RegExp(`,[ \\t]*(${TCHAR_CLASS}+)[ \\t]*=`);
+
+// The cookie-name a comma after the cookie-pair seems to start, when the
+// line reads as several Set-Cookie fields combined into one; otherwise
+// undefined. Only the attributes are searched: a comma in the cookie-value
+// fails cookie-octet, and the grammar rule reports it.
+export function combinedCookieName(line: string): string | undefined {
+  const semicolon = line.indexOf(';');
+  return semicolon === -1
+    ? undefined
+    : SECOND_COOKIE_PAIR.exec(line.slice(semicolon + 1))?.[1];
+}
+
 // Checks one Set-Cookie line; returns a violation message, or undefined.
 export type SetCookieLineCheck = (line: string) => string | undefined;
 

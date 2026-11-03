@@ -6,13 +6,14 @@ import { receivedCookie, SET_COOKIE_HEADER } from '../utils/set-cookie.js';
 
 // The cookie-names of a response as a user agent records them: a line it
 // ignores, entirely or on receipt, sets no cookie, and the grammar rule
-// reports it. Cookie names are
+// reports it. A cookie without a name is the grammar rule's too (4.1.1/2),
+// so two of them are not counted as one name set twice. Cookie names are
 // case-sensitive, so "SID" and "sid" are two cookies.
 function repeatedNames(lines: string[]): string[] {
   const counts = new Map<string, number>();
   for (const line of lines) {
     const cookie = receivedCookie(line);
-    if (cookie !== undefined) {
+    if (cookie !== undefined && cookie.name !== '') {
       counts.set(cookie.name, (counts.get(cookie.name) ?? 0) + 1);
     }
   }
