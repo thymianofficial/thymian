@@ -193,7 +193,10 @@ export class HttpTestApiContext<
             httpRequestToCommonHttpRequest(
               // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
               transaction.request!,
-              transaction.source.thymianReqId,
+              {
+                id: transaction.source.thymianReqId,
+                logger: this.ctx.logger,
+              },
             ),
             httpResponseToCommonHttpResponse(
               // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
@@ -294,7 +297,10 @@ export class HttpTestApiContext<
           if (typeof violatedWhen === 'function') {
             results.push(
               ...violatedWhen(
-                httpRequestToCommonHttpRequest(request, source.thymianReqId),
+                httpRequestToCommonHttpRequest(request, {
+                  id: source.thymianReqId,
+                  logger: this.ctx.logger,
+                }),
                 httpResponseToCommonHttpResponse(response, {
                   id: source.thymianResId,
                   logger: this.ctx.logger,
