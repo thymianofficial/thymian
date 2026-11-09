@@ -45,7 +45,7 @@ describe('coverage record', () => {
     // the server's keyword paragraphs keyed `<section>/<n>`, the user
     // agent's steps keyed `<section>/step-<k>` by the draft's own number,
     // and the two unnumbered step paragraphs keyed `<section>/<n>`.
-    it('declares the 51 units of the pinned revision', () => {
+    it('declares the 49 units of the pinned revision', () => {
       expect(Object.keys(coverage.units)).toEqual([
         '1/1',
         '3/1',
@@ -77,8 +77,6 @@ describe('coverage record', () => {
         '5.6.4/step-1',
         '5.7/step-1',
         '5.7/step-2',
-        '5.7/step-3',
-        '5.7/step-4',
         '5.7/step-8',
         '5.7/step-9',
         '5.7/step-10',
@@ -107,13 +105,13 @@ describe('coverage record', () => {
     });
 
     // Both kinds of unit count in the one N: 24 keyword paragraphs that bind
-    // the server, and 27 user-agent steps of §5.5–§5.7 at which a browser
+    // the server, and 25 user-agent steps of §5.5–§5.7 at which a browser
     // ignores or caps what the server sent.
-    it('counts 24 server paragraphs and 27 user-agent steps', () => {
+    it('counts 24 server paragraphs and 25 user-agent steps', () => {
       const ids = Object.keys(coverage.units);
       const steps = ids.filter((id) => /^5\.[5-7][./]/.test(id));
 
-      expect(steps.length).toBe(27);
+      expect(steps.length).toBe(25);
       expect(ids.length - steps.length).toBe(24);
     });
   });

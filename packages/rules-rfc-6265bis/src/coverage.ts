@@ -24,20 +24,24 @@
 //   agent's own requirements (§6.1's "length limits which MUST be enforced
 //   in Section 5.6"); and the one in §4.1.2.1, under §4.1.2 "Semantics
 //   (Non-Normative)".
-// - User-agent steps: 27, of which 25 are numbered steps of the algorithms
+// - User-agent steps: 25, of which 23 are numbered steps of the algorithms
 //   in §5.5–§5.7 and two are unnumbered paragraphs of them (5.5/1, 5.6/1).
 //   Each tells the user agent to ignore a cookie or one of its attributes,
 //   to reduce a value to a limit, or to replace a value the server sent with
 //   the one it would take without the attribute, which leaves the attribute
 //   without effect (5.6.4/step-1: a Path not starting with "/" becomes the
 //   default-path). Not counted: §5.7 steps 15 and 23, which ignore only what
-//   came through a non-HTTP API; steps that pick the last of several
-//   attributes; §5.6.7's SameSite steps, which start from "Default" whatever
-//   the server sent rather than replace its value in one step; and the
-//   eviction paragraphs after §5.7's algorithm, which act on the store at
-//   any time, not on a cookie as it is received.
+//   came through a non-HTTP API; §5.7 steps 3 and 4, which matter only for
+//   such a cookie too, because §5.6 steps 1 and 5 already ignore a
+//   set-cookie-string with a control character, or whose name and value
+//   exceed 4096 octets, and the cookie-name and cookie-value are its
+//   substrings; steps that pick the last of several attributes; §5.6.7's
+//   SameSite steps, which start from "Default" whatever the server sent
+//   rather than replace its value in one step; and the eviction paragraphs
+//   after §5.7's algorithm, which act on the store at any time, not on a
+//   cookie as it is received.
 //
-// N = 51. A unit's id follows from the counting rule and the draft's
+// N = 49. A unit's id follows from the counting rule and the draft's
 // numbering: a keyword paragraph is `<section>/<n>`, n its position among
 // that section's units; an algorithm step is `<section>/step-<k>`, k the
 // draft's own step number; an unnumbered step paragraph is `<section>/<n>`
@@ -109,10 +113,6 @@ const units = {
   '5.7/step-1': 'A user agent MAY ignore a received cookie in its entirety.',
   '5.7/step-2':
     'A user agent ignores a cookie whose name and value are both empty.',
-  '5.7/step-3':
-    'A user agent ignores a cookie whose name or value contains a control character other than HTAB.',
-  '5.7/step-4':
-    'A user agent ignores a cookie whose name and value together exceed 4096 octets.',
   '5.7/step-8':
     'A user agent ignores a cookie whose Domain attribute contains a character outside CHAR.',
   '5.7/step-9':

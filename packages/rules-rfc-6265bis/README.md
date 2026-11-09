@@ -43,7 +43,7 @@ ruleSets:
 
 ## Coverage
 
-**0 of 51** units covered, by **0** rule(s).
+**0 of 49** units covered, by **0** rule(s).
 
 - Source: draft-ietf-httpbis-rfc6265bis-22 (December 2025)
 - Counting rule: One unit per paragraph of draft-22 that contains a BCP 14 keyword and binds a cookie-producing implementation (§3.2.1), wherever it stands, plus one unit per step of the user-agent algorithms in §5.5–§5.7 at which the user agent ignores, drops or caps a cookie, or one of its attributes, that it received in a Set-Cookie header field, or replaces the value of an attribute with the one it would take without the attribute.
@@ -80,8 +80,6 @@ Not yet covered:
 - `5.6.4/step-1` — A user agent replaces a Path attribute whose value is empty or does not start with "/" with the default-path.
 - `5.7/step-1` — A user agent MAY ignore a received cookie in its entirety.
 - `5.7/step-2` — A user agent ignores a cookie whose name and value are both empty.
-- `5.7/step-3` — A user agent ignores a cookie whose name or value contains a control character other than HTAB.
-- `5.7/step-4` — A user agent ignores a cookie whose name and value together exceed 4096 octets.
 - `5.7/step-8` — A user agent ignores a cookie whose Domain attribute contains a character outside CHAR.
 - `5.7/step-9` — A user agent configured to reject public suffixes ignores a cookie whose Domain attribute is a public suffix other than the request host.
 - `5.7/step-10` — A user agent ignores a cookie whose Domain attribute the request host does not domain-match.
