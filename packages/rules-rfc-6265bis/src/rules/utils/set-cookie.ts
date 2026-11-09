@@ -664,6 +664,12 @@ export function receivedCookie(line: string): ReceivedCookie | undefined {
   return reading.cookie;
 }
 
+// The Date of a response, read as a user agent reads a cookie-date.
+export function dateOf(values: string[] | undefined): Date | undefined {
+  const [value] = values ?? [];
+  return value === undefined ? undefined : parseCookieDate(value);
+}
+
 // The lifetime a cookie asks for, before any user agent's age limit: the
 // last Max-Age, which wins over any Expires, or else the last Expires
 // (§5.7 step 6), in seconds from `now`, and the attribute it came from.
@@ -734,8 +740,12 @@ export function combinedCookieName(line: string): string | undefined {
     : SECOND_COOKIE_PAIR.exec(line.slice(semicolon + 1))?.[1];
 }
 
-// Checks one Set-Cookie line; returns a violation message, or undefined.
-export type SetCookieLineCheck = (line: string) => string | undefined;
+// Checks one Set-Cookie line, given the Date of the response that carries
+// it; returns a violation message, or undefined.
+export type SetCookieLineCheck = (
+  line: string,
+  responseDate: Date | undefined,
+) => string | undefined;
 
 // One defect, one violation: the grammar rule owns parse failures, so every
 // other rule on a line names which lines it leaves to it. These two wrappers
@@ -745,11 +755,15 @@ export type SetCookieLineCheck = (line: string) => string | undefined;
 // only on a line whose user-agent reading succeeded and whose cookie §5.7
 // does not ignore on receipt. A line the user agent ignores sets no cookie.
 export function onReceivedCookie(
-  check: (cookie: ReceivedCookie, line: string) => string | undefined,
+  check: (
+    cookie: ReceivedCookie,
+    line: string,
+    responseDate: Date | undefined,
+  ) => string | undefined,
 ): SetCookieLineCheck {
-  return (line) => {
+  return (line, responseDate) => {
     const cookie = receivedCookie(line);
-    return cookie === undefined ? undefined : check(cookie, line);
+    return cookie === undefined ? undefined : check(cookie, line, responseDate);
   };
 }
 

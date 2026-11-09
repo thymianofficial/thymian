@@ -20,9 +20,14 @@ import {
   pinnedHeaderValues,
 } from './headers.js';
 import { type RuleOptions, ruleSkip, violation } from './results.js';
+import { dateOf } from './set-cookie.js';
 
-// Checks one field value; returns a violation message, or undefined.
-export type FieldValueCheck = (fieldValue: string) => string | undefined;
+// Checks one field value, given the Date of its response; returns a
+// violation message, or undefined.
+export type FieldValueCheck = (
+  fieldValue: string,
+  responseDate: Date | undefined,
+) => string | undefined;
 
 // `header` is the field name as a message spells it, such as "Set-Cookie";
 // names compare case-insensitively. Each field value is checked on its own:
@@ -42,9 +47,10 @@ export function headerValueRuleFns(
   const evaluate = (
     location: RuleViolationLocation,
     fieldValues: string[],
+    responseDate: Date | undefined,
   ): RuleFnResult[] => {
     const problems = fieldValues
-      .map(check)
+      .map((fieldValue) => check(fieldValue, responseDate))
       .filter((problem): problem is string => problem !== undefined);
 
     return problems.length === 0
@@ -64,7 +70,7 @@ export function headerValueRuleFns(
           const values =
             res === undefined ? undefined : pinnedHeaderValues(res, header);
 
-          if (values === undefined) {
+          if (res === undefined || values === undefined) {
             return [
               ruleSkip(
                 location,
@@ -74,7 +80,11 @@ export function headerValueRuleFns(
             ];
           }
 
-          return evaluate(location, values);
+          return evaluate(
+            location,
+            values,
+            dateOf(pinnedHeaderValues(res, 'Date')),
+          );
         },
       ),
     // `constant(true)` as the candidate filter: `test` picks the requests it
@@ -84,7 +94,11 @@ export function headerValueRuleFns(
     // a server that sends it where the description does not say so.
     live: (ctx) =>
       ctx.validateHttpTransactions(constant(true), (_req, res, location) =>
-        evaluate(location, liveHeaderValues(res.headers, header)),
+        evaluate(
+          location,
+          liveHeaderValues(res.headers, header),
+          dateOf(liveHeaderValues(res.headers, 'Date')),
+        ),
       ),
   };
 }

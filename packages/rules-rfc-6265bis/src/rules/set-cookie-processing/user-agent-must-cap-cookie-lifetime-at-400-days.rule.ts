@@ -18,16 +18,22 @@ const AGE_LIMIT_SECONDS = 400 * SECONDS_PER_DAY;
 // The lifetime is the one the cookie keeps: the last Max-Age, which wins
 // over any Expires, or else the last Expires (§5.7 step 6). An attribute
 // that has no effect is capped too, but to no consequence, so it is not
-// reported. An Expires is measured from the time of the run: in `static` that
-// is all there is, and a recorded Expires measured later than it was received
-// reads shorter, so the rule errs towards passing it.
+// reported. An Expires is measured from the Date of the response that carries
+// the line, as a user agent receiving it then would measure it: from the time
+// of the run, an old recording or a description's example date would read as
+// long past. Only a response without a Date is measured from the time of the
+// run, which reads a recorded Expires shorter than it was, so the rule errs
+// towards passing it.
 //
 // It reads only the cookie a user agent keeps; a line it ignores is the
 // grammar rule's alone, or the size rule's. The grammar reports a malformed
 // Max-Age or Expires, which a user agent ignores; the cap is a defect of its
 // own, on a lifetime the user agent did read.
-const check = onReceivedCookie((cookie) => {
-  const lifetime = requestedLifetime(cookie, Date.now());
+const check = onReceivedCookie((cookie, _line, responseDate) => {
+  const lifetime = requestedLifetime(
+    cookie,
+    responseDate?.getTime() ?? Date.now(),
+  );
   if (lifetime === undefined || lifetime.seconds <= AGE_LIMIT_SECONDS) {
     return undefined;
   }

@@ -15,8 +15,8 @@ import {
 } from '../utils/headers.js';
 import { ruleSkip, violation } from '../utils/results.js';
 import {
+  dateOf,
   octets,
-  parseCookieDate,
   type ReceivedCookie,
   receivedCookie,
   requestedLifetime,
@@ -51,12 +51,6 @@ function removesCookie(
 ): boolean {
   const lifetime = requestedLifetime(cookie, responseDate?.getTime() ?? 0);
   return lifetime !== undefined && lifetime.seconds <= 0;
-}
-
-// The Date of a response, read as a user agent reads a cookie-date.
-function dateOf(values: string[] | undefined): Date | undefined {
-  const [value] = values ?? [];
-  return value === undefined ? undefined : parseCookieDate(value);
 }
 
 function hostOf(origin: string): string {
