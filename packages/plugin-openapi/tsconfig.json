@@ -3,8 +3,8 @@
   "files": [],
   "include": ["src/**/*.ts", "test/**/*.ts"],
   "compilerOptions": {
-    "outDir": "dist",
-    "rootDir": "src",
+    "outDir": "out-tsc/typecheck",
+    "rootDir": ".",
     "ignoreDeprecations": "6.0"
   },
   "references": [
