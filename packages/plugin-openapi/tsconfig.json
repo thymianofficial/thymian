@@ -4,8 +4,7 @@
   "include": ["src/**/*.ts", "test/**/*.ts"],
   "compilerOptions": {
     "outDir": "out-tsc/typecheck",
-    "rootDir": ".",
-    "ignoreDeprecations": "6.0"
+    "rootDir": "."
   },
   "references": [
     {

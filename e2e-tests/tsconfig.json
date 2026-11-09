@@ -12,8 +12,5 @@
   ],
   "nx": {
     "addTypecheckTarget": false
-  },
-  "compilerOptions": {
-    "ignoreDeprecations": "6.0"
   }
 }

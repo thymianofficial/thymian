@@ -60,8 +60,5 @@
     {
       "path": "./packages/plugin-har"
     }
-  ],
-  "compilerOptions": {
-    "ignoreDeprecations": "6.0"
-  }
+  ]
 }
