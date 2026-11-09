@@ -8,8 +8,9 @@ const NAME =
 
 // The second clause of 8.3/2, and exact: unlike the first, it binds every
 // server that uses cookies over a secure channel, and both the scheme and the
-// Secure attribute are on the exchange. Where the scheme may be Thymian's
-// server URL fallback, a cookie without Secure is left unjudged. A cookie a
+// Secure attribute are on the exchange. Where the request host is a loopback
+// host, which may be Thymian's server URL fallback or a development server,
+// a cookie without Secure is left unjudged. A cookie a
 // browser ignores at a §5.7 step, such as SameSite=None without Secure, is
 // that step's rule's.
 const { lint, test, analytics } = cookieExchangeRuleFns(
@@ -36,8 +37,8 @@ export default httpRule(NAME)
     'A browser sends a cookie without Secure over plain http too. An active attacker on the network can make the browser request any http URL of the host, even one nothing listens on, and read the cookie from that request: a session cookie set over https is stolen as easily as one set over http. Set Secure on every cookie a server sends over https.',
   )
   .appliesTo('server')
-  // `static` and `test` carry the described origin, so both skip the server
-  // URL fallback; recorded traffic in `analytics` is real, so it never does.
+  // `static` and `test` carry the described origin, so both skip a loopback
+  // host; recorded traffic in `analytics` is real, so it never does.
   .overrideStaticRule(lint)
   .overrideTest(test)
   .overrideAnalyticsRule(analytics)

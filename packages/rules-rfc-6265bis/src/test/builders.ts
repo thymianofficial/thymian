@@ -225,8 +225,8 @@ export function setCookieValueFixtures(
 // SHOULD and its convention twin alike: a cookie without Secure over plain
 // http is flagged; the same cookie over https passes, and so does a Secure
 // cookie over plain http, which a browser ignores and §5.7 step 13's rule
-// reports. The server URL fallback is skipped in `static` and `test`, and
-// judged as the plain http it is in `analytics`.
+// reports. The server URL fallback, a loopback host, is skipped in `static`
+// and `test`, and judged as the plain http it is in `analytics`.
 export function cookiesOverPlainHttpFixtures(rule: Rule): RuleFixtures {
   const PLAIN_COOKIE = 'SID=31d4d96e407aad42';
   const SECURE_COOKIE = 'SID=31d4d96e407aad42; Secure';

@@ -12,7 +12,7 @@ const NAME = 'rfc-6265bis/server-should-set-http-only-on-every-cookie';
 // Exact in every context: the attribute is in the line. It judges only a
 // cookie a browser keeps, so a line that clears its cookie, and a cookie a
 // browser ignores, which the rule on why reports, are left out. The scheme
-// plays no part, so the server URL fallback is judged like any other origin.
+// plays no part, so a loopback host is judged like any other origin.
 const { lint, test, analytics } = cookieExchangeRuleFns(
   NAME,
   (cookie, exchange) =>

@@ -11,8 +11,9 @@ const NAME = 'rfc-6265bis/server-should-send-cookies-only-over-https';
 // requires a higher level of security, which no exchange shows, so that rule
 // is heuristic and can never be promoted. Asking it of every server drops the
 // condition and makes the check exact, so this one ships `off`, covers no
-// unit, and a profile turns it on in the other's place. Where the scheme may
-// be Thymian's server URL fallback, a cookie without Secure is left unjudged.
+// unit, and a profile turns it on in the other's place. Where the request
+// host is a loopback host, which may be Thymian's server URL fallback or a
+// development server, a cookie without Secure is left unjudged.
 const { lint, test, analytics } = cookieExchangeRuleFns(
   NAME,
   cookieKeptOverPlainHttp('Set cookies over https only.'),
@@ -33,8 +34,8 @@ export default httpRule(NAME)
     'Draft-22 asks for cookies only over a secure channel from servers that require a higher level of security, a condition no exchange shows, and the recommended profile asks it of every server because a cookie set over plain http travels in clear text both ways, where anyone on the network can read, alter or inject it, and the cookies an API sets are nearly always its sessions and credentials.',
   )
   .appliesTo('server')
-  // `static` and `test` carry the described origin, so both skip the server
-  // URL fallback; recorded traffic in `analytics` is real, so it never does.
+  // `static` and `test` carry the described origin, so both skip a loopback
+  // host; recorded traffic in `analytics` is real, so it never does.
   .overrideStaticRule(lint)
   .overrideTest(test)
   .overrideAnalyticsRule(analytics)

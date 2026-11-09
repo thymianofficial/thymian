@@ -11,8 +11,9 @@ const NAME =
 // every context: it judges every server as if it were one. Its convention
 // twin, `server-should-send-cookies-only-over-https`, asks the same of every
 // server, exactly, and replaces it where a profile turns the twin on. Where
-// the scheme may be Thymian's server URL fallback, a cookie without Secure is
-// left unjudged.
+// the request host is a loopback host, which may be Thymian's server URL
+// fallback or a development server, a cookie without Secure is left
+// unjudged.
 const { lint, test, analytics } = cookieExchangeRuleFns(
   NAME,
   cookieKeptOverPlainHttp(
@@ -39,8 +40,8 @@ export default httpRule(NAME)
     'Over plain http, every cookie travels in clear text both ways: an eavesdropper reads it, and an active attacker can alter or inject one. A server whose cookies carry a session or anything else worth protecting should set them over https only. This rule is a warning that treats every server as one that requires a higher level of security, because which servers do is not visible on the wire.',
   )
   .appliesTo('server')
-  // `static` and `test` carry the described origin, so both skip the server
-  // URL fallback; recorded traffic in `analytics` is real, so it never does.
+  // `static` and `test` carry the described origin, so both skip a loopback
+  // host; recorded traffic in `analytics` is real, so it never does.
   .overrideStaticRule(lint)
   .overrideTest(test)
   .overrideAnalyticsRule(analytics)

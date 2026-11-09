@@ -455,8 +455,8 @@ export default defineCoverage({
     // One unit, two rules. Its first clause binds only a server that requires
     // a higher level of security, a choice no exchange shows, so its rule is
     // heuristic everywhere; its second binds every server that uses cookies
-    // over a secure channel, and is exact. Both skip exactly the server URL
-    // fallback in `static` and `test`. Both judge the cookies a server sets,
+    // over a secure channel, and is exact. Both skip a loopback host in
+    // `static` and `test`. Both judge the cookies a server sets,
     // and a cookie a browser keeps: a line that clears its cookie carries
     // nothing to protect, and a cookie a §5.7 step ignores is that step's.
     // The server's use of the Cookie request header follows from where it
