@@ -441,7 +441,7 @@ describe('citeStep', () => {
     ['5.6/step-6', '§5.6, unparsed-attributes step 6'],
     ['5.6/step-7', '§5.6, unparsed-attributes step 7'],
     ['5.6.2/step-6', '§5.6.2 step 6'],
-    ['5.7/step-4', '§5.7 step 4'],
+    ['5.7/step-22', '§5.7 step 22'],
   ])('cites %s as %s', (step, cited) => {
     expect(citeStep(step)).toBe(cited);
   });

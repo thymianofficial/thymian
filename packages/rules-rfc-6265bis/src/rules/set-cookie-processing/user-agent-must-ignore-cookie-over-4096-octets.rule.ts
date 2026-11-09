@@ -17,16 +17,16 @@ const NAME = 'rfc-6265bis/user-agent-must-ignore-cookie-over-4096-octets';
 const check = onConformingLine(({ name }, line) => {
   const reading = readAsUserAgent(line);
   return reading.ignored && reading.step === '5.6/step-5'
-    ? `The Set-Cookie line for the cookie "${name}" is one a user agent ignores entirely, because ${reading.reason} (${citeStep(reading.step)}, and ${citeStep('5.7/step-4')} for a cookie from any other source): the cookie is never set.`
+    ? `The Set-Cookie line for the cookie "${name}" is one a user agent ignores entirely, because ${reading.reason} (${citeStep(reading.step)}): the cookie is never set.`
     : undefined;
 });
 
 const { lint, live } = headerValueRuleFns(SET_COOKIE_HEADER, NAME, check);
 
-// One rule for two units: §5.6 step 5 and §5.7 step 4 check the same sum,
-// one on the line and one on the cookie received from it. A user agent
-// following draft-22 must use an algorithm equivalent to §5.6's, so the step
-// is a MUST, and exact: the sum is in the line.
+// A user agent following draft-22 must use an algorithm equivalent to
+// §5.6's, so the step is a MUST, and exact: the sum is in the line. §5.7
+// step 4 repeats the check on the cookie received from the line, and adds
+// nothing for a cookie received in a Set-Cookie header field.
 export default httpRule(NAME)
   .severity('error')
   .type('static', 'test', 'analytics')
@@ -35,7 +35,7 @@ export default httpRule(NAME)
     'https://datatracker.ietf.org/doc/html/draft-ietf-httpbis-rfc6265bis-22#section-5.6',
   )
   .description(
-    'A user agent MUST use an algorithm equivalent to the following algorithm to parse a set-cookie-string: [...] 5. If the sum of the lengths of the name string and the value string is more than 4096 octets, abort this algorithm and ignore the set-cookie-string entirely. (Section 5.7, step 4:) If the sum of the lengths of cookie-name and cookie-value is more than 4096 octets, abort this algorithm and ignore the cookie entirely.',
+    'A user agent MUST use an algorithm equivalent to the following algorithm to parse a set-cookie-string: [...] 5. If the sum of the lengths of the name string and the value string is more than 4096 octets, abort this algorithm and ignore the set-cookie-string entirely.',
   )
   .summary(
     'User agent must ignore a cookie whose name and value exceed 4096 octets.',

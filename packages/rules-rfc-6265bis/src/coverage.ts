@@ -277,8 +277,6 @@ export default defineCoverage({
         },
       },
     },
-    // One rule for two units: §5.6 step 5 and §5.7 step 4 check the same
-    // sum, on the line and on the cookie received from it.
     'rfc-6265bis/user-agent-must-ignore-cookie-over-4096-octets': {
       covers: ['5.6/step-5'],
       declared: { types: ['static', 'test', 'analytics'], severity: 'error' },
