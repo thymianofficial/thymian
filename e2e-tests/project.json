@@ -4,14 +4,18 @@
   "sourceRoot": "e2e-tests/src",
   "projectType": "library",
   "tags": ["type:e2e"],
-  "// targets": "to see all targets run: nx show project e2e-tests --web",
   "targets": {
     "e2e": {
-      "executor": "@nx/vitest:test",
-      "dependsOn": [{ "projects": ["packages/*"], "target": "build" }],
+      "cache": false,
+      "dependsOn": [
+        {
+          "projects": ["packages/*"],
+          "target": "build"
+        }
+      ],
       "options": {
-        "configFile": "e2e-tests/vitest.config.ts",
-        "watch": false
+        "watch": false,
+        "config": "./vitest.config.ts"
       }
     }
   }

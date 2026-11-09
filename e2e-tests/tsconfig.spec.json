@@ -7,7 +7,8 @@
     "emitDeclarationOnly": false,
     "moduleResolution": "nodenext",
     "module": "nodenext",
-    "types": ["node"]
+    "types": ["node"],
+    "ignoreDeprecations": "6.0"
   },
   "include": ["src/**/*.ts"]
 }

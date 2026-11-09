@@ -4,7 +4,9 @@
     "types": ["node"],
     "composite": false,
     "declaration": false,
-    "declarationMap": false
+    "declarationMap": false,
+    "ignoreDeprecations": "6.0",
+    "rootDir": "."
   },
   "include": ["**/*.ts"]
 }
