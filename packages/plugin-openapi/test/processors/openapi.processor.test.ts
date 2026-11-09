@@ -1,4 +1,9 @@
-import { constant, NoopLogger, path as pathFilter } from '@thymian/core';
+import {
+  constant,
+  type HttpFilterExpression,
+  NoopLogger,
+  path as pathFilter,
+} from '@thymian/core';
 import type { OpenAPIV3_1 as OpenApiV31 } from 'openapi-types';
 import { describe, expect, it } from 'vitest';
 
@@ -48,7 +53,7 @@ const document: OpenApiV31.Document = {
 
 function requestPaths(
   serverInfo: ServerInfo,
-  filter = constant(true),
+  filter: HttpFilterExpression = constant(true),
 ): string[] {
   return new OpenapiProcessor(new NoopLogger(), serverInfo, new NoopLocMapper())
     .process(document, filter)

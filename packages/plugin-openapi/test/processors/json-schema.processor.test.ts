@@ -135,7 +135,8 @@ describe('processSchema', () => {
   });
 
   it('should remove OpenAPI-only keywords while preserving examples', () => {
-    const schema: OpenApiV31.SchemaObject = {
+    // `nullable` is an OpenAPI 3.0 keyword, so it is not part of the 3.1 type
+    const schema = {
       type: 'object',
       nullable: true,
       readOnly: true,
@@ -146,7 +147,7 @@ describe('processSchema', () => {
           writeOnly: true,
         },
       },
-    };
+    } as OpenApiV31.SchemaObject;
 
     expect(
       processSchema(schema as Draft202012SchemaObject, {
@@ -202,7 +203,7 @@ describe('processSchema', () => {
         {
           type: 'object',
           'x-requires_permission': 'admin',
-        },
+        } as OpenApiV31.SchemaObject,
       ],
     } as Draft202012SchemaObject;
 
@@ -324,6 +325,7 @@ describe('processSchema', () => {
     const response: ThymianHttpResponse = {
       type: 'http-response',
       label: '200 OK',
+      sourceName: 'test',
       headers: {},
       mediaType: 'application/json',
       statusCode: 200,
