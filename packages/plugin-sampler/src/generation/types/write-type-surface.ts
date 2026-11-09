@@ -33,7 +33,6 @@ export function scaffoldTsconfig(): string {
   return `${JSON.stringify(
     {
       compilerOptions: {
-        baseUrl: '.',
         module: 'nodenext',
         moduleResolution: 'nodenext',
         target: 'es2023',

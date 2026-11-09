@@ -87,6 +87,13 @@ export async function typecheckHooks(
     const compilerOptions: ts.CompilerOptions = {
       ...userOptions,
       noEmit: true,
+      // TypeScript 6 deprecates `baseUrl` and reports it as an options
+      // diagnostic, which lands on `tsconfig.json:1:1` and renders `broken`.
+      // `init` no longer writes `baseUrl`, but a tsconfig it scaffolded
+      // earlier still has one, and it is the user's: `sync` never rewrites
+      // it. A tsconfig TypeScript 5 accepted must not fail the type gate.
+      // TypeScript 7 removes `baseUrl`; moving to it means revisiting this.
+      ignoreDeprecations: '6.0',
       paths: mergeHooksAlias(
         userOptions.paths,
         join(generated, HOOKS_API_FILE),
