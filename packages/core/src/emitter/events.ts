@@ -1,4 +1,4 @@
-import type { ThymianEventName, ThymianEvents } from 'src/events/index.js';
+import type { ThymianEventName, ThymianEvents } from '../events/index.js';
 
 export type EventPayload<Event extends ThymianEventName> = ThymianEvents[Event];
 
