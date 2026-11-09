@@ -90,8 +90,7 @@ An **informational** rule's entry carries no cells: the checker refuses them, an
 derives all three of its cells from the rule's one whole-rule reason. Where its contexts are
 impossible for different reasons — one a `tool-limitation`, another `not-representable` —
 the rule's note names each; the README renders the reason code and not the issue a
-`tool-limitation` cites, until the generator renders each cell's own reason
-(thymianofficial/thymian-workspace#615).
+`tool-limitation` cites, until the generator renders each cell's own reason.
 
 `substituteLabel` names what stands in where units are not statements: for RFC 9110 §17, the
 14–15 sections it cross-references.

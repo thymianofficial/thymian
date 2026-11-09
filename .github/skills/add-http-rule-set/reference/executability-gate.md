@@ -124,9 +124,8 @@ never split one on commas.
 
 **A 1xx interim response is not a transaction of its own** in core, so `test` and `analytics`
 never see a header on one. Only `static` can, where the description declares it; the other two
-cells are `tool-limitation`, citing the core issue for capturing interim responses
-(thymianofficial/thymian-workspace#111). File one only if that issue is closed and the gap
-is still there.
+cells are `tool-limitation`, citing the tracker issue on capturing interim responses. File
+one only if no such issue is open and the gap is still there.
 
 ### `static` — the Thymian Format
 

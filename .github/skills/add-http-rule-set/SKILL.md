@@ -26,7 +26,7 @@ One source document, its **security slice**, one package. A slice is not a subse
 choose for convenience: it is every security-related statement the source makes.
 
 Order for the first walks, smallest real conformance clause first:
-`rules-rfc-6797` (N=14) → `rules-rfc-6265bis` (N=51) → `rules-whatwg-fetch` → `rules-w3c-csp` →
+`rules-rfc-6797` (N=14) → `rules-rfc-6265bis` (N=49) → `rules-whatwg-fetch` → `rules-w3c-csp` →
 `rules-w3c-referrer-policy` → `rules-rfc-7034`. RFC 9110 §17 folds into the existing
 `rules-rfc-9110`.
 
@@ -333,17 +333,18 @@ user config, and the `ruleSeverity: 'error'` floor filter runs **after** the pro
   `warn`, and a heuristic `SHOULD` keeps its `warn`. It ships lower where most of what the
   heuristic flags is no defect: an attribute the source does not define may be one another
   specification does, such as `Partitioned`, so the step that ignores an unrecognized
-  attribute ships at `hint`. A rule for a user-agent step takes the keyword that binds its
-  algorithm, so a step of an algorithm the user agent MUST follow is `error`, unless step 3
-  judged it heuristic.
+  attribute ships at `hint`. A rule for a user-agent step takes the step's own keyword where
+  it has one, so a step that says the user agent MAY ignore a cookie is `hint`, and the
+  keyword that binds its algorithm otherwise, so a step without one, of an algorithm the user
+  agent MUST follow, is `error`, unless step 3 judged it heuristic.
 - **`recommended`** — convention rules on, plus promotions **gated on a concern tag and
   non-heuristic status**. State the promotion's reason in `explanation`. The coverage checker
   reads a promotion only off a rule that ships `off`, so a profile that raises a shipped rule,
-  `warn` to `error`, is not checked by the gate. Until the checker reads every promotion
-  (thymianofficial/thymian-workspace#614), assert it in the coverage meta-test: hand the
-  checker that rule and its entry as if both shipped `off`, expect zero violations, and expect
-  `undocumented-promoted-rule` once its explanation is removed. Cite the ticket beside the
-  assertion, so the workaround goes when the checker is fixed.
+  `warn` to `error`, is not checked by the gate. Until the checker reads every promotion,
+  assert it in the coverage meta-test: hand the checker that rule and its entry as if both
+  shipped `off`, expect zero violations, and expect `undocumented-promoted-rule` once its
+  explanation is removed. Cite the tracker issue on that checker gap beside the assertion, so
+  the workaround goes when the checker is fixed.
 - **`minimal`** — `error` + non-heuristic + exactly-observable, **derived from `coverage.ts`**
   by core's `deriveMinimalProfile`, never transcribed.
 
