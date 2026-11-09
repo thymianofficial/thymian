@@ -334,8 +334,9 @@ export default defineCoverage({
     // `storage-model` — the other steps of §5.7. A cookie is ignored once,
     // at the first step that ignores it, and each rule speaks only where its
     // step is that one. The steps on the request host and scheme (9, 10, 13)
-    // skip exactly the server URL fallback in `static` and `test`; recorded
-    // traffic in `analytics` is real, so it never skips it.
+    // skip a loopback host in `static` and `test`, Thymian's server URL
+    // fallback or a local development server; recorded traffic in
+    // `analytics` is real, so it never skips one.
     // Heuristic everywhere: Thymian carries no public suffix list, so the
     // check recognizes a single-label Domain only, which is a public suffix
     // under any list; and the step binds only a browser configured to reject

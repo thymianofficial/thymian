@@ -37,7 +37,7 @@ import {
   ignoredInStorage,
   type StorageStep,
 } from './storage-model.js';
-import { isServerFallbackOrigin, serverFallbackSkip } from './transport.js';
+import { isLoopbackOrigin, loopbackSkip } from './transport.js';
 
 // What a check returns for a cookie whose step needs the request host or
 // scheme where the transport is not judged: the rule skips the response,
@@ -53,8 +53,8 @@ export type CookieExchangeCheck = (
 
 // `lint` is for `.overrideStaticRule()`, `test` for `.overrideTest()` and
 // `analytics` for `.overrideAnalyticsRule()`. `static` and `test` carry the
-// described origin, so both leave the server URL fallback unjudged; recorded
-// traffic in `analytics` is real, so it judges every origin.
+// described origin, so both leave a loopback host unjudged; recorded traffic
+// in `analytics` is real, so it judges every origin.
 export function cookieExchangeRuleFns(
   ruleName: string,
   check: CookieExchangeCheck,
@@ -81,12 +81,12 @@ export function cookieExchangeRuleFns(
       return [violation(location, problems.join(' '))];
     }
     return verdicts.includes(TRANSPORT_NOT_JUDGED)
-      ? [serverFallbackSkip(location, ruleName)]
+      ? [loopbackSkip(location, ruleName)]
       : [];
   };
 
   const live =
-    ({ skipServerFallback }: { skipServerFallback: boolean }) =>
+    ({ skipLoopback }: { skipLoopback: boolean }) =>
     (ctx: LiveApiContext) =>
       // `constant(true)` as the candidate filter, as in `header-contexts.ts`:
       // a response-side candidate would never send the requests whose
@@ -98,9 +98,7 @@ export function cookieExchangeRuleFns(
             origin: req.origin,
             path: req.path,
             headers: req.headers ?? {},
-            transportJudged: !(
-              skipServerFallback && isServerFallbackOrigin(req.origin)
-            ),
+            transportJudged: !(skipLoopback && isLoopbackOrigin(req.origin)),
           }),
       );
 
@@ -130,12 +128,12 @@ export function cookieExchangeRuleFns(
             origin: req.origin,
             path: req.path,
             headers: {},
-            transportJudged: !isServerFallbackOrigin(req.origin),
+            transportJudged: !isLoopbackOrigin(req.origin),
           });
         },
       ),
-    test: live({ skipServerFallback: true }),
-    analytics: live({ skipServerFallback: false }),
+    test: live({ skipLoopback: true }),
+    analytics: live({ skipLoopback: false }),
   };
 }
 

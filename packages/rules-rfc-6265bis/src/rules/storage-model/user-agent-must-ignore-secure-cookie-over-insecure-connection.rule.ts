@@ -14,8 +14,9 @@ const STEP = '5.7/step-13';
 
 // Exact: the Secure attribute is in the line, and the scheme is the
 // described server's in `static` and `test` and the recorded one in
-// `analytics`. Where the scheme may be Thymian's server URL fallback, a
-// Secure cookie is left unjudged. A cookie a browser already ignored at
+// `analytics`. Where the request host is a loopback host, which may be
+// Thymian's server URL fallback or a development server, a Secure cookie is
+// left unjudged. A cookie a browser already ignored at
 // step 10, for its Domain, is that rule's.
 const atStep = ignoredAtStep(STEP, 'Set Secure cookies over https only.');
 
@@ -48,8 +49,8 @@ export default httpRule(NAME)
     'The Secure attribute keeps a cookie off plain-http connections, and a browser also refuses to let a plain-http response set one: otherwise an attacker on the network could inject Secure cookies that the https site then trusts. A Secure cookie set over http is silently dropped, so whatever relies on it does not work on that connection. Serve the response that sets the cookie over https, and redirect plain-http requests there first.',
   )
   .appliesTo('server')
-  // `static` and `test` carry the described origin, so both skip the server
-  // URL fallback; recorded traffic in `analytics` is real, so it never does.
+  // `static` and `test` carry the described origin, so both skip a loopback
+  // host; recorded traffic in `analytics` is real, so it never does.
   .overrideStaticRule(lint)
   .overrideTest(test)
   .overrideAnalyticsRule(analytics)

@@ -14,8 +14,9 @@ const STEP = '5.7/step-10';
 
 // Exact: the Domain is in the line, and the request host is the described
 // server's in `static` and `test` and the recorded one in `analytics`. Where
-// that host may be Thymian's server URL fallback, a cookie with a Domain is
-// left unjudged: only one with something to judge makes the response a skip.
+// that host is a loopback host, which may be Thymian's server URL fallback or
+// a development server, a cookie with a Domain is left unjudged: only one
+// with something to judge makes the response a skip.
 const atStep = ignoredAtStep(
   STEP,
   'Set a Domain that is the request host or one of its parent domains, or none, which makes the cookie host-only.',
@@ -50,8 +51,8 @@ export default httpRule(NAME)
     'A server may scope a cookie to its own host or to a parent domain of it, never to an unrelated domain or to a subdomain of itself: otherwise any site could set cookies for any other. A browser refuses a cookie whose Domain attribute the host it requested does not domain-match, and the cookie the server set is silently dropped. A Domain that worked in one deployment often breaks in another, on a staging host or behind a new domain. Derive the Domain from the host that serves the response, or leave it out, which scopes the cookie to that host alone.',
   )
   .appliesTo('server')
-  // `static` and `test` carry the described origin, so both skip the server
-  // URL fallback; recorded traffic in `analytics` is real, so it never does.
+  // `static` and `test` carry the described origin, so both skip a loopback
+  // host; recorded traffic in `analytics` is real, so it never does.
   .overrideStaticRule(lint)
   .overrideTest(test)
   .overrideAnalyticsRule(analytics)

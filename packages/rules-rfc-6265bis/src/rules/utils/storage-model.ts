@@ -21,9 +21,10 @@ import { hasCookiePrefix, type ReceivedCookie } from './set-cookie.js';
 // recorded ones in `analytics`. `headers` are the request's field lines,
 // sent or recorded; `static` has none.
 //
-// `transportJudged` is false where the origin may be Thymian's server URL
-// fallback rather than the API's (see `transport.ts`): the request host and
-// scheme are then unknown, and the steps on them cannot be decided.
+// `transportJudged` is false where the origin is a loopback host, which may
+// be Thymian's server URL fallback or a development server rather than the
+// deployed API (see `transport.ts`): the request host and scheme are then
+// unknown, and the steps on them cannot be decided.
 export type CookieExchange = {
   origin: string;
   path: string;
@@ -183,7 +184,7 @@ export type StorageStep =
 
 // The first of those steps that ignores the cookie, and why; `undefined` if
 // none does. Where the transport is not judged, steps 10 and 13 are passed
-// over: the request host and scheme may be Thymian's fallback, so a later
+// over: the request host and scheme may not be the API's, so a later
 // step is still judged on the cookie's own attributes.
 export function ignoredInStorage(
   cookie: ReceivedCookie,

@@ -22,9 +22,9 @@ const STEP = '5.7/step-9';
 // reject public suffixes, which every major browser is. One dropped cookie,
 // one violation: a cookie that a later, exact step also ignores, such as
 // SameSite=None without Secure, is reported by that step's rule, and is
-// deferred to before the transport is asked about. Where the request host
-// may be Thymian's server URL fallback, a single-label Domain is left
-// unjudged.
+// deferred to before the transport is asked about. Where the request host is
+// a loopback host, which may be Thymian's server URL fallback or a
+// development server, a single-label Domain is left unjudged.
 const { lint, test, analytics } = cookieExchangeRuleFns(
   NAME,
   (cookie, exchange) => {
@@ -65,8 +65,8 @@ export default httpRule(NAME)
     'A public suffix, such as com or co.uk, is a domain under which anyone can register a name. A cookie scoped to one would be sent to every site under it, so a browser refuses a cookie whose Domain attribute is a public suffix and silently drops it. Scope the cookie to the registrable domain the host belongs to, such as example.com, or leave the Domain out. This rule is a warning on a heuristic: without a public suffix list it recognizes only a single-label Domain, and only a browser configured to reject public suffixes drops the cookie.',
   )
   .appliesTo('server')
-  // `static` and `test` carry the described origin, so both skip the server
-  // URL fallback; recorded traffic in `analytics` is real, so it never does.
+  // `static` and `test` carry the described origin, so both skip a loopback
+  // host; recorded traffic in `analytics` is real, so it never does.
   .overrideStaticRule(lint)
   .overrideTest(test)
   .overrideAnalyticsRule(analytics)
