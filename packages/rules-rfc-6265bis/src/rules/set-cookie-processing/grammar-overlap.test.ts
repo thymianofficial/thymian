@@ -12,7 +12,9 @@ import grammarRule from '../syntax/server-must-send-set-cookie-conforming-to-gra
 // the rules on the size and recognition steps stay silent there. A line a
 // user agent ignores entirely sets no cookie, so no rule on an attribute of
 // it speaks. The lifetime cap is a defect of its own, on a lifetime the user
-// agent did read, so it is reported beside the grammar's.
+// agent did read, and so is a relative Path, which the grammar allows and
+// the grammar rule's message never names: both are reported beside the
+// grammar's.
 
 const GRAMMAR = 'rfc-6265bis/server-must-send-set-cookie-conforming-to-grammar';
 const COOKIE_SIZE =
@@ -20,6 +22,8 @@ const COOKIE_SIZE =
 const ATTRIBUTE_SIZE =
   'rfc-6265bis/user-agent-must-ignore-attribute-value-over-1024-octets';
 const LIFETIME = 'rfc-6265bis/user-agent-must-cap-cookie-lifetime-at-400-days';
+const RELATIVE_PATH =
+  'rfc-6265bis/user-agent-must-replace-path-not-starting-with-slash';
 
 const rules = [
   grammarRule,
@@ -78,6 +82,21 @@ const cases: [string, string, string[]][] = [
     'an Expires past the cap, with no Max-Age to win over it',
     `SID=31d4; ${PAST_THE_CAP}`,
     [LIFETIME],
+  ],
+  [
+    'a relative Path on a conforming line over 4096 octets',
+    `SID=${'x'.repeat(4094)}; Path=docs`,
+    [COOKIE_SIZE],
+  ],
+  [
+    'a relative Path beside a Domain the grammar rejects',
+    'SID=31d4; Domain=.example.com; Path=docs',
+    [GRAMMAR, RELATIVE_PATH].sort(),
+  ],
+  [
+    'a relative Path beside a cookie-value the grammar rejects',
+    'SID="31 d4"; Path=docs',
+    [GRAMMAR, RELATIVE_PATH].sort(),
   ],
 ];
 

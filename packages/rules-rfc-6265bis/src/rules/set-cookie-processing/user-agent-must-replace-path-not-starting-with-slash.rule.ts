@@ -4,32 +4,42 @@ import { headerValueRuleFns } from '../utils/header-contexts.js';
 import {
   citeStep,
   octets,
-  onConformingLine,
+  onReceivedCookie,
+  sentCookieAvs,
   SET_COOKIE_HEADER,
 } from '../utils/set-cookie.js';
 
 const NAME = 'rfc-6265bis/user-agent-must-replace-path-not-starting-with-slash';
 
-// A path-value is any run of av-octets, so a line can conform to the grammar
-// with a Path a user agent will not use. Only such a line is this rule's: on
-// a line the grammar rejects, the grammar rule reports what the browser
-// does. A Path past 1024 octets is ignored first, by the step its own rule
-// reports.
-const check = onConformingLine(({ name, attributes }) => {
-  const replaced = attributes.filter(
-    ({ name: attribute, value = '' }) =>
-      attribute.toLowerCase() === 'path' &&
-      !value.startsWith('/') &&
-      octets(value) <= 1024,
-  );
+// A path-value is any run of av-octets, so even a line that conforms to the
+// grammar can carry a Path a user agent will not use. The rule reads the
+// cookie a user agent keeps, whether or not the grammar accepts its line:
+// the grammar rule's message says what the browser does with a malformed
+// line, never what it does with a relative Path, so the two report
+// different defects. A line the user agent ignores entirely sets no cookie.
+//
+// The cookie keeps the last Path a user agent read (§5.7 step 11), so only
+// that one counts: an earlier one has no effect, relative or not. A Path
+// past 1024 octets is ignored before it is read, by the step its own rule
+// reports, so it is not the one kept.
+const check = onReceivedCookie((cookie, line) => {
+  const kept = cookie.attributes
+    .filter((attribute) => attribute.name === 'Path')
+    .at(-1);
+  if (kept?.value !== undefined) {
+    return undefined;
+  }
+  const sent = sentCookieAvs(line)
+    .filter(
+      ({ name, text }) =>
+        name.toLowerCase() === 'path' &&
+        octets(text.slice(text.indexOf('=') + 1).trim()) <= 1024,
+    )
+    .at(-1);
 
-  return replaced.length === 0
+  return sent === undefined
     ? undefined
-    : `The Set-Cookie line for the cookie "${name}" carries ${replaced
-        .map(({ name: attribute, value = '' }) => `"${attribute}=${value}"`)
-        .join(
-          ', ',
-        )}, which does not start with "/": a user agent replaces it with the default-path of the request (${citeStep('5.6.4/step-1')}), as if no Path were sent.`;
+    : `The Set-Cookie line for the cookie "${cookie.name}" carries "${sent.text.trim()}", which does not start with "/": a user agent replaces it with the default-path of the request (${citeStep('5.6.4/step-1')}), as if no Path were sent.`;
 });
 
 const { lint, live } = headerValueRuleFns(SET_COOKIE_HEADER, NAME, check);
