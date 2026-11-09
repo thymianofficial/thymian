@@ -38,9 +38,10 @@ function readsAsSessionIdentifier(name: string): boolean {
 // rule judges a cookie whose name reads as one against the draft's two
 // weeks, and passes every other. A lifetime past §5.5's cap is the cap
 // rule's, which says that a browser shortens it; this rule judges the
-// lifetimes a browser keeps. An Expires is measured from the time of the
-// run, as in the cap rule. A cookie a browser ignores, which the rule on why
-// reports, is left out.
+// lifetimes a browser keeps. An Expires is measured from the Date of the
+// response, and from the time of the run only without one, as in the cap
+// rule. A cookie a browser ignores, which the rule on why reports, is left
+// out.
 const { lint, test, analytics } = cookieExchangeRuleFns(
   NAME,
   (cookie, exchange) => {
@@ -50,7 +51,10 @@ const { lint, test, analytics } = cookieExchangeRuleFns(
     ) {
       return undefined;
     }
-    const lifetime = requestedLifetime(cookie, Date.now());
+    const lifetime = requestedLifetime(
+      cookie,
+      exchange.responseDate?.getTime() ?? Date.now(),
+    );
     if (
       lifetime === undefined ||
       lifetime.seconds <= SESSION_LIFETIME_SECONDS ||
