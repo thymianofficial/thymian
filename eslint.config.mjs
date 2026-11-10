@@ -135,7 +135,15 @@ export default [
     },
   },
   {
-    files: ['**/test/**/*.ts', '**/*.test.ts', '**/*.spec.ts'],
+    // Every `*.fixtures.ts` in the repo is test-side too: today these are the
+    // rule sets' fixtures, which no lib build compiles and which take their
+    // types from `@thymian/rules-testing`.
+    files: [
+      '**/test/**/*.ts',
+      '**/*.test.ts',
+      '**/*.spec.ts',
+      '**/*.fixtures.ts',
+    ],
     rules: {
       '@nx/enforce-module-boundaries': [
         'error',
