@@ -14,6 +14,7 @@ import {
   type CapturedTrace,
   type CapturedTransaction,
   createHttpTestContext,
+  type ExecutableRuleType,
   type HttpTestContext,
   type Logger,
   NoopLogger,
@@ -22,7 +23,6 @@ import {
   type RuleRunnerAdapter,
   type RulesConfiguration,
   type RuleSeverity,
-  type RuleType,
   ruleTypes,
   runRules,
   type SingleRuleConfiguration,
@@ -34,7 +34,7 @@ import {
 } from '@thymian/core-testing';
 
 /** A context a rule can run in: every `RuleType` but `informational`. */
-export type ValidationContext = Exclude<RuleType, 'informational'>;
+export type ValidationContext = ExecutableRuleType;
 
 export const validationContexts: readonly ValidationContext[] =
   ruleTypes.filter(
@@ -93,8 +93,8 @@ const plugins = {
 // missing, is not ours to rename.
 export async function loadPlugin<Module>(
   context: ValidationContext,
-  packageName: string,
   load: () => Promise<Module>,
+  packageName: string = plugins[context],
 ): Promise<Module> {
   try {
     return await load();
@@ -146,12 +146,12 @@ function configure(
 
 async function run<Context extends ApiContext>(
   rule: Rule,
-  input: CommonInput & { format: ThymianFormat },
+  input: CommonInput & { format: ThymianFormat; logger: Logger },
   adapter: RuleRunnerAdapter<Context>,
 ): Promise<RuleFnResult[]> {
   const { rule: configured, rulesConfig } = configure(rule, input.config);
   const results = await runRules(
-    input.logger ?? new NoopLogger(),
+    input.logger,
     [configured],
     input.format,
     rulesConfig,
@@ -170,18 +170,21 @@ const runners: {
   static: async (rule, input) => {
     const { StaticApiContext } = await loadPlugin(
       'static',
-      plugins.static,
       () => import('@thymian/plugin-http-linter'),
     );
     const logger = input.logger ?? new NoopLogger();
 
-    return run(rule, input, {
-      errorName: 'RulesTestingStaticError',
-      mode: 'static',
-      getRuleFn: (r) => r.lintRule,
-      createContext: (_r, options) =>
-        new StaticApiContext(input.format, logger, options?.skipOrigins),
-    });
+    return run(
+      rule,
+      { ...input, logger },
+      {
+        errorName: 'RulesTestingStaticError',
+        mode: 'static',
+        getRuleFn: (r) => r.lintRule,
+        createContext: (_r, options) =>
+          new StaticApiContext(input.format, logger, options?.skipOrigins),
+      },
+    );
   },
 
   // As `plugin-http-tester`'s adapter drives it, over the context
@@ -190,12 +193,12 @@ const runners: {
   test: async (rule, input) => {
     const { HttpTestApiContext } = await loadPlugin(
       'test',
-      plugins.test,
       () => import('@thymian/plugin-http-tester'),
     );
+    const logger = input.logger ?? new NoopLogger();
     const context = createHttpTestContext({
       format: input.format,
-      logger: input.logger ?? new NoopLogger(),
+      logger,
       locals: input.locals ?? {},
       sampleRequest: input.sampleRequest ?? exampleRequestSampler,
       runRequest: input.runRequest,
@@ -204,13 +207,17 @@ const runners: {
         (async (name, payload) => identityHookRunner(name, payload)),
     });
 
-    return run(rule, input, {
-      errorName: 'RulesTestingTestError',
-      mode: 'test',
-      getRuleFn: (r) => r.testRule,
-      createContext: (r, options) =>
-        new HttpTestApiContext(r.meta.name, context, options?.skipOrigins),
-    });
+    return run(
+      rule,
+      { ...input, logger },
+      {
+        errorName: 'RulesTestingTestError',
+        mode: 'test',
+        getRuleFn: (r) => r.testRule,
+        createContext: (r, options) =>
+          new HttpTestApiContext(r.meta.name, context, options?.skipOrigins),
+      },
+    );
   },
 
   // As `plugin-http-analyzer`'s adapter drives it, over an in-memory SQLite
@@ -219,7 +226,6 @@ const runners: {
     const { AnalyticsApiContext, SqliteHttpTransactionRepository } =
       await loadPlugin(
         'analytics',
-        plugins.analytics,
         () => import('@thymian/plugin-http-analyzer'),
       );
     const logger = input.logger ?? new NoopLogger();
@@ -237,7 +243,7 @@ const runners: {
     try {
       return await run(
         rule,
-        { ...input, format },
+        { ...input, format, logger },
         {
           errorName: 'RulesTestingAnalyticsError',
           mode: 'analytics',

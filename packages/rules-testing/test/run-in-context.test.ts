@@ -194,7 +194,7 @@ describe('a context whose plugin is not installed', () => {
 
   it('rejects with an error naming the context and the package', async () => {
     await expect(
-      loadPlugin('test', missing, () => import(missing)),
+      loadPlugin('test', () => import(missing), missing),
     ).rejects.toThrow(new Error(`the \`test\` context needs \`${missing}\``));
   });
 
@@ -202,7 +202,7 @@ describe('a context whose plugin is not installed', () => {
     const failure = new Error('the plugin broke while loading');
 
     await expect(
-      loadPlugin('test', missing, () => Promise.reject(failure)),
+      loadPlugin('test', () => Promise.reject(failure), missing),
     ).rejects.toBe(failure);
   });
 });
