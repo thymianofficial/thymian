@@ -47,6 +47,7 @@ C4Container
     Container(rfc9110Rules, "RFC 9110 Rules", "TypeScript", "HTTP ruleset that<br>covers RFC 9110 for<br>linting, testing and analyzing")
     Container(rfc6797Rules, "RFC 6797 (HSTS) Rules", "TypeScript", "HTTP ruleset that<br>covers RFC 6797 (HSTS) for<br>linting, testing and analyzing")
     Container(apiDescriptionValidationRules, "API Description<br>Validation Rules", "TypeScript", "API description validation ruleset.<br>For testing and analyzing")
+    Container(rulesTesting, "Rules Testing", "TypeScript", "Runs one rule in one validation<br>context through that context's<br>real engine, for testing rule sets")
   }
 
   Rel(user, cli, "validates API specification<br>and/or implementation using")
@@ -85,6 +86,11 @@ C4Container
   Rel(rfc9110Rules, forHttpRules, "implements")
   Rel(rfc6797Rules, forHttpRules, "implements")
   Rel(apiDescriptionValidationRules, forHttpRules, "implements")
+
+  %% Rule sets are tested through the validation plugins' own engines
+  Rel(rulesTesting, httpLinter, "runs rules through")
+  Rel(rulesTesting, httpTester, "runs rules through")
+  Rel(rulesTesting, httpAnalyzer, "runs rules through")
 
   %% Plugins implement their respective ports
   Rel(textReporter, forReporting, "implements")
@@ -140,6 +146,7 @@ C4Container
 | RFC 9110 Rules                   | `packages/rules-rfc-9110`                   | `@thymian/rules-rfc-9110`                   |
 | RFC 6797 (HSTS) Rules            | `packages/rules-rfc-6797`                   | `@thymian/rules-rfc-6797`                   |
 | API Description Validation Rules | `packages/rules-api-description-validation` | `@thymian/rules-api-description-validation` |
+| Rules Testing                    | `packages/rules-testing`                    | `@thymian/rules-testing`                    |
 
 Additional non-diagram packages:
 

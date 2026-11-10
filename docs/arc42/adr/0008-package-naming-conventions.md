@@ -20,12 +20,12 @@ The prior package names included: `cli-common`, `core`, `core-testing`, `evaluat
 
 We will adopt the following prefix-based naming convention for all packages in the Thymian monorepo:
 
-| Prefix         | Role                                                                                                            | Examples                                                                                                                                                                         |
-| -------------- | --------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `plugin-*`     | Plugin packages that implement a port defined by core. Each plugin responds to one or more core actions/events. | `plugin-http-linter`, `plugin-http-tester`, `plugin-http-analyzer`, `plugin-openapi`, `plugin-reporter`, `plugin-request-dispatcher`, `plugin-sampler`, `plugin-websocket-proxy` |
-| `rules-*`      | Rule set packages that provide validation rules consumed by validation plugins.                                 | `rules-rfc-9110`, `rules-api-description-validation`                                                                                                                             |
-| `common-*`     | Shared library packages that provide utilities used by multiple other packages but are not plugins themselves.  | `common-cli`                                                                                                                                                                     |
-| _(unprefixed)_ | Core infrastructure packages with unique, well-known identities.                                                | `core`, `core-testing`, `thymian` (the CLI)                                                                                                                                      |
+| Prefix         | Role                                                                                                                | Examples                                                                                                                                                                         |
+| -------------- | ------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `plugin-*`     | Plugin packages that implement a port defined by core. Each plugin responds to one or more core actions/events.     | `plugin-http-linter`, `plugin-http-tester`, `plugin-http-analyzer`, `plugin-openapi`, `plugin-reporter`, `plugin-request-dispatcher`, `plugin-sampler`, `plugin-websocket-proxy` |
+| `rules-*`      | Rule set packages that provide validation rules consumed by validation plugins, and the tooling for authoring them. | `rules-rfc-9110`, `rules-api-description-validation`, `rules-testing`                                                                                                            |
+| `common-*`     | Shared library packages that provide utilities used by multiple other packages but are not plugins themselves.      | `common-cli`                                                                                                                                                                     |
+| _(unprefixed)_ | Core infrastructure packages with unique, well-known identities.                                                    | `core`, `core-testing`, `thymian` (the CLI)                                                                                                                                      |
 
 All packages are published under the `@thymian/` npm scope (except `thymian` itself, which is the top-level CLI package).
 
@@ -57,6 +57,7 @@ All packages are published under the `@thymian/` npm scope (except `thymian` its
 
 ## Status History
 
-| Date       | Status   | Notes                                         |
-| ---------- | -------- | --------------------------------------------- |
-| 2026-04-09 | Accepted | Retroactive documentation of Epic 1 decisions |
+| Date       | Status   | Notes                                             |
+| ---------- | -------- | ------------------------------------------------- |
+| 2026-04-09 | Accepted | Retroactive documentation of Epic 1 decisions     |
+| 2026-11-10 | Amended  | `rules-*` also covers rule-set authoring tooling. |
