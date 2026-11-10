@@ -30,6 +30,9 @@
     },
     {
       "path": "../core-testing/tsconfig.lib.json"
+    },
+    {
+      "path": "../rules-testing/tsconfig.lib.json"
     }
   ]
 }

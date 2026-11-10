@@ -1,13 +1,11 @@
+import { runInContext } from '@thymian/rules-testing';
 import { describe, expect, it } from 'vitest';
 
-import {
-  rangeRequest,
-  runAnalyticsRule,
-} from '../../../../test/run-analytics-rule.js';
+import { rangeRequest } from '../../../../test/range-request.js';
 import rule from './client-should-list-multiple-ranges-in-ascending-order.rule.js';
 
 const run = (range: string | string[]) =>
-  runAnalyticsRule(rule, [rangeRequest(range)]);
+  runInContext('analytics', rule, { transactions: [rangeRequest(range)] });
 
 describe('rfc9110/client-should-list-multiple-ranges-in-ascending-order (analytics)', () => {
   it.each([

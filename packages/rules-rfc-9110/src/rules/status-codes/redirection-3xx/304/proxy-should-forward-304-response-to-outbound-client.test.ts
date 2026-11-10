@@ -2,36 +2,14 @@ import type {
   CapturedTrace,
   CapturedTransaction,
   HttpParticipantRole,
-  RuleFnResult,
 } from '@thymian/core';
+import { runInContext } from '@thymian/rules-testing';
 import { describe, expect, it } from 'vitest';
 
-import proxyShouldForward304 from './proxy-should-forward-304-response-to-outbound-client.rule.js';
+import rule from './proxy-should-forward-304-response-to-outbound-client.rule.js';
 
-type AnalyzeOnlyRule = {
-  analyzeRule?: (ctx: unknown) => RuleFnResult[];
-};
-
-/**
- * Runs a captured-trace analytics rule against a single synthetic trace by
- * providing a minimal context whose validateCapturedHttpTraces invokes the
- * rule's callback with that trace.
- */
-function runOnTrace(
-  rule: AnalyzeOnlyRule,
-  trace: CapturedTrace,
-): RuleFnResult[] {
-  const analyze = rule.analyzeRule;
-  if (!analyze) {
-    throw new Error('rule is missing an analyzeRule');
-  }
-  const ctx = {
-    validateCapturedHttpTraces: (
-      validate: (t: CapturedTrace, location: string) => RuleFnResult[],
-    ) => validate(trace, 'trace-location'),
-  };
-  return analyze(ctx);
-}
+const runOnTrace = (trace: CapturedTrace) =>
+  runInContext('analytics', rule, { traces: [trace] });
 
 /**
  * Builds one leg of a captured trace. meta.role identifies the PRODUCER of
@@ -67,8 +45,6 @@ function leg(opts: {
   };
 }
 
-const rule = proxyShouldForward304 as unknown as AnalyzeOnlyRule;
-
 function proxiedTrace(opts: {
   conditionalHeaders?: Record<string, string>;
   clientFacingStatusCode: number;
@@ -91,21 +67,21 @@ function proxiedTrace(opts: {
 }
 
 describe('proxy-should-forward-304-response-to-outbound-client', () => {
-  it('flags a proxy that answers a conditional request with 200 despite an upstream 304', () => {
+  it('flags a proxy that answers a conditional request with 200 despite an upstream 304', async () => {
     const trace = proxiedTrace({
       conditionalHeaders: { 'if-none-match': '"abc"' },
       clientFacingStatusCode: 200,
       originFacingStatusCode: 304,
     });
 
-    const results = runOnTrace(rule, trace);
+    const results = await runOnTrace(trace);
 
     expect(results).toHaveLength(1);
     expect(results[0]?.violation?.message).toContain('304');
     expect(results[0]?.violation?.message).toContain('200');
   });
 
-  it('recognizes if-modified-since as a conditional request', () => {
+  it('recognizes if-modified-since as a conditional request', async () => {
     const trace = proxiedTrace({
       conditionalHeaders: {
         'if-modified-since': 'Tue, 01 Jul 2025 00:00:00 GMT',
@@ -114,29 +90,29 @@ describe('proxy-should-forward-304-response-to-outbound-client', () => {
       originFacingStatusCode: 304,
     });
 
-    expect(runOnTrace(rule, trace)).toHaveLength(1);
+    expect(await runOnTrace(trace)).toHaveLength(1);
   });
 
-  it('does not flag a proxy that forwards the 304 to the outbound client', () => {
+  it('does not flag a proxy that forwards the 304 to the outbound client', async () => {
     const trace = proxiedTrace({
       conditionalHeaders: { 'if-none-match': '"abc"' },
       clientFacingStatusCode: 304,
       originFacingStatusCode: 304,
     });
 
-    expect(runOnTrace(rule, trace)).toHaveLength(0);
+    expect(await runOnTrace(trace)).toHaveLength(0);
   });
 
-  it('does not flag a non-conditional request even when the upstream leg is a 304', () => {
+  it('does not flag a non-conditional request even when the upstream leg is a 304', async () => {
     const trace = proxiedTrace({
       clientFacingStatusCode: 200,
       originFacingStatusCode: 304,
     });
 
-    expect(runOnTrace(rule, trace)).toHaveLength(0);
+    expect(await runOnTrace(trace)).toHaveLength(0);
   });
 
-  it('does not flag an unproxied trace (single client-origin transaction)', () => {
+  it('does not flag an unproxied trace (single client-origin transaction)', async () => {
     const trace: CapturedTrace = [
       leg({
         requestRole: 'user-agent',
@@ -146,16 +122,16 @@ describe('proxy-should-forward-304-response-to-outbound-client', () => {
       }),
     ];
 
-    expect(runOnTrace(rule, trace)).toHaveLength(0);
+    expect(await runOnTrace(trace)).toHaveLength(0);
   });
 
-  it('does not flag when the upstream response is not a 304', () => {
+  it('does not flag when the upstream response is not a 304', async () => {
     const trace = proxiedTrace({
       conditionalHeaders: { 'if-none-match': '"abc"' },
       clientFacingStatusCode: 200,
       originFacingStatusCode: 200,
     });
 
-    expect(runOnTrace(rule, trace)).toHaveLength(0);
+    expect(await runOnTrace(trace)).toHaveLength(0);
   });
 });

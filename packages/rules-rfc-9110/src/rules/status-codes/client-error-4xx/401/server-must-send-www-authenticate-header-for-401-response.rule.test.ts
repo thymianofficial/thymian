@@ -29,6 +29,10 @@ function createFormat(): ThymianFormat {
   return format;
 }
 
+// Not on the real engine: these tests assert which transactions the rule tests
+// and how each one ends (`HttpTestCase` statuses), and the real
+// `HttpTestApiContext` reports only the rule's results. So this stub spies on
+// `httpTest` and collects the cases it produces.
 async function runTest(response: HttpResponse): Promise<HttpTestCase[]> {
   const format = createFormat();
   const ctx = createHttpTestContext({

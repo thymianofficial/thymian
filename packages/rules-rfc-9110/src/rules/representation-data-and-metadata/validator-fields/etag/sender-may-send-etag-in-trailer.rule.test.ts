@@ -1,15 +1,32 @@
-import type { CapturedTransaction } from '@thymian/core';
-import { createHttpRequest, createHttpResponse } from '@thymian/core-testing';
+import type {
+  CapturedTransaction,
+  HttpResponse,
+  RuleFnResult,
+} from '@thymian/core';
+import {
+  createHttpRequest,
+  createHttpResponse,
+  createThymianFormatWithTransaction,
+} from '@thymian/core-testing';
+import { runInContext } from '@thymian/rules-testing';
 import { describe, expect, it } from 'vitest';
 
-import { runAnalyticsRule } from '../../../../../test/run-analytics-rule.js';
-import { runTestRule } from '../../../../../test/run-test-rule.js';
 import rule from './sender-may-send-etag-in-trailer.rule.js';
 
-const described = {
-  req: createHttpRequest({ method: 'get', path: '/rocket-types' }),
-  res: createHttpResponse({ statusCode: 200 }),
-};
+// The specification describes GET /rocket-types answered with
+// `describedStatusCode`; every request is answered with `response`.
+function runTest(
+  response: HttpResponse,
+  describedStatusCode = 200,
+): Promise<RuleFnResult[]> {
+  return runInContext('test', rule, {
+    format: createThymianFormatWithTransaction(
+      createHttpRequest({ method: 'get', path: '/rocket-types' }),
+      createHttpResponse({ statusCode: describedStatusCode }),
+    ),
+    runRequest: async () => response,
+  });
+}
 
 function transaction(response: {
   statusCode?: number;
@@ -40,7 +57,7 @@ function transaction(response: {
 
 describe('rfc9110/sender-may-send-etag-in-trailer (test)', () => {
   it('hints when the live 2xx response sends ETag in its trailer section', async () => {
-    const results = await runTestRule(rule, described, {
+    const results = await runTest({
       statusCode: 200,
       headers: {},
       trailers: { etag: '"v1"' },
@@ -51,7 +68,7 @@ describe('rfc9110/sender-may-send-etag-in-trailer (test)', () => {
   });
 
   it('hints when the live 2xx response sends ETag as both a header field and a trailer', async () => {
-    const results = await runTestRule(rule, described, {
+    const results = await runTest({
       statusCode: 200,
       headers: { etag: '"v1"' },
       trailers: { etag: '"v1"' },
@@ -62,7 +79,7 @@ describe('rfc9110/sender-may-send-etag-in-trailer (test)', () => {
   });
 
   it('stays silent when the live 2xx response sends ETag as a header field', async () => {
-    const results = await runTestRule(rule, described, {
+    const results = await runTest({
       statusCode: 200,
       headers: { etag: '"v1"' },
       trailers: {},
@@ -73,7 +90,7 @@ describe('rfc9110/sender-may-send-etag-in-trailer (test)', () => {
   });
 
   it('stays silent when the live 2xx response sends no ETag at all', async () => {
-    const results = await runTestRule(rule, described, {
+    const results = await runTest({
       statusCode: 200,
       headers: {},
       trailers: {},
@@ -84,18 +101,14 @@ describe('rfc9110/sender-may-send-etag-in-trailer (test)', () => {
   });
 
   it('stays silent when the response is not 2xx, even with an ETag trailer', async () => {
-    const results = await runTestRule(
-      rule,
-      {
-        req: described.req,
-        res: createHttpResponse({ statusCode: 404 }),
-      },
+    const results = await runTest(
       {
         statusCode: 404,
         headers: {},
         trailers: { etag: '"v1"' },
         duration: 0,
       },
+      404,
     );
 
     expect(results).toEqual([]);
@@ -104,42 +117,48 @@ describe('rfc9110/sender-may-send-etag-in-trailer (test)', () => {
 
 describe('rfc9110/sender-may-send-etag-in-trailer (analytics)', () => {
   it('hints when a 2xx response sends ETag in its trailer section', async () => {
-    const results = await runAnalyticsRule(rule, [
-      transaction({ trailers: { etag: '"v1"' } }),
-    ]);
+    const results = await runInContext('analytics', rule, {
+      transactions: [transaction({ trailers: { etag: '"v1"' } })],
+    });
 
     expect(results).toHaveLength(1);
   });
 
   it('hints when a 2xx response sends ETag as both a header field and a trailer', async () => {
-    const results = await runAnalyticsRule(rule, [
-      transaction({
-        headers: { etag: '"v1"' },
-        trailers: { etag: '"v1"' },
-      }),
-    ]);
+    const results = await runInContext('analytics', rule, {
+      transactions: [
+        transaction({
+          headers: { etag: '"v1"' },
+          trailers: { etag: '"v1"' },
+        }),
+      ],
+    });
 
     expect(results).toHaveLength(1);
   });
 
   it('stays silent when a 2xx response sends ETag as a header field', async () => {
-    const results = await runAnalyticsRule(rule, [
-      transaction({ headers: { etag: '"v1"' } }),
-    ]);
+    const results = await runInContext('analytics', rule, {
+      transactions: [transaction({ headers: { etag: '"v1"' } })],
+    });
 
     expect(results).toEqual([]);
   });
 
   it('stays silent when a 2xx response sends no ETag at all', async () => {
-    const results = await runAnalyticsRule(rule, [transaction({})]);
+    const results = await runInContext('analytics', rule, {
+      transactions: [transaction({})],
+    });
 
     expect(results).toEqual([]);
   });
 
   it('stays silent when a non-2xx response sends ETag in its trailer section', async () => {
-    const results = await runAnalyticsRule(rule, [
-      transaction({ statusCode: 404, trailers: { etag: '"v1"' } }),
-    ]);
+    const results = await runInContext('analytics', rule, {
+      transactions: [
+        transaction({ statusCode: 404, trailers: { etag: '"v1"' } }),
+      ],
+    });
 
     expect(results).toEqual([]);
   });
