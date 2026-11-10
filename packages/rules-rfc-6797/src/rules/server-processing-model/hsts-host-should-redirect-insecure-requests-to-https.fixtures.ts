@@ -1,3 +1,5 @@
+import type { RuleFixtures } from '@thymian/rules-testing';
+
 import {
   apiDescription,
   FALLBACK,
@@ -7,7 +9,6 @@ import {
   respondByScheme,
   respondWith,
 } from '../../test/builders.js';
-import type { RuleFixtures } from '../../test/harness.js';
 import rule from './hsts-host-should-redirect-insecure-requests-to-https.rule.js';
 
 const TO_HTTPS = 'https://api.example.com/';
@@ -48,18 +49,18 @@ export default {
   test: {
     violates: {
       format: apiDescription({ request: INSECURE }),
-      respond: respondWith({ statusCode: 302, headers: toHttps }),
+      runRequest: respondWith({ statusCode: 302, headers: toHttps }),
     },
     conforms: {
       format: apiDescription({ request: INSECURE }, {}),
-      respond: respondByScheme({
+      runRequest: respondByScheme({
         http: { statusCode: 301, headers: toHttps },
         https: {},
       }),
     },
     skips: {
       format: apiDescription({ request: FALLBACK }),
-      respond: respondWith({}),
+      runRequest: respondWith({}),
     },
   },
   // Recorded traffic is real: http://localhost:8080 is judged like any other

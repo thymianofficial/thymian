@@ -1,3 +1,5 @@
+import type { RuleFixtures } from '@thymian/rules-testing';
+
 import {
   apiDescription,
   INSECURE,
@@ -7,7 +9,6 @@ import {
   STS_ONE_YEAR,
   stsHeader,
 } from '../../test/builders.js';
-import type { RuleFixtures } from '../../test/harness.js';
 import rule from './server-should-send-sts-header-over-secure-transport.rule.js';
 
 // Each conforming input also holds a plain-http response without the
@@ -24,10 +25,13 @@ export default {
     },
   },
   test: {
-    violates: { format: apiDescription({}), respond: respondWith({}) },
+    violates: { format: apiDescription({}), runRequest: respondWith({}) },
     conforms: {
       format: apiDescription({}, { request: INSECURE }),
-      respond: respondByScheme({ https: { headers: STS_ONE_YEAR }, http: {} }),
+      runRequest: respondByScheme({
+        https: { headers: STS_ONE_YEAR },
+        http: {},
+      }),
     },
   },
   analytics: {

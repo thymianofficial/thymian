@@ -2,14 +2,14 @@ import { readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { loadRules, type RuleFnResult } from '@thymian/core';
-import { describe, expect, it } from 'vitest';
-
+import { loadRules } from '@thymian/core';
 import {
-  fixtureContexts,
+  checkInput,
+  type FixtureExpectation,
   type RuleFixtures,
-  runInContext,
-} from './test/harness.js';
+  validationContexts,
+} from '@thymian/rules-testing';
+import { describe, expect, it } from 'vitest';
 
 // The fixture bar (ADR-0021 §4): a declared context claims the assertion is
 // *demonstrated*, so every executable rule the package ships carries one
@@ -17,6 +17,7 @@ import {
 // fewer, and no exemptions. Each fixture then runs through the real engine of
 // its context, where it must flag its violating input, pass its conforming
 // one — a pass, not a skip — and skip its undecidable one where it has one.
+// What flag, pass and skip mean is `checkInput`'s, not this file's.
 
 const rulesDir = join(dirname(fileURLToPath(import.meta.url)), 'rules');
 
@@ -36,16 +37,12 @@ const fixtures: RuleFixtures[] = await Promise.all(
   ),
 );
 
-const violations = (results: RuleFnResult[]) =>
-  results.filter((result) => result.violation !== undefined);
-
-// A skip names the rule it skips, as every `rule-skip` producer does.
-const skipsOf = (ruleName: string, results: RuleFnResult[]) =>
-  results.filter((result) =>
-    result.findings.some(
-      (finding) => finding.kind === 'rule-skip' && finding.title === ruleName,
-    ),
-  );
+// Each promise a fixture can make, and the test that holds it to it.
+const expectations: [FixtureExpectation, string][] = [
+  ['violates', 'flags its violating input'],
+  ['conforms', 'passes its conforming input'],
+  ['skips', 'skips, rather than passes, the input it cannot decide'],
+];
 
 describe('the fixture bar', () => {
   it('carries exactly one fixture module per executable rule the package ships', async () => {
@@ -67,7 +64,7 @@ describe('the fixture bar', () => {
     );
 
     for (const fixture of fixtures) {
-      const demonstrated = fixtureContexts
+      const demonstrated = validationContexts
         .filter((context) => fixture[context] !== undefined)
         .sort();
 
@@ -79,7 +76,7 @@ describe('the fixture bar', () => {
 });
 
 describe.each(fixtures)('$rule.meta.name', (fixture) => {
-  const declared = fixtureContexts.filter(
+  const declared = validationContexts.filter(
     (context) => fixture[context] !== undefined,
   );
 
@@ -89,33 +86,20 @@ describe.each(fixtures)('$rule.meta.name', (fixture) => {
       return;
     }
 
-    it('flags its violating input', async () => {
-      const results = await runInContext(
-        context,
-        fixture.rule,
-        contextFixture.violates,
-      );
-      expect(violations(results).length).toBeGreaterThan(0);
-    });
+    for (const [expected, title] of expectations) {
+      const input = contextFixture[expected];
+      if (input === undefined) {
+        continue;
+      }
 
-    it('passes its conforming input', async () => {
-      const results = await runInContext(
-        context,
-        fixture.rule,
-        contextFixture.conforms,
-      );
-      expect(violations(results)).toEqual([]);
-      expect(skipsOf(fixture.rule.meta.name, results)).toEqual([]);
-    });
-
-    if (contextFixture.skips !== undefined) {
-      const undecidable = contextFixture.skips;
-      it('skips, rather than passes, the input it cannot decide', async () => {
-        const results = await runInContext(context, fixture.rule, undecidable);
-        expect(violations(results)).toEqual([]);
-        expect(skipsOf(fixture.rule.meta.name, results).length).toBeGreaterThan(
-          0,
+      it(title, async () => {
+        const verdict = await checkInput(
+          context,
+          fixture.rule,
+          input,
+          expected,
         );
+        expect(verdict.met, verdict.reason).toBe(true);
       });
     }
   });

@@ -1,18 +1,15 @@
 import type { HttpResponse, RuleFnResult } from '@thymian/core';
+import { runInContext, validationContexts } from '@thymian/rules-testing';
 import { describe, expect, it } from 'vitest';
 
 import {
   apiDescription,
   header,
+  type InputsByContext,
   INSECURE,
   recorded,
   respondWith,
 } from '../../test/builders.js';
-import {
-  type CaseOf,
-  fixtureContexts,
-  runInContext,
-} from '../../test/harness.js';
 import rfcRule from './hsts-host-should-redirect-insecure-requests-to-https.rule.js';
 import conventionRule from './server-should-redirect-insecure-requests-to-https.rule.js';
 
@@ -24,7 +21,7 @@ import conventionRule from './server-should-redirect-insecure-requests-to-https.
 // One plain-http request answered with `statusCode` and, if given, a
 // Location: declared in `static`, answered in `test`, recorded in
 // `analytics`.
-function answeredWith(statusCode: number, location?: string): CaseOf {
+function answeredWith(statusCode: number, location?: string): InputsByContext {
   const headers: HttpResponse['headers'] =
     location === undefined ? {} : { location };
 
@@ -40,7 +37,7 @@ function answeredWith(statusCode: number, location?: string): CaseOf {
     },
     test: {
       format: apiDescription({ request: INSECURE }),
-      respond: respondWith({ statusCode, headers }),
+      runRequest: respondWith({ statusCode, headers }),
     },
     analytics: {
       transactions: [recorded({ origin: INSECURE, statusCode, headers })],
@@ -48,7 +45,7 @@ function answeredWith(statusCode: number, location?: string): CaseOf {
   };
 }
 
-const reasons: [string, CaseOf, RegExp][] = [
+const reasons: [string, InputsByContext, RegExp][] = [
   [
     'a redirect that is not permanent',
     answeredWith(302, 'https://api.example.com/'),
@@ -75,7 +72,7 @@ const messages = (results: RuleFnResult[]) =>
   );
 
 describe.each([rfcRule, conventionRule])('$meta.name', (rule) => {
-  describe.each(fixtureContexts)('in %s', (context) => {
+  describe.each(validationContexts)('in %s', (context) => {
     it.each(reasons)('names %s', async (_reason, inputs, expected) => {
       const results = await runInContext(context, rule, inputs[context]);
 
@@ -92,10 +89,10 @@ describe.each([rfcRule, conventionRule])('$meta.name', (rule) => {
       const headers = {
         location: ['https://api.example.com/', 'http://api.example.com/'],
       };
-      const inputs: Pick<CaseOf, 'test' | 'analytics'> = {
+      const inputs: Pick<InputsByContext, 'test' | 'analytics'> = {
         test: {
           format: apiDescription({ request: INSECURE }),
-          respond: respondWith({ statusCode, headers }),
+          runRequest: respondWith({ statusCode, headers }),
         },
         analytics: {
           transactions: [recorded({ origin: INSECURE, statusCode, headers })],

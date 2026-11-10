@@ -3,10 +3,10 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import type { Rule } from '@thymian/core';
+import { runInContext, validationContexts } from '@thymian/rules-testing';
 import { describe, expect, it } from 'vitest';
 
 import { stsValueInputs } from '../../test/builders.js';
-import { fixtureContexts, runInContext } from '../../test/harness.js';
 
 // One defect, one violation: a Strict-Transport-Security value that does not
 // parse against §6.1's grammar is reported by the grammar rule alone. Every
@@ -43,7 +43,7 @@ const malformed = [
   'max-age=1y; max-age; includeSubDomains=yes; includeSubDomain, preload',
 ];
 
-describe.each(fixtureContexts)('in %s', (context) => {
+describe.each(validationContexts)('in %s', (context) => {
   it.each(malformed)(
     'reports "%s" once, from the grammar rule',
     async (value) => {

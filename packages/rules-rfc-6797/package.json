@@ -52,6 +52,7 @@
     "@thymian/core-testing": "0.0.0-PLACEHOLDER",
     "@thymian/plugin-http-analyzer": "0.0.0-PLACEHOLDER",
     "@thymian/plugin-http-linter": "0.0.0-PLACEHOLDER",
-    "@thymian/plugin-http-tester": "0.0.0-PLACEHOLDER"
+    "@thymian/plugin-http-tester": "0.0.0-PLACEHOLDER",
+    "@thymian/rules-testing": "0.0.0-PLACEHOLDER"
   }
 }

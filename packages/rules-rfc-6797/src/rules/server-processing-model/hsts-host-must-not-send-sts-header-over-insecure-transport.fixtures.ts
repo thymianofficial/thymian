@@ -1,3 +1,5 @@
+import type { RuleFixtures } from '@thymian/rules-testing';
+
 import {
   apiDescription,
   FALLBACK,
@@ -8,7 +10,6 @@ import {
   STS_ONE_YEAR,
   stsHeader,
 } from '../../test/builders.js';
-import type { RuleFixtures } from '../../test/harness.js';
 import rule from './hsts-host-must-not-send-sts-header-over-insecure-transport.rule.js';
 
 // The header over https, and a plain-http response without it: judged on
@@ -48,15 +49,15 @@ export default {
   test: {
     violates: {
       format: apiDescription({ request: INSECURE }),
-      respond: respondWith({ headers: STS_ONE_YEAR }),
+      runRequest: respondWith({ headers: STS_ONE_YEAR }),
     },
     conforms: {
       format: apiDescription({}, { request: INSECURE }),
-      respond: conformingServer,
+      runRequest: conformingServer,
     },
     skips: {
       format: apiDescription({ request: FALLBACK }),
-      respond: respondWith({ headers: STS_ONE_YEAR }),
+      runRequest: respondWith({ headers: STS_ONE_YEAR }),
     },
   },
   // Recorded traffic is real: http://localhost:8080 is judged like any other

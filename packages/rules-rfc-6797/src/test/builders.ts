@@ -20,9 +20,19 @@ import {
   createParameter,
   createStringSchema,
 } from '@thymian/core-testing';
+import type {
+  InputOf,
+  RuleFixtures,
+  TestInput,
+  ValidationContext,
+} from '@thymian/rules-testing';
 
 import { STS_HEADER } from '../rules/utils/sts-field-value.js';
-import type { CaseOf, RuleFixtures } from './harness.js';
+
+// One input per validation context, for an assertion every context makes.
+export type InputsByContext = {
+  [Context in ValidationContext]: InputOf<Context>;
+};
 
 type Origin = Pick<ThymianHttpRequest, 'protocol' | 'host' | 'port'>;
 
@@ -104,8 +114,8 @@ type Answer = { statusCode?: number; headers?: HttpResponse['headers'] };
 export function respondWith({
   statusCode = 200,
   headers = {},
-}: Answer): () => HttpResponse {
-  return () => ({ statusCode, headers, trailers: {}, duration: 1 });
+}: Answer): TestInput['runRequest'] {
+  return async () => ({ statusCode, headers, trailers: {}, duration: 1 });
 }
 
 // The server under test in `test`, answering a request over https one way
@@ -114,13 +124,13 @@ export function respondWith({
 export function respondByScheme(answers: {
   https: Answer;
   http: Answer;
-}): (request: HttpRequest) => HttpResponse {
-  return (request) =>
+}): TestInput['runRequest'] {
+  return (request: HttpRequest) =>
     respondWith(
       new URL(request.origin).protocol === 'https:'
         ? answers.https
         : answers.http,
-    )();
+    )(request);
 }
 
 // One recorded transaction, as an origin server answered a user agent.
@@ -151,14 +161,14 @@ export function recorded({
 // description, answered by a server under test, and recorded. In `test` the
 // description declares no header at all: the server sending one anyway is
 // what a response-side candidate filter would never see.
-export function stsValueInputs(value: string): CaseOf {
+export function stsValueInputs(value: string): InputsByContext {
   const headers = { [STS_HEADER]: value };
 
   return {
     static: {
       format: apiDescription({ response: { headers: stsHeader(value) } }),
     },
-    test: { format: apiDescription({}), respond: respondWith({ headers }) },
+    test: { format: apiDescription({}), runRequest: respondWith({ headers }) },
     analytics: { transactions: [recorded({ headers })] },
   };
 }

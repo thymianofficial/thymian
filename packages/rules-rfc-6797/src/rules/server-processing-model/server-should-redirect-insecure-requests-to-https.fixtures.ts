@@ -1,4 +1,5 @@
-import type { RuleFixtures } from '../../test/harness.js';
+import type { RuleFixtures } from '@thymian/rules-testing';
+
 import redirect from './hsts-host-should-redirect-insecure-requests-to-https.fixtures.js';
 import rule from './server-should-redirect-insecure-requests-to-https.rule.js';
 

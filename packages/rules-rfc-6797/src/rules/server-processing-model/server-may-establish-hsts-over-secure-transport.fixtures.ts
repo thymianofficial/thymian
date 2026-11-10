@@ -1,4 +1,5 @@
-import type { RuleFixtures } from '../../test/harness.js';
+import type { RuleFixtures } from '@thymian/rules-testing';
+
 import rule from './server-may-establish-hsts-over-secure-transport.rule.js';
 import presence from './server-should-send-sts-header-over-secure-transport.fixtures.js';
 

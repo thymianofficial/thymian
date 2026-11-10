@@ -1,10 +1,11 @@
+import type { RuleFixtures } from '@thymian/rules-testing';
+
 import {
   apiDescription,
   recorded,
   respondWith,
   STS_ONE_YEAR,
 } from '../../test/builders.js';
-import type { RuleFixtures } from '../../test/harness.js';
 import { STS_HEADER } from '../utils/sts-field-value.js';
 import rule from './hsts-host-must-send-only-one-sts-header.rule.js';
 
@@ -18,11 +19,11 @@ export default {
   test: {
     violates: {
       format: apiDescription({}),
-      respond: respondWith({ headers: twice }),
+      runRequest: respondWith({ headers: twice }),
     },
     conforms: {
       format: apiDescription({}),
-      respond: respondWith({ headers: STS_ONE_YEAR }),
+      runRequest: respondWith({ headers: STS_ONE_YEAR }),
     },
   },
   analytics: {
