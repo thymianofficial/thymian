@@ -57,7 +57,7 @@ of the steps it builds as its acceptance criteria:
    every later rule lands under them.
 3. **Rules, one sub-issue per topic directory** (steps 4–5, and step 7's entries for those
    rules) — the rules, their fixtures and their `coverage.ts` entries. The first batch brings
-   the fixture harness.
+   `fixtures.test.ts`.
 4. **Profiles and the complete record** (steps 6–7) — every profile, the record at its exact
    census, the README regenerated.
 5. **Paper trail** (step 8) — including whatever the walk found this skill silent or wrong on.
@@ -92,13 +92,13 @@ for a source without one, the slug.
 Copy the package scaffolding from `packages/rules-rfc-6797`, the first package built by this
 route — `package.json`, `project.json`, `tsconfig*.json`, `vitest.config.ts`,
 `eslint.config.mjs`, and `src/index.ts`'s `pattern: 'rules/**/*.rule.js'` glob. Unlike
-`rules-rfc-9110`'s, its lib build and its dependency-checks lint leave out `*.fixtures.ts`
-and `src/test/`, so nothing test-side ships or counts as a runtime dependency. `"files"`
-stays as it is, shipping `dist` only; step 7 depends on it.
+`rules-rfc-9110`'s, its lib build and its dependency-checks lint leave out `*.fixtures.ts`,
+so nothing test-side ships or counts as a runtime dependency. `"files"` stays as it is,
+shipping `dist` only; step 7 depends on it.
 
 The scaffolding's checks are `nx build`, `nx run rules-<slug>:lint` and `nx test`. It has no
 `typecheck` target (`addTypecheckTarget: false`), and `nx build` compiles only what ships:
-type-check the tests, the fixtures and the harness with `tsc -p` on a throwaway config beside
+type-check the tests and the fixtures with `tsc -p` on a throwaway config beside
 `tsconfig.lib.json` that extends it with `"noEmit": true` and `"exclude": []`.
 
 Then register the package everywhere the repository lists its packages: the commit scope in
@@ -237,10 +237,12 @@ precedent of `src/profiles.test.ts`.
 
 A context is demonstrated through its **real engine**: the linter's, the tester's and the
 analyzer's own `ApiContext`, driven by core's `runRules` the way each plugin drives it. A stub
-context proves the rule function, and nothing about the context. `rules-rfc-6797`'s harness is
-the shape to copy: `src/test/harness.ts` runs one rule in one context, with the three plugins
-as devDependencies; each rule's `<name>.fixtures.ts` sits beside its rule file; and
-`src/fixtures.test.ts` asserts the bar and runs every fixture.
+context proves the rule function, and nothing about the context. `@thymian/rules-testing` runs
+one rule in one context that way: devDepend on it and on the plugin for each context the
+package declares. Each rule's `<name>.fixtures.ts` sits beside its rule file. Copy
+`src/fixtures.test.ts` from `rules-rfc-6797`: it discovers the fixture modules, asserts the bar
+and runs every fixture through `checkInput`. The meaning of flag, pass and skip comes from
+`checkInput`; a package does not re-implement it.
 
 Each context's fixture pairs an input the rule must **flag** with one it must **pass** — a
 pass, not a skip — and, where the rule emits a runtime `rule-skip` for an input it cannot
