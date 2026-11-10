@@ -1,0 +1,9 @@
+{
+  "name": "rules-testing",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "packages/rules-testing/src",
+  "projectType": "library",
+  "tags": ["scope:rules", "type:testing", "npm:public"],
+  "// targets": "to see all targets run: nx show project rules-testing --web",
+  "targets": {}
+}

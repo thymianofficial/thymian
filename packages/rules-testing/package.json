@@ -1,0 +1,71 @@
+{
+  "name": "@thymian/rules-testing",
+  "version": "0.0.0-PLACEHOLDER",
+  "description": "Runs a Thymian rule in a validation context through that context's real engine, for testing rule sets",
+  "license": "AGPL-3.0-only",
+  "bugs": {
+    "url": "https://github.com/thymianofficial/thymian/issues"
+  },
+  "homepage": "https://thymian.dev",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/thymianofficial/thymian.git",
+    "directory": "packages/rules-testing"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "keywords": [
+    "thymian",
+    "testing",
+    "http-rules",
+    "rule-testing",
+    "fixtures"
+  ],
+  "main": "./dist/index.js",
+  "type": "module",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "!**/*.tsbuildinfo"
+  ],
+  "dependencies": {
+    "@thymian/core-testing": "0.0.0-PLACEHOLDER",
+    "tslib": "^2.3.0"
+  },
+  "devDependencies": {
+    "@thymian/core": "0.0.0-PLACEHOLDER",
+    "@thymian/plugin-http-analyzer": "0.0.0-PLACEHOLDER",
+    "@thymian/plugin-http-linter": "0.0.0-PLACEHOLDER",
+    "@thymian/plugin-http-tester": "0.0.0-PLACEHOLDER"
+  },
+  "peerDependencies": {
+    "@thymian/core": "0.0.0-PLACEHOLDER",
+    "@thymian/plugin-http-analyzer": "0.0.0-PLACEHOLDER",
+    "@thymian/plugin-http-linter": "0.0.0-PLACEHOLDER",
+    "@thymian/plugin-http-tester": "0.0.0-PLACEHOLDER"
+  },
+  "peerDependenciesMeta": {
+    "@thymian/plugin-http-analyzer": {
+      "optional": true
+    },
+    "@thymian/plugin-http-linter": {
+      "optional": true
+    },
+    "@thymian/plugin-http-tester": {
+      "optional": true
+    }
+  }
+}

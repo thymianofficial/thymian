@@ -24,6 +24,7 @@ export default {
         'rules-api-description-validation',
         'rules-rfc-9110',
         'rules-rfc-6797',
+        'rules-testing',
         'thymian',
         'e2e',
         'plugin-har',

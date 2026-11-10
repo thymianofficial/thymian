@@ -55,6 +55,9 @@
       "path": "./packages/rules-rfc-6797"
     },
     {
+      "path": "./packages/rules-testing"
+    },
+    {
       "path": "./packages/common-cli"
     },
     {
