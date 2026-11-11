@@ -7,7 +7,7 @@ import {
 import {
   describeRuleContextScenarios,
   type ScenarioTransaction,
-} from '@thymian/core-testing';
+} from '@thymian/core-testing/scenarios';
 import { expect, vi } from 'vitest';
 
 import { HttpTestApiContext } from '../src/http-test-api-context.js';

@@ -1,4 +1,4 @@
-import { createMockLogger } from '@thymian/core-testing';
+import { createMockLogger } from '@thymian/core-testing/mocks';
 import { describe, expect, it } from 'vitest';
 
 import { convertResults } from '../src/convert.js';

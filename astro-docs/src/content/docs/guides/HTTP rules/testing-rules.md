@@ -23,13 +23,10 @@ For a rule set that declares all three:
 
 ```bash
 npm install --save-dev @thymian/core @thymian/rules-testing \
-  @thymian/plugin-http-linter @thymian/plugin-http-tester @thymian/plugin-http-analyzer \
-  vitest
+  @thymian/plugin-http-linter @thymian/plugin-http-tester @thymian/plugin-http-analyzer
 ```
 
 The plugins are optional peer dependencies of `@thymian/rules-testing`, and each one is loaded only when a test runs its context. A rule set that declares only `static` needs only `@thymian/plugin-http-linter`.
-
-`@thymian/rules-testing` currently needs `vitest` installed even when your tests run in another framework.
 
 ### Versions
 

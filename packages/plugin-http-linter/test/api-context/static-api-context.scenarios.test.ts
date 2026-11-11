@@ -1,5 +1,5 @@
 import { NoopLogger, ThymianFormat } from '@thymian/core';
-import { describeRuleContextScenarios } from '@thymian/core-testing';
+import { describeRuleContextScenarios } from '@thymian/core-testing/scenarios';
 import { expect } from 'vitest';
 
 import { StaticApiContext } from '../../src/static-api-context.js';

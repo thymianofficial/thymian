@@ -3,17 +3,18 @@
  *
  * Testing utilities, factories, and mocks for the Thymian plugin ecosystem.
  *
- * This package provides reusable testing utilities that make it easy to write
- * tests for Thymian plugins and components.
+ * This entry point holds what runs in any test framework and does not load
+ * `vitest`. The parts built on vitest have their own entry points, which need
+ * `vitest` installed:
+ *
+ * - `@thymian/core-testing/mocks`: test doubles built on `vi.fn()`
+ * - `@thymian/core-testing/scenarios`: `describeRuleContextScenarios`, the
+ *   rule-context scenario suite each validation engine runs
  *
  * @example
  * ```typescript
- * import {
- *   createHttpRequest,
- *   createHttpResponse,
- *   createMockLogger,
- *   createMockEmitter,
- * } from '@thymian/core-testing';
+ * import { createGetRequest, createOkResponse } from '@thymian/core-testing';
+ * import { createMockEmitter, createMockLogger } from '@thymian/core-testing/mocks';
  *
  * // Create test data
  * const request = createGetRequest({ path: '/users' });
@@ -74,32 +75,6 @@ export {
 } from './factories/thymian-format.factory.js';
 
 // ============================================================================
-// Mocks - Test Doubles
-// ============================================================================
-
-export {
-  captureEmittedEvents,
-  createEmitterWithActionHandlers,
-  createEmitterWithHandlers,
-  createMockEmitter,
-} from './mocks/emitter.mock.js';
-export {
-  createMockLogger,
-  createSilentMockLogger,
-} from './mocks/logger.mock.js';
-export {
-  createMockPlugin,
-  createPluginThatEmits,
-  createPluginWithMetadata,
-  createSpyPluginFn,
-} from './mocks/plugin.mock.js';
-export {
-  mockState,
-  mockThymianCore,
-  resetMockState,
-} from './mocks/thymian.mock.js';
-
-// ============================================================================
 // HTTP Testing Utilities
 // ============================================================================
 
@@ -108,16 +83,3 @@ export {
   generateExampleParameters,
   identityHookRunner,
 } from './http-testing-utils.js';
-
-// ============================================================================
-// Rule-context scenarios
-// ============================================================================
-
-export {
-  describeRuleContextScenarios,
-  type RuleContextDriver,
-  type RuleContextMethod,
-  type RuleContextScenarioSetup,
-  type ScenarioTransaction,
-  type ViolatedWhenForm,
-} from './rule-context-scenarios.js';

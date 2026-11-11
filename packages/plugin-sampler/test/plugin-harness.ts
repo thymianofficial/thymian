@@ -10,7 +10,7 @@ import {
   ThymianEmitter,
   type ThymianFormat,
 } from '@thymian/core';
-import { createMockLogger } from '@thymian/core-testing';
+import { createMockLogger } from '@thymian/core-testing/mocks';
 
 import { samplePlugin, type SamplerPluginOptions } from '../src/index.js';
 import { resolveSamplerPaths } from '../src/sampler-paths.js';

@@ -4,7 +4,10 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { Thymian } from '@thymian/core';
-import { createMockEmitter, createMockLogger } from '@thymian/core-testing';
+import {
+  createMockEmitter,
+  createMockLogger,
+} from '@thymian/core-testing/mocks';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createHarPlugin } from '../src/index.js';

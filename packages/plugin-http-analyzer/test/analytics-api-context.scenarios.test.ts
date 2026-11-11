@@ -3,7 +3,7 @@ import {
   NoopLogger,
   ThymianFormat,
 } from '@thymian/core';
-import { describeRuleContextScenarios } from '@thymian/core-testing';
+import { describeRuleContextScenarios } from '@thymian/core-testing/scenarios';
 import { expect, onTestFinished } from 'vitest';
 
 import { AnalyticsApiContext } from '../src/analytics-api-context.js';

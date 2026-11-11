@@ -37,10 +37,20 @@
       "import": "./dist/index.js",
       "default": "./dist/index.js"
     },
+    "./mocks": {
+      "types": "./dist/mocks/index.d.ts",
+      "import": "./dist/mocks/index.js",
+      "default": "./dist/mocks/index.js"
+    },
     "./mocks/thymian": {
       "types": "./dist/mocks/thymian.mock.d.ts",
       "import": "./dist/mocks/thymian.mock.js",
       "default": "./dist/mocks/thymian.mock.js"
+    },
+    "./scenarios": {
+      "types": "./dist/rule-context-scenarios.d.ts",
+      "import": "./dist/rule-context-scenarios.js",
+      "default": "./dist/rule-context-scenarios.js"
     }
   },
   "scripts": {
@@ -59,6 +69,12 @@
     "vitest": "^4.1.11"
   },
   "peerDependencies": {
-    "@thymian/core": "0.0.0-PLACEHOLDER"
+    "@thymian/core": "0.0.0-PLACEHOLDER",
+    "vitest": "^4.1.11"
+  },
+  "peerDependenciesMeta": {
+    "vitest": {
+      "optional": true
+    }
   }
 }

@@ -30,10 +30,18 @@
 npm install --save-dev @thymian/core-testing
 ```
 
+The root entry point, `@thymian/core-testing`, holds the factories and the HTTP testing utilities, and runs in any test framework. Two entry points are built on [Vitest](https://vitest.dev) and need `vitest` installed:
+
+| Entry point                       | Holds                                                                           |
+| --------------------------------- | ------------------------------------------------------------------------------- |
+| `@thymian/core-testing/mocks`     | The test doubles, built on `vi.fn()`                                            |
+| `@thymian/core-testing/scenarios` | `describeRuleContextScenarios`, the scenario suite every validation engine runs |
+
 ### Quick Start
 
 ```typescript
-import { createHttpRequest, createHttpResponse, createMockLogger, createMockEmitter, createMockPlugin } from '@thymian/core-testing';
+import { createGetRequest, createOkResponse } from '@thymian/core-testing';
+import { createMockEmitter, createMockLogger } from '@thymian/core-testing/mocks';
 
 // Create test data with sensible defaults
 const request = createGetRequest({ path: '/users' });
@@ -161,12 +169,14 @@ const formatWithSpecificNumber = createThymianFormatWithTransactions(10);
 
 #### Mocks
 
+The mocks are built on `vi.fn()` and live in `@thymian/core-testing/mocks`, which needs `vitest` installed.
+
 ##### Logger Mock
 
 Create mock Logger instances:
 
 ```typescript
-import { createMockLogger, createSilentMockLogger } from '@thymian/core-testing';
+import { createMockLogger, createSilentMockLogger } from '@thymian/core-testing/mocks';
 
 // Standard mock (with vi.fn() spies)
 const logger = createMockLogger({ namespace: 'test-plugin' });
@@ -182,7 +192,7 @@ const silentLogger = createSilentMockLogger();
 Create mock ThymianEmitter instances:
 
 ```typescript
-import { createMockEmitter, createEmitterWithHandlers, createEmitterWithActionHandlers, captureEmittedEvents } from '@thymian/core-testing';
+import { createMockEmitter, createEmitterWithHandlers, createEmitterWithActionHandlers, captureEmittedEvents } from '@thymian/core-testing/mocks';
 
 // Standard mock with spies
 const emitter = createMockEmitter();
@@ -207,7 +217,7 @@ expect(events[0][0]).toBe('core.register');
 Create mock ThymianPlugin instances:
 
 ```typescript
-import { createMockPlugin, createSpyPluginFn, createPluginThatEmits, createPluginWithMetadata } from '@thymian/core-testing';
+import { createMockPlugin, createSpyPluginFn, createPluginThatEmits, createPluginWithMetadata } from '@thymian/core-testing/mocks';
 
 // Basic mock plugin
 const plugin = createMockPlugin({
@@ -243,7 +253,7 @@ const pluginWithMeta = createPluginWithMetadata({
 
 ```typescript
 import { describe, it, expect } from 'vitest';
-import { createMockEmitter, createMockLogger } from '@thymian/core-testing';
+import { createMockEmitter, createMockLogger } from '@thymian/core-testing/mocks';
 import { myPlugin } from './my-plugin.js';
 
 describe('myPlugin', () => {
