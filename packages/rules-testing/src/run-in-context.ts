@@ -76,10 +76,14 @@ export type TestInput = CommonInput &
  * SQLite repository. `traces` have no `observed` counterpart: they are given
  * here or not at all.
  */
-export type AnalyticsInput = CommonInput & {
+export type AnalyticsInput = CommonInput &
+  RecordedTraffic & {
+    format?: ThymianFormat;
+  };
+
+type RecordedTraffic = {
   transactions?: CapturedTransaction[];
   traces?: CapturedTrace[];
-  format?: ThymianFormat;
 };
 
 // Either side of a union of two inputs, with the other side's own fields
@@ -266,9 +270,7 @@ const runners: {
       format,
       transactions = [],
       traces = [],
-    }: Omit<AnalyticsInput, 'format'> & { format: ThymianFormat } = isObserved(
-      input,
-    )
+    }: RecordedTraffic & { format: ThymianFormat } = isObserved(input)
       ? await recordedTrafficOf(input.observed)
       : { ...input, format: input.format ?? new ThymianFormat() };
 

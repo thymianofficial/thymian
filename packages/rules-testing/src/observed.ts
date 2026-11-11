@@ -45,7 +45,7 @@ export type ObservedTransaction = {
     response?: Partial<HttpResponse>;
     /**
      * The participants `analytics` attributes the recorded traffic to.
-     * Default to `user-agent` and `origin server`.
+     * Defaults to `user-agent` and `origin server`.
      */
     roles?: { request?: HttpParticipantRole; response?: HttpParticipantRole };
   };
@@ -68,10 +68,10 @@ type ObservedFormat = {
   /** The row each Transaction of `format` was built from, by its id. */
   rowOf: Map<string, ObservedTransaction>;
   /**
-   * The id of each row's Transaction, in row order. Rows that describe one
-   * Transaction share its id.
+   * Each row with the id of its Transaction, in row order. Rows that
+   * describe one Transaction share its id.
    */
-  transactionIds: string[];
+  rows: { row: ObservedTransaction; transactionId: string }[];
 };
 
 /**
@@ -81,7 +81,7 @@ type ObservedFormat = {
 export function formatOf(observed: ObservedTransaction[]): ObservedFormat {
   const format = new ThymianFormat();
   const rowOf = new Map<string, ObservedTransaction>();
-  const transactionIds: string[] = [];
+  const rows: ObservedFormat['rows'] = [];
   let schemeId: string | undefined;
 
   for (const row of observed) {
@@ -92,7 +92,7 @@ export function formatOf(observed: ObservedTransaction[]): ObservedFormat {
       sourceName,
     );
     rowOf.set(transactionId, row);
-    transactionIds.push(transactionId);
+    rows.push({ row, transactionId });
 
     if (secured) {
       schemeId ??= format.addSecurityScheme({
@@ -108,7 +108,7 @@ export function formatOf(observed: ObservedTransaction[]): ObservedFormat {
     }
   }
 
-  return { format, rowOf, transactionIds };
+  return { format, rowOf, rows };
 }
 
 // The sampled request for `transaction`, with the row's pinned fields in
@@ -254,14 +254,13 @@ export function testContextOf(observed: ObservedTransaction[]): Pick<
 export async function recordedTrafficOf(
   observed: ObservedTransaction[],
 ): Promise<{ format: ThymianFormat; transactions: CapturedTransaction[] }> {
-  const { format, transactionIds } = formatOf(observed);
+  const { format, rows } = formatOf(observed);
 
   const transactions = await Promise.all(
-    observed.map(async (row, index): Promise<CapturedTransaction> => {
-      const id = transactionIds[index] as string;
-      const source = format.getThymianHttpTransactionById(id);
+    rows.map(async ({ row, transactionId }): Promise<CapturedTransaction> => {
+      const source = format.getThymianHttpTransactionById(transactionId);
       if (!source) {
-        throw new Error(`the format holds no Transaction ${id}`);
+        throw new Error(`the format holds no Transaction ${transactionId}`);
       }
       const requestTemplate = await sampledRequestOf(source, row);
 

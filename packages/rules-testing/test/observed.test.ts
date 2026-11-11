@@ -255,8 +255,8 @@ describe('an observed list', () => {
   });
 
   describe('in analytics', () => {
-    // Records every transaction the analyzer holds, as it was recorded.
-    async function recorded(
+    // The transactions the analyzer holds for `rows`, as it recorded them.
+    async function trafficRecordedFor(
       rows: ObservedTransaction[],
     ): Promise<CapturedTransaction[]> {
       const transactions: CapturedTransaction[] = [];
@@ -297,7 +297,7 @@ describe('an observed list', () => {
     });
 
     it('records the described status, no headers, no trailers and a duration of 1', async () => {
-      const [transaction] = await recorded([
+      const [transaction] = await trafficRecordedFor([
         { described: described({}, { statusCode: 201 }) },
       ]);
 
@@ -310,7 +310,7 @@ describe('an observed list', () => {
     });
 
     it("overrides the sampled request with the row's actual request", async () => {
-      const [transaction] = await recorded([
+      const [transaction] = await trafficRecordedFor([
         {
           described: described({ method: 'GET', path: '/orders' }),
           actual: { request: { headers: { 'x-trace': '1' } } },
@@ -353,18 +353,22 @@ describe('an observed list', () => {
       });
 
       expect(violations(results)).toHaveLength(1);
-      expect((await recorded(rows))[0]?.request.data.path).toBe('/orders/42');
+      expect((await trafficRecordedFor(rows))[0]?.request.data.path).toBe(
+        '/orders/42',
+      );
     });
 
     it('records the user-agent and the origin server as the roles by default', async () => {
-      const [transaction] = await recorded([{ described: described() }]);
+      const [transaction] = await trafficRecordedFor([
+        { described: described() },
+      ]);
 
       expect(transaction?.request.meta.role).toBe('user-agent');
       expect(transaction?.response.meta.role).toBe('origin server');
     });
 
     it("records the row's actual roles in place of either default", async () => {
-      const [transaction] = await recorded([
+      const [transaction] = await trafficRecordedFor([
         { described: described(), actual: { roles: { response: 'proxy' } } },
       ]);
 
@@ -373,7 +377,7 @@ describe('an observed list', () => {
     });
 
     it("records the described origin, or the row's actual one", async () => {
-      const [fromDescribed, fromActual] = await recorded([
+      const [fromDescribed, fromActual] = await trafficRecordedFor([
         { described: described({ path: '/a' }) },
         {
           described: described({ path: '/b' }),
