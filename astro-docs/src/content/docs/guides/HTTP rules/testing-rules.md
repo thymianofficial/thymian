@@ -292,21 +292,25 @@ function describedGet(path: string, responseHeaders: Record<string, Parameter> =
   };
 }
 
-const revealing: ObservedTransaction = {
-  // The specification declares a Server header for GET /orders ...
-  described: describedGet('/orders', serverHeader),
-  // ... and the server sent one.
-  actual: { response: { headers: { server: 'nginx/1.27.0' } } },
-};
+// GET <path>: the specification declares a Server header ...
+function revealingAt(path: string): ObservedTransaction {
+  return {
+    described: describedGet(path, serverHeader),
+    // ... and the server sent one.
+    actual: { response: { headers: { server: 'nginx/1.27.0' } } },
+  };
+}
+
+const revealing = revealingAt('/orders');
 ```
 
 Each context reads the part of the row it would have in hand:
 
-| Context     | Reads                    | What it makes of the row                                                                                                                                                                                                                                            |
-| ----------- | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `static`    | `described`              | One `Transaction` of the API specification. `secured: true` marks its request as secured.                                                                                                                                                                           |
-| `test`      | `described` and `actual` | The request is sampled from `described.request`, with the fields of `actual.request` in place of the sampled ones. The server under test answers it with `actual.response`.                                                                                         |
-| `analytics` | `actual`                 | One recorded transaction: the request `test` would send, and `actual.response` as the answer, between a `user-agent` and an `origin server` unless `actual.roles` names other participants. A templated path is recorded at the concrete path the sampler gives it. |
+| Context     | Reads                      | What it makes of the row                                                                                                                                                                                                                                            |
+| ----------- | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `static`    | `described`                | One `Transaction` of the API specification. `secured: true` marks its request as secured.                                                                                                                                                                           |
+| `test`      | `described` and `actual`   | The request is sampled from `described.request`, with the fields of `actual.request` in place of the sampled ones. The server under test answers it with `actual.response`.                                                                                         |
+| `analytics` | `actual`, over `described` | One recorded transaction: the request `test` would send, and `actual.response` as the answer, between a `user-agent` and an `origin server` unless `actual.roles` names other participants. A templated path is recorded at the concrete path the sampler gives it. |
 
 Every part of `actual` is optional. Without `actual.response`, the answer has the described status code, no headers, no trailers and a duration of 1. `secured` defaults to `false`.
 
@@ -324,11 +328,11 @@ it.each(validationContexts)('flags a Server header in %s', async (context) => {
 });
 ```
 
-An `ObservedInput` replaces a context's own fields: it cannot be combined with `format`, `runRequest` or `transactions` in one input.
+An `ObservedInput` replaces a context's own fields: it cannot be combined with any of a context's own fields, such as `format`, `runRequest`, `transactions` or `traces`, in one input.
 
 ### Fixtures From One List
 
-When a rule makes the same assertion in every context it declares, `inDeclaredContexts(rule, { violates, conforms, skips? })` builds its `RuleFixtures` from `observed` inputs: one `ContextFixture` for each context in the rule's `.type(...)`, each with the same inputs.
+When a rule makes the same assertion in every context it declares, `inDeclaredContexts(rule, { violates, conforms, skips? })` builds its `RuleFixtures` from `observed` inputs: one `ContextFixture` for each context in the rule's `.type(...)`, each with the same inputs. `skips`, when given, goes into every one of them too.
 
 ```typescript
 import { inDeclaredContexts, type ObservedInput } from '@thymian/rules-testing';
@@ -358,8 +362,8 @@ const fixturesWithTraces: RuleFixtures = {
 
 `test` sends requests and has to answer each one from the list, so it rejects two inputs that `static` and `analytics` would accept. In both cases `runInContext`, and so `checkInput`, rejects rather than resolving to results:
 
-- **A request no row answers.** A sent request is answered by the row it was sampled from, found by its method, origin and path. A row whose `actual.request` moves the request elsewhere, say to another path, leaves it unanswered, and the error names the request: ``no row of `observed` answers GET /elsewhere``.
-- **Two rows for one `Operation`.** `POST /orders → 201` and `POST /orders → 400` are two rows `test` cannot tell apart, because their sampled requests are the same. Give `test` one row per `Operation`, and put the other answer in a second input. `analytics` accepts several rows for one `Operation`, and records each.
+- **A request no row answers.** A sent request is answered by the row it was sampled from, found by its method, origin and path. A row whose `actual.request` moves the request to a method, origin or path no row describes leaves it unanswered, and the error names the request: ``no row of `observed` answers GET /elsewhere``.
+- **Two rows with one method, origin and path.** `POST /orders → 201` and `POST /orders → 400` describe one `Operation`, and `test` cannot tell their rows apart, because their sampled requests are the same. Rows for two `Operation`s that differ only in their request media type are rejected too. Give `test` one row per method, origin and path, and put the other answer in a second input. `analytics` accepts several rows for one `Operation`, and records each.
 
 ### When a List Is Not Enough
 
@@ -393,17 +397,9 @@ export default httpRule('my-rules/no-server-header-on-orders')
 A test of such a rule shows both halves of its scope: it flags the `Operation` it applies to, and leaves every other one alone. Give it one list with an in-scope row and an out-of-scope row that would be flagged if the rule applied to it, and expect exactly one violation in every context:
 
 ```typescript
-import { type ObservedTransaction, runInContext, validationContexts } from '@thymian/rules-testing';
+import { runInContext, validationContexts } from '@thymian/rules-testing';
 
 import rule from './no-server-header-on-orders.rule.js';
-
-// GET <path>, described and answered with a Server header.
-function revealingAt(path: string): ObservedTransaction {
-  return {
-    described: describedGet(path, serverHeader),
-    actual: { response: { headers: { server: 'nginx/1.27.0' } } },
-  };
-}
 
 it.each(validationContexts)('flags GET /orders and nothing else in %s', async (context) => {
   const results = await runInContext(context, rule, {
