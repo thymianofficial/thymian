@@ -158,8 +158,9 @@ meet an input it cannot decide — one it must skip, each evaluated by that cont
 A spec `Rule Set` carries one per rule per declared context, with no exemptions; that
 requirement is the _fixture bar_.
 _In code_: `RuleFixtures` and `ContextFixture`, both from `@thymian/rules-testing`, with
-`ObservedTransaction` for an input given as one `observed` list; one `*.fixtures.ts` module
-beside each rule file.
+`ObservedTransaction` for an input given as one `observed` list, and `inDeclaredContexts` for
+one fixture per declared context from the same lists; one `*.fixtures.ts` module beside each
+rule file.
 _Avoid_: sample, example, test case (a `Sample` is test data Thymian derives for the user's own
 API; a fixture is test data a rule author writes for a rule)
 
