@@ -113,12 +113,17 @@ export default [
     // (thymian-workspace#93-98) — a rule with neither a tag nor a
     // suppression is no longer "not yet looked at", it is a build failure
     // (thymian-workspace#99).
+    //
+    // no-repeated-rule-name: a rule file writes its rule's name once, so a
+    // rename cannot update one copy and miss another. 'error' from the
+    // start — every rule file already complies.
     files: ['**/*.rule.ts'],
     plugins: {
       'thymian-internal': thymianEslintRules,
     },
     rules: {
       'thymian-internal/require-rule-tags': 'error',
+      'thymian-internal/no-repeated-rule-name': 'error',
     },
   },
   {
