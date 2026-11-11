@@ -14,7 +14,7 @@ import {
 } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
-import { createList, hasHeader } from '../../../../utils.js';
+import { createList, hasHeader, headerToString } from '../../../../utils.js';
 
 /**
  * Request header fields whose presence indicates that the origin server was
@@ -56,15 +56,6 @@ function presentNegotiationHeaders(req: CommonHttpRequest): string[] {
   return negotiationRequestHeaders.filter((header) =>
     hasHeader(req.headers, header),
   );
-}
-
-function headerToString(
-  value: string | string[] | undefined,
-): string | undefined {
-  if (value === undefined) {
-    return undefined;
-  }
-  return Array.isArray(value) ? value.join(',') : value;
 }
 
 /** The field-names listed in a `Vary` value, lower-cased. */

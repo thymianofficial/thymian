@@ -5,21 +5,14 @@ import {
 } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
+import { headerToString } from '../../../../utils.js';
+
 /**
  * The informational hint surfaced to the user: each Accept-Encoding codings
  * value MAY carry a quality value (weight) expressing preference.
  */
 const hintMessage =
   'Each codings value in Accept-Encoding MAY be given an associated quality value (weight) representing the preference for that encoding, as defined in Section 12.4.2.';
-
-function headerToString(
-  value: string | string[] | undefined,
-): string | undefined {
-  if (value === undefined) {
-    return undefined;
-  }
-  return Array.isArray(value) ? value.join(',') : value;
-}
 
 /** Whether any codings entry in an Accept-Encoding value carries a "q" weight. */
 function hasQualityValue(value: string): boolean {
