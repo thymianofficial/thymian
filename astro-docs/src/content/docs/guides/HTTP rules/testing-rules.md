@@ -57,6 +57,8 @@ export default httpRule('my-rules/no-server-header')
 
 `runInContext(context, rule, input)` runs `rule` in `context` and resolves to the `RuleFnResult[]` the rule reported. A result with a `violation` is a violation. The `input` depends on the context: it is what that context's command would have in hand.
 
+This section shows each context's own input. When your inputs are plain data, one [`observed` list](#one-observed-list-for-every-context) can drive all three contexts instead, and is the shorter way to write a `test` input.
+
 ### Lint (`'static'`): an API Specification
 
 `thymian lint` reads an API specification, so a `StaticInput` is a `ThymianFormat`. Build one with `addHttpTransaction`, one described request and response at a time:
@@ -134,6 +136,8 @@ it('flags a Server header the server sends', async () => {
 The specification here declares no `Server` header at all. In `test`, the rule judges the response that came back, not the one the specification promised.
 
 A `TestInput` can also replace how requests are sampled from the specification (`sampleRequest`), how hooks run (`runHook`), and the `locals` they share. Each has a default, so a test sets them only when the rule depends on them.
+
+`respondWith` answers every request alike, which is all this rule needs. Once the answer depends on which `Operation` was called, `runRequest` turns into a router you keep in step with the specification by hand; an [`observed` list](#rules-scoped-to-endpoints) does that for you.
 
 ### Analyze (`'analytics'`): Recorded Traffic
 
@@ -247,6 +251,170 @@ describe.each(validationContexts)('in %s', (context) => {
 `validationContexts` lists the three contexts. Passing `verdict.reason` as the assertion message makes a failure read, for example, ``the `violates` input of my-rules/no-server-header in `test` should be flagged, but it got 0 violations and 0 skips in 0 results``.
 
 Thymian's own rule sets add a bar on top; you don't have to.
+
+## One `observed` List for Every Context
+
+The fixtures above say the same thing three times: the specification declares a `Server` header, the server sends one, the recorded traffic holds one. Each context needs it in its own shape. An `observed` list says it once, and `runInContext` derives what each context's engine needs from it.
+
+Each row of the list is an `ObservedTransaction`: one `Transaction` as the API specification describes it, and what was actually observed for it.
+
+```typescript
+import type { Parameter } from '@thymian/core';
+import type { ObservedTransaction } from '@thymian/rules-testing';
+
+// GET <path> as the API specification describes it: a 200 response that
+// declares the given headers.
+function describedGet(path: string, responseHeaders: Record<string, Parameter> = {}): ObservedTransaction['described'] {
+  return {
+    request: {
+      type: 'http-request',
+      label: `GET ${path}`,
+      sourceName: 'my-tests',
+      protocol: 'https',
+      host: 'api.example.com',
+      port: 443,
+      path,
+      method: 'GET',
+      headers: {},
+      queryParameters: {},
+      cookies: {},
+      pathParameters: {},
+      mediaType: '',
+    },
+    response: {
+      type: 'http-response',
+      label: '200',
+      sourceName: 'my-tests',
+      statusCode: 200,
+      headers: responseHeaders,
+      mediaType: '',
+    },
+  };
+}
+
+const revealing: ObservedTransaction = {
+  // The specification declares a Server header for GET /orders ...
+  described: describedGet('/orders', serverHeader),
+  // ... and the server sent one.
+  actual: { response: { headers: { server: 'nginx/1.27.0' } } },
+};
+```
+
+Each context reads the part of the row it would have in hand:
+
+| Context     | Reads                    | What it makes of the row                                                                                                                                                                                                                                            |
+| ----------- | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `static`    | `described`              | One `Transaction` of the API specification. `secured: true` marks its request as secured.                                                                                                                                                                           |
+| `test`      | `described` and `actual` | The request is sampled from `described.request`, with the fields of `actual.request` in place of the sampled ones. The server under test answers it with `actual.response`.                                                                                         |
+| `analytics` | `actual`                 | One recorded transaction: the request `test` would send, and `actual.response` as the answer, between a `user-agent` and an `origin server` unless `actual.roles` names other participants. A templated path is recorded at the concrete path the sampler gives it. |
+
+Every part of `actual` is optional. Without `actual.response`, the answer has the described status code, no headers, no trailers and a duration of 1. `secured` defaults to `false`.
+
+An `ObservedInput` is `{ observed }`, plus `config` and `logger` as on every input. Every context accepts it:
+
+```typescript
+import { type ObservedInput, runInContext, validationContexts } from '@thymian/rules-testing';
+
+const revealingInput: ObservedInput = { observed: [revealing] };
+
+it.each(validationContexts)('flags a Server header in %s', async (context) => {
+  const results = await runInContext(context, rule, revealingInput);
+
+  expect(results.filter((result) => result.violation)).toHaveLength(1);
+});
+```
+
+An `ObservedInput` replaces a context's own fields: it cannot be combined with `format`, `runRequest` or `transactions` in one input.
+
+### Fixtures From One List
+
+When a rule makes the same assertion in every context it declares, `inDeclaredContexts(rule, { violates, conforms, skips? })` builds its `RuleFixtures` from `observed` inputs: one `ContextFixture` for each context in the rule's `.type(...)`, each with the same inputs.
+
+```typescript
+import { inDeclaredContexts, type ObservedInput } from '@thymian/rules-testing';
+
+// The same GET /orders, described and answered without a Server header.
+const discreetInput: ObservedInput = { observed: [{ described: describedGet('/orders') }] };
+
+const fixtures = inDeclaredContexts(rule, {
+  violates: revealingInput,
+  conforms: discreetInput,
+});
+```
+
+These fixtures run through the same `checkInput` loop as before. To give one context other inputs, spread the result and replace that context's entry:
+
+```typescript
+const fixturesWithTraces: RuleFixtures = {
+  ...inDeclaredContexts(rule, { violates: revealingInput, conforms: discreetInput }),
+  analytics: {
+    violates: { traces: [[recorded({}), recorded({ server: 'nginx/1.27.0' })]] },
+    conforms: { traces: [[recorded({}), recorded({})]] },
+  },
+};
+```
+
+### What `test` Rejects
+
+`test` sends requests and has to answer each one from the list, so it rejects two inputs that `static` and `analytics` would accept. In both cases `runInContext`, and so `checkInput`, rejects rather than resolving to results:
+
+- **A request no row answers.** A sent request is answered by the row it was sampled from, found by its method, origin and path. A row whose `actual.request` moves the request elsewhere, say to another path, leaves it unanswered, and the error names the request: ``no row of `observed` answers GET /elsewhere``.
+- **Two rows for one `Operation`.** `POST /orders → 201` and `POST /orders → 400` are two rows `test` cannot tell apart, because their sampled requests are the same. Give `test` one row per `Operation`, and put the other answer in a second input. `analytics` accepts several rows for one `Operation`, and records each.
+
+### When a List Is Not Enough
+
+The context inputs from [Running a Rule in a Context](#running-a-rule-in-a-context) remain the way to express what one row per `Transaction` cannot:
+
+- a server whose answer depends on the request it receives, keeps state between requests, or fails to answer: write `runRequest`;
+- a rule that depends on how requests are sampled or how hooks run: set `sampleRequest`, `runHook` or `locals`;
+- traffic that belongs together, such as the hops of one request through a proxy: give `analytics` its `traces`.
+
+## Rules Scoped to Endpoints
+
+Most rules apply only to some `Operation`s: this one only to `GET /orders`.
+
+```typescript
+import { and, httpRule, method, path, responseHeader } from '@thymian/core';
+
+export default httpRule('my-rules/no-server-header-on-orders')
+  .severity('warn')
+  .type('static', 'test', 'analytics')
+  .description('Listing orders should not reveal the server software')
+  .appliesTo('server')
+  .rule((ctx) =>
+    ctx.validateCommonHttpTransactions({
+      appliesTo: and(method('GET'), path('/orders')),
+      violatedWhen: responseHeader('server'),
+    }),
+  )
+  .done();
+```
+
+A test of such a rule shows both halves of its scope: it flags the `Operation` it applies to, and leaves every other one alone. Give it one list with an in-scope row and an out-of-scope row that would be flagged if the rule applied to it, and expect exactly one violation in every context:
+
+```typescript
+import { type ObservedTransaction, runInContext, validationContexts } from '@thymian/rules-testing';
+
+import rule from './no-server-header-on-orders.rule.js';
+
+// GET <path>, described and answered with a Server header.
+function revealingAt(path: string): ObservedTransaction {
+  return {
+    described: describedGet(path, serverHeader),
+    actual: { response: { headers: { server: 'nginx/1.27.0' } } },
+  };
+}
+
+it.each(validationContexts)('flags GET /orders and nothing else in %s', async (context) => {
+  const results = await runInContext(context, rule, {
+    observed: [revealingAt('/orders'), revealingAt('/customers')],
+  });
+
+  expect(results.filter((result) => result.violation)).toHaveLength(1);
+});
+```
+
+In `test`, prefer this over a hand-written `runRequest`. Two `Operation`s with different answers would otherwise need a `runRequest` that routes on `request.method` and `request.path`, builds a complete response for each, and has to be kept in step with the specification by hand. An `observed` list builds the specification and the server from the same rows, so they cannot drift apart.
 
 ## When a Plugin Is Missing
 
