@@ -33,6 +33,13 @@ import {
   identityHookRunner,
 } from '@thymian/core-testing';
 
+import {
+  formatOf,
+  isObserved,
+  type ObservedInput,
+  testContextOf,
+} from './observed.js';
+
 /** A context a rule can run in: every `RuleType` but `informational`. */
 export type ValidationContext = ExecutableRuleType;
 
@@ -41,7 +48,7 @@ export const validationContexts: readonly ValidationContext[] =
     (type): type is ValidationContext => type !== 'informational',
   );
 
-type CommonInput = {
+export type CommonInput = {
   /**
    * The configuration of the rule under test, as a Thymian config file would
    * give it. Without a severity, a rule shipped `off` runs at `warn`.
@@ -73,9 +80,14 @@ export type AnalyticsInput = CommonInput & {
   format?: ThymianFormat;
 };
 
+// Either side of a union of two inputs, with the other side's own fields
+// forbidden, so an input cannot mix `observed` with `format` or `runRequest`.
+type Without<Own, Other> = { [Key in Exclude<keyof Other, keyof Own>]?: never };
+type Either<A, B> = (A & Without<A, B>) | (B & Without<B, A>);
+
 type Inputs = {
-  static: StaticInput;
-  test: TestInput;
+  static: Either<StaticInput, ObservedInput>;
+  test: Either<TestInput, ObservedInput>;
   analytics: AnalyticsInput;
 };
 
@@ -173,16 +185,19 @@ const runners: {
       () => import('@thymian/plugin-http-linter'),
     );
     const logger = input.logger ?? new NoopLogger();
+    const format = isObserved(input)
+      ? formatOf(input.observed).format
+      : input.format;
 
     return run(
       rule,
-      { ...input, logger },
+      { ...input, format, logger },
       {
         errorName: 'RulesTestingStaticError',
         mode: 'static',
         getRuleFn: (r) => r.lintRule,
         createContext: (_r, options) =>
-          new StaticApiContext(input.format, logger, options?.skipOrigins),
+          new StaticApiContext(format, logger, options?.skipOrigins),
       },
     );
   },
@@ -196,20 +211,28 @@ const runners: {
       () => import('@thymian/plugin-http-tester'),
     );
     const logger = input.logger ?? new NoopLogger();
+    const given = isObserved(input)
+      ? { ...testContextOf(input.observed), locals: {}, runHook: undefined }
+      : {
+          format: input.format,
+          locals: input.locals ?? {},
+          sampleRequest: input.sampleRequest ?? exampleRequestSampler,
+          runRequest: input.runRequest,
+          runHook: input.runHook,
+          unanswered: [],
+        };
+    const { unanswered, ...fields } = given;
     const context = createHttpTestContext({
-      format: input.format,
+      ...fields,
       logger,
-      locals: input.locals ?? {},
-      sampleRequest: input.sampleRequest ?? exampleRequestSampler,
-      runRequest: input.runRequest,
       runHook:
-        input.runHook ??
+        given.runHook ??
         (async (name, payload) => identityHookRunner(name, payload)),
     });
 
-    return run(
+    const results = await run(
       rule,
-      { ...input, logger },
+      { ...input, format: context.format, logger },
       {
         errorName: 'RulesTestingTestError',
         mode: 'test',
@@ -218,6 +241,14 @@ const runners: {
           new HttpTestApiContext(r.meta.name, context, options?.skipOrigins),
       },
     );
+
+    // The engine reports a failed request as a result; an observed list
+    // that leaves a request unanswered is a broken input, not a finding.
+    const [error] = unanswered;
+    if (error) {
+      throw error;
+    }
+    return results;
   },
 
   // As `plugin-http-analyzer`'s adapter drives it, over an in-memory SQLite
