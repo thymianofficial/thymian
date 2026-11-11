@@ -57,7 +57,7 @@ export function isObserved(input: object): input is ObservedInput {
 
 const sourceName = 'rules-testing';
 
-type Built = {
+type ObservedFormat = {
   format: ThymianFormat;
   /** The row each Transaction of `format` was built from, by its id. */
   rowOf: Map<string, ObservedTransaction>;
@@ -67,7 +67,7 @@ type Built = {
  * The `Thymian Format` the rows describe: every row's described pair, with
  * the request marked secured where the row says so.
  */
-export function formatOf(observed: ObservedTransaction[]): Built {
+export function formatOf(observed: ObservedTransaction[]): ObservedFormat {
   const format = new ThymianFormat();
   const rowOf = new Map<string, ObservedTransaction>();
   let schemeId: string | undefined;
@@ -111,11 +111,6 @@ function sameOrigin(a: string, b: string): boolean {
   }
 }
 
-function operationOf(row: ObservedTransaction): string {
-  const { request } = row.described;
-  return `${request.method.toUpperCase()} ${new URL(request.path, originOf(request))}`;
-}
-
 // A described path matches the concrete path sent for it: `/orders/{id}`
 // matches `/orders/42`.
 function pathPattern(path: string): RegExp {
@@ -129,7 +124,7 @@ function pathPattern(path: string): RegExp {
 // A sent request reaches the row whose described request it was sampled
 // from, by method, origin and path. A request a row pins elsewhere reaches
 // no row.
-type Answering = {
+type RowMatcher = {
   row: ObservedTransaction;
   method: string;
   origin: string;
@@ -137,7 +132,7 @@ type Answering = {
   templated: boolean;
 };
 
-function answering(row: ObservedTransaction): Answering {
+function matcherOf(row: ObservedTransaction): RowMatcher {
   const { request } = row.described;
   return {
     row,
@@ -164,21 +159,26 @@ export function testContextOf(observed: ObservedTransaction[]): Pick<
 > & {
   unanswered: Error[];
 } {
+  // Rows are told apart by method, origin and path template, whatever its
+  // parameters are named: `/orders/{id}` and `/orders/{orderId}` are one.
   const seen = new Set<string>();
-  for (const row of observed) {
-    const operation = operationOf(row);
-    if (seen.has(operation)) {
+  for (const { described } of observed) {
+    const { request } = described;
+    const method = request.method.toUpperCase();
+    const key = `${method} ${originOf(request)}${request.path.replace(/{[^}]+}/g, '{}')}`;
+    if (seen.has(key)) {
       throw new Error(
-        `two rows of \`observed\` describe the Operation ${operation}; the \`test\` context takes one row per Operation`,
+        `two rows of \`observed\` describe the Operation ${method} ${request.path}, ` +
+          'and the `test` context tells rows apart only by method, origin and path: give it one row per Operation',
       );
     }
-    seen.add(operation);
+    seen.add(key);
   }
 
   const { format, rowOf } = formatOf(observed);
   // A literal path wins over a template that also matches it.
   const answers = observed
-    .map(answering)
+    .map(matcherOf)
     .sort((a, b) => Number(a.templated) - Number(b.templated));
 
   const unanswered: Error[] = [];

@@ -46,6 +46,15 @@ const flagsEverything = httpRule('rules-testing/flags-everything')
   .rule((ctx) => ctx.validateCommonHttpTransactions(constant(true)))
   .done();
 
+// Flags every response that carries a `Deprecation` header, in test.
+const flagsDeprecation = httpRule('rules-testing/flags-deprecation')
+  .severity('error')
+  .type('test')
+  .rule((ctx) =>
+    ctx.validateHttpTransactions(constant(true), responseHeader('deprecation')),
+  )
+  .done();
+
 const violations = (results: RuleFnResult[]) =>
   results.filter((result) => result.violation !== undefined);
 
@@ -132,28 +141,15 @@ describe('an observed list', () => {
     });
 
     it("answers with the row's actual response", async () => {
-      const results = await runInContext(
-        'test',
-        httpRule('rules-testing/flags-deprecation')
-          .severity('error')
-          .type('test')
-          .rule((ctx) =>
-            ctx.validateHttpTransactions(
-              constant(true),
-              responseHeader('deprecation'),
-            ),
-          )
-          .done(),
-        {
-          observed: [
-            {
-              described: described({ path: '/a' }),
-              actual: { response: { headers: { deprecation: 'true' } } },
-            },
-            { described: described({ path: '/b' }) },
-          ],
-        },
-      );
+      const results = await runInContext('test', flagsDeprecation, {
+        observed: [
+          {
+            described: described({ path: '/a' }),
+            actual: { response: { headers: { deprecation: 'true' } } },
+          },
+          { described: described({ path: '/b' }) },
+        ],
+      });
 
       expect(violations(results)).toHaveLength(1);
     });
@@ -184,36 +180,28 @@ describe('an observed list', () => {
     });
 
     it('matches a sampled concrete path to the row that describes its template', async () => {
-      const results = await runInContext(
-        'test',
-        httpRule('rules-testing/flags-deprecation')
-          .severity('error')
-          .type('test')
-          .rule((ctx) =>
-            ctx.validateHttpTransactions(
-              constant(true),
-              responseHeader('deprecation'),
-            ),
-          )
-          .done(),
+      const rows: ObservedTransaction[] = [
         {
-          observed: [
-            {
-              described: described({
-                path: '/orders/{id}',
-                pathParameters: {
-                  id: createParameter({
-                    schema: { type: 'string', examples: ['42'] },
-                  }),
-                },
+          described: described({
+            path: '/orders/{id}',
+            pathParameters: {
+              id: createParameter({
+                schema: { type: 'string', examples: ['42'] },
               }),
-              actual: { response: { headers: { deprecation: 'true' } } },
             },
-          ],
+          }),
+          actual: { response: { headers: { deprecation: 'true' } } },
         },
-      );
+      ];
+
+      const results = await runInContext('test', flagsDeprecation, {
+        observed: rows,
+      });
 
       expect(violations(results)).toHaveLength(1);
+      expect(await sent(rows)).toEqual([
+        expect.objectContaining({ path: '/orders/42' }),
+      ]);
     });
 
     it('rejects a request no row answers, naming its method and path', async () => {
