@@ -6,7 +6,7 @@ import type { Rule } from '@thymian/core';
 import { runInContext, validationContexts } from '@thymian/rules-testing';
 import { describe, expect, it } from 'vitest';
 
-import { stsValueInputs } from '../../test/builders.js';
+import { stsPinned, stsSent } from '../../test/builders.js';
 
 // One defect, one violation: a Strict-Transport-Security value that does not
 // parse against §6.1's grammar is reported by the grammar rule alone. Every
@@ -52,7 +52,7 @@ describe.each(validationContexts)('in %s', (context) => {
         const results = await runInContext(
           context,
           rule,
-          stsValueInputs(value)[context],
+          context === 'static' ? stsPinned(value) : stsSent(value),
         );
         for (const result of results) {
           if (result.violation !== undefined) {

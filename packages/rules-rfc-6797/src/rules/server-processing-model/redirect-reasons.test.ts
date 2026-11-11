@@ -1,14 +1,16 @@
-import type { HttpResponse, RuleFnResult } from '@thymian/core';
-import { runInContext, validationContexts } from '@thymian/rules-testing';
+import type { RuleFnResult } from '@thymian/core';
+import {
+  type ObservedInput,
+  runInContext,
+  validationContexts,
+} from '@thymian/rules-testing';
 import { describe, expect, it } from 'vitest';
 
 import {
   apiDescription,
   header,
-  type InputsByContext,
   INSECURE,
-  recorded,
-  respondWith,
+  observedResponse,
 } from '../../test/builders.js';
 import rfcRule from './hsts-host-should-redirect-insecure-requests-to-https.rule.js';
 import conventionRule from './server-should-redirect-insecure-requests-to-https.rule.js';
@@ -21,31 +23,16 @@ import conventionRule from './server-should-redirect-insecure-requests-to-https.
 // One plain-http request answered with `statusCode` and, if given, a
 // Location: declared in `static`, answered in `test`, recorded in
 // `analytics`.
-function answeredWith(statusCode: number, location?: string): InputsByContext {
-  const headers: HttpResponse['headers'] =
-    location === undefined ? {} : { location };
-
-  return {
-    static: {
-      format: apiDescription({
-        request: INSECURE,
-        response: {
-          statusCode,
-          headers: location === undefined ? {} : header('location', location),
-        },
-      }),
-    },
-    test: {
-      format: apiDescription({ request: INSECURE }),
-      runRequest: respondWith({ statusCode, headers }),
-    },
-    analytics: {
-      transactions: [recorded({ origin: INSECURE, statusCode, headers })],
-    },
-  };
+function answeredWith(statusCode: number, location?: string): ObservedInput {
+  return observedResponse({
+    origin: INSECURE,
+    statusCode,
+    declared: location === undefined ? {} : header('location', location),
+    sent: location === undefined ? {} : { location },
+  });
 }
 
-const reasons: [string, InputsByContext, RegExp][] = [
+const reasons: [string, ObservedInput, RegExp][] = [
   [
     'a redirect that is not permanent',
     answeredWith(302, 'https://api.example.com/'),
@@ -73,8 +60,8 @@ const messages = (results: RuleFnResult[]) =>
 
 describe.each([rfcRule, conventionRule])('$meta.name', (rule) => {
   describe.each(validationContexts)('in %s', (context) => {
-    it.each(reasons)('names %s', async (_reason, inputs, expected) => {
-      const results = await runInContext(context, rule, inputs[context]);
+    it.each(reasons)('names %s', async (_reason, input, expected) => {
+      const results = await runInContext(context, rule, input);
 
       expect(messages(results)).toEqual([expect.stringMatching(expected)]);
     });
@@ -85,21 +72,17 @@ describe.each([rfcRule, conventionRule])('$meta.name', (rule) => {
   it.each(['test', 'analytics'] as const)(
     'names, in %s, a second Location that is not https',
     async (context) => {
-      const statusCode = 301;
-      const headers = {
-        location: ['https://api.example.com/', 'http://api.example.com/'],
-      };
-      const inputs: Pick<InputsByContext, 'test' | 'analytics'> = {
-        test: {
-          format: apiDescription({ request: INSECURE }),
-          runRequest: respondWith({ statusCode, headers }),
-        },
-        analytics: {
-          transactions: [recorded({ origin: INSECURE, statusCode, headers })],
-        },
-      };
-
-      const results = await runInContext(context, rule, inputs[context]);
+      const results = await runInContext(
+        context,
+        rule,
+        observedResponse({
+          origin: INSECURE,
+          statusCode: 301,
+          sent: {
+            location: ['https://api.example.com/', 'http://api.example.com/'],
+          },
+        }),
+      );
 
       expect(messages(results)).toEqual([
         expect.stringMatching(

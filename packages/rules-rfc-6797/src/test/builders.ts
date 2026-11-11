@@ -1,8 +1,9 @@
 // Fixture inputs, one builder per thing a fixture needs to say: where a
 // request is served from, an API description and the headers it declares,
-// what the server answers in `test`, and a recorded transaction for
-// `analytics` — so a fixture module is its data and nothing else. A family
-// of rules that shares one fixture shape gets one builder for the whole set.
+// what the server answers in `test`, a recorded transaction for
+// `analytics`, and one observed response for every context at once — so a
+// fixture module is its data and nothing else. A family of rules that shares
+// one fixture shape gets one builder for the whole set.
 
 import {
   type CapturedTransaction,
@@ -20,19 +21,14 @@ import {
   createParameter,
   createStringSchema,
 } from '@thymian/core-testing';
-import type {
-  InputOf,
-  RuleFixtures,
-  TestInput,
-  ValidationContext,
+import {
+  inDeclaredContexts,
+  type ObservedInput,
+  type RuleFixtures,
+  type TestInput,
 } from '@thymian/rules-testing';
 
 import { STS_HEADER } from '../rules/utils/sts-field-value.js';
-
-// One input per validation context, for an assertion every context makes.
-export type InputsByContext = {
-  [Context in ValidationContext]: InputOf<Context>;
-};
 
 type Origin = Pick<ThymianHttpRequest, 'protocol' | 'host' | 'port'>;
 
@@ -157,45 +153,64 @@ export function recorded({
   };
 }
 
-// One Strict-Transport-Security value in every context: pinned by an API
-// description, answered by a server under test, and recorded. In `test` the
-// description declares no header at all: the server sending one anyway is
-// what a response-side candidate filter would never see.
-export function stsValueInputs(value: string): InputsByContext {
-  const headers = { [STS_HEADER]: value };
-
+// One response, observed in every context: `static` reads the headers the
+// description declares for it, `test` and `analytics` the headers the server
+// sends.
+export function observedResponse({
+  origin = SECURE,
+  statusCode = 200,
+  declared = {},
+  sent = {},
+}: {
+  origin?: Origin;
+  statusCode?: number;
+  declared?: Record<string, Parameter>;
+  sent?: HttpResponse['headers'];
+}): ObservedInput {
   return {
-    static: {
-      format: apiDescription({ response: { headers: stsHeader(value) } }),
-    },
-    test: { format: apiDescription({}), runRequest: respondWith({ headers }) },
-    analytics: { transactions: [recorded({ headers })] },
+    observed: [
+      {
+        described: {
+          request: createHttpRequest(origin),
+          response: createHttpResponse({ statusCode, headers: declared }),
+        },
+        actual: { response: { headers: sent } },
+      },
+    ],
   };
 }
 
+// One Strict-Transport-Security value as the server sends it and the traffic
+// records it, for `test` and `analytics`. The description declares no
+// header at all: the server sending one anyway is what a response-side
+// candidate filter would never see.
+export function stsSent(value: string): ObservedInput {
+  return observedResponse({ sent: { [STS_HEADER]: value } });
+}
+
+// One Strict-Transport-Security value as the description pins it, for
+// `static`; without a value, the header is declared but unpinned.
+export function stsPinned(value?: string): ObservedInput {
+  return observedResponse({ declared: stsHeader(value) });
+}
+
 // The fixtures of a rule that holds every Strict-Transport-Security value to
-// one requirement: the same violating and conforming value in every context,
-// plus, in `static`, a declared value the description does not pin.
+// one requirement: the same violating and conforming value in every context.
+// `static` reads it where the description pins it, and skips a declared
+// value the description does not pin.
 export function stsValueFixtures(
   rule: Rule,
   { violates, conforms }: { violates: string; conforms: string },
 ): RuleFixtures {
-  const violating = stsValueInputs(violates);
-  const conforming = stsValueInputs(conforms);
-
   return {
-    rule,
+    ...inDeclaredContexts(rule, {
+      violates: stsSent(violates),
+      conforms: stsSent(conforms),
+    }),
     static: {
-      violates: violating.static,
-      conforms: conforming.static,
-      skips: {
-        format: apiDescription({ response: { headers: stsHeader() } }),
-      },
-    },
-    test: { violates: violating.test, conforms: conforming.test },
-    analytics: {
-      violates: violating.analytics,
-      conforms: conforming.analytics,
+      violates: stsPinned(violates),
+      conforms: stsPinned(conforms),
+      skips: stsPinned(),
     },
   };
 }
