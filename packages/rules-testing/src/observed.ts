@@ -4,6 +4,7 @@
 // what each context's engine needs from the list.
 
 import type {
+  CapturedTransaction,
   HttpParticipantRole,
   HttpRequest,
   HttpRequestTemplate,
@@ -11,8 +12,9 @@ import type {
   HttpTestContext,
   ThymianHttpRequest,
   ThymianHttpResponse,
+  ThymianHttpTransaction,
 } from '@thymian/core';
-import { ThymianFormat } from '@thymian/core';
+import { serializeRequest, ThymianFormat } from '@thymian/core';
 import { exampleRequestSampler } from '@thymian/core-testing';
 
 import type { CommonInput } from './run-in-context.js';
@@ -31,8 +33,9 @@ export type ObservedTransaction = {
   };
   actual?: {
     /**
-     * Pins the request `test` sends for this Transaction: the sampled
-     * request, with these fields in place of the sampled ones.
+     * Pins the request `test` sends, and `analytics` records, for this
+     * Transaction: the sampled request, with these fields in place of the
+     * sampled ones.
      */
     request?: Partial<HttpRequest>;
     /**
@@ -40,7 +43,10 @@ export type ObservedTransaction = {
      * headers, no trailers and a duration of 1.
      */
     response?: Partial<HttpResponse>;
-    /** The participants the recorded traffic is attributed to. */
+    /**
+     * The participants `analytics` attributes the recorded traffic to.
+     * Default to `user-agent` and `origin server`.
+     */
     roles?: { request?: HttpParticipantRole; response?: HttpParticipantRole };
   };
 };
@@ -61,6 +67,11 @@ type ObservedFormat = {
   format: ThymianFormat;
   /** The row each Transaction of `format` was built from, by its id. */
   rowOf: Map<string, ObservedTransaction>;
+  /**
+   * The id of each row's Transaction, in row order. Rows that describe one
+   * Transaction share its id.
+   */
+  transactionIds: string[];
 };
 
 /**
@@ -70,6 +81,7 @@ type ObservedFormat = {
 export function formatOf(observed: ObservedTransaction[]): ObservedFormat {
   const format = new ThymianFormat();
   const rowOf = new Map<string, ObservedTransaction>();
+  const transactionIds: string[] = [];
   let schemeId: string | undefined;
 
   for (const row of observed) {
@@ -80,6 +92,7 @@ export function formatOf(observed: ObservedTransaction[]): ObservedFormat {
       sourceName,
     );
     rowOf.set(transactionId, row);
+    transactionIds.push(transactionId);
 
     if (secured) {
       schemeId ??= format.addSecurityScheme({
@@ -95,7 +108,30 @@ export function formatOf(observed: ObservedTransaction[]): ObservedFormat {
     }
   }
 
-  return { format, rowOf };
+  return { format, rowOf, transactionIds };
+}
+
+// The sampled request for `transaction`, with the row's pinned fields in
+// place of the sampled ones.
+async function sampledRequestOf(
+  transaction: ThymianHttpTransaction,
+  row: ObservedTransaction | undefined,
+): Promise<HttpRequestTemplate> {
+  return {
+    ...(await exampleRequestSampler(transaction)),
+    ...row?.actual?.request,
+  };
+}
+
+// The row's actual response, over the described status code.
+function answerOf(row: ObservedTransaction): HttpResponse {
+  return {
+    statusCode: row.described.response.statusCode,
+    headers: {},
+    trailers: {},
+    duration: 1,
+    ...row.actual?.response,
+  };
 }
 
 function originOf(request: ThymianHttpRequest): string {
@@ -186,12 +222,8 @@ export function testContextOf(observed: ObservedTransaction[]): Pick<
   return {
     format,
     unanswered,
-    sampleRequest: async (transaction): Promise<HttpRequestTemplate> => {
-      return {
-        ...(await exampleRequestSampler(transaction)),
-        ...rowOf.get(transaction.transactionId)?.actual?.request,
-      };
-    },
+    sampleRequest: async (transaction) =>
+      sampledRequestOf(transaction, rowOf.get(transaction.transactionId)),
     runRequest: async (request): Promise<HttpResponse> => {
       const path = request.path.split('?')[0] ?? request.path;
       const answer = answers.find(
@@ -207,13 +239,44 @@ export function testContextOf(observed: ObservedTransaction[]): Pick<
         unanswered.push(error);
         throw error;
       }
-      return {
-        statusCode: answer.row.described.response.statusCode,
-        headers: {},
-        trailers: {},
-        duration: 1,
-        ...answer.row.actual?.response,
-      };
+      return answerOf(answer.row);
     },
   };
+}
+
+/**
+ * What the `analytics` context needs from the rows: the format, and one
+ * recorded transaction per row. Its request is the one `test` would send for
+ * the row, serialized as the tester serializes it, so a templated path is
+ * recorded at the concrete path the sampler gives it; its response is the one
+ * `test` would answer with. Several rows may describe one Operation.
+ */
+export async function recordedTrafficOf(
+  observed: ObservedTransaction[],
+): Promise<{ format: ThymianFormat; transactions: CapturedTransaction[] }> {
+  const { format, transactionIds } = formatOf(observed);
+
+  const transactions = await Promise.all(
+    observed.map(async (row, index): Promise<CapturedTransaction> => {
+      const id = transactionIds[index] as string;
+      const source = format.getThymianHttpTransactionById(id);
+      if (!source) {
+        throw new Error(`the format holds no Transaction ${id}`);
+      }
+      const requestTemplate = await sampledRequestOf(source, row);
+
+      return {
+        request: {
+          data: serializeRequest({ requestTemplate, source }),
+          meta: { role: row.actual?.roles?.request ?? 'user-agent' },
+        },
+        response: {
+          data: answerOf(row),
+          meta: { role: row.actual?.roles?.response ?? 'origin server' },
+        },
+      };
+    }),
+  );
+
+  return { format, transactions };
 }

@@ -37,6 +37,7 @@ import {
   formatOf,
   isObserved,
   type ObservedInput,
+  recordedTrafficOf,
   testContextOf,
 } from './observed.js';
 
@@ -72,7 +73,8 @@ export type TestInput = CommonInput &
 
 /**
  * `analytics` reads recorded traffic, held in the harness's own in-memory
- * SQLite repository.
+ * SQLite repository. `traces` have no `observed` counterpart: they are given
+ * here or not at all.
  */
 export type AnalyticsInput = CommonInput & {
   transactions?: CapturedTransaction[];
@@ -88,7 +90,7 @@ type Either<A, B> = (A & Without<A, B>) | (B & Without<B, A>);
 type Inputs = {
   static: Either<StaticInput, ObservedInput>;
   test: Either<TestInput, ObservedInput>;
-  analytics: AnalyticsInput;
+  analytics: Either<AnalyticsInput, ObservedInput>;
 };
 
 export type InputOf<Context extends ValidationContext> = Inputs[Context];
@@ -260,14 +262,22 @@ const runners: {
         () => import('@thymian/plugin-http-analyzer'),
       );
     const logger = input.logger ?? new NoopLogger();
-    const format = input.format ?? new ThymianFormat();
+    const {
+      format,
+      transactions = [],
+      traces = [],
+    }: Omit<AnalyticsInput, 'format'> & { format: ThymianFormat } = isObserved(
+      input,
+    )
+      ? await recordedTrafficOf(input.observed)
+      : { ...input, format: input.format ?? new ThymianFormat() };
 
     const repository = new SqliteHttpTransactionRepository(':memory:', logger);
     await repository.init();
-    for (const trace of input.traces ?? []) {
+    for (const trace of traces) {
       repository.insertHttpTrace(trace);
     }
-    for (const transaction of input.transactions ?? []) {
+    for (const transaction of transactions) {
       repository.insertHttpTransaction(transaction);
     }
 

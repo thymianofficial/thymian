@@ -15,19 +15,22 @@ declare const row: ObservedTransaction;
 const observed: ObservedInput = { observed: [row] };
 
 describe('ObservedInput', () => {
-  it('is an input of static and test', () => {
+  it('is an input of every context', () => {
     expectTypeOf(observed).toExtend<InputOf<'static'>>();
     expectTypeOf(observed).toExtend<InputOf<'test'>>();
+    expectTypeOf(observed).toExtend<InputOf<'analytics'>>();
   });
 
   it('is accepted by checkInput and RuleFixtures', () => {
     void checkInput('static', rule, observed, 'violates');
     void checkInput('test', rule, observed, 'conforms');
+    void checkInput('analytics', rule, observed, 'violates');
 
     const fixtures: RuleFixtures = {
       rule,
       static: { violates: observed, conforms: observed },
       test: { violates: observed, conforms: observed },
+      analytics: { violates: observed, conforms: observed },
     };
     expectTypeOf(fixtures).toExtend<RuleFixtures>();
   });
@@ -48,7 +51,17 @@ describe('ObservedInput', () => {
       }),
     };
 
+    // @ts-expect-error `observed` replaces the recorded transactions
+    const analyticsInput: InputOf<'analytics'> = {
+      observed: [row],
+      transactions: [],
+    };
+    // @ts-expect-error an observed list carries no traces
+    const tracedInput: InputOf<'analytics'> = { observed: [row], traces: [] };
+
     void staticInput;
     void testInput;
+    void analyticsInput;
+    void tracedInput;
   });
 });

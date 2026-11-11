@@ -1,6 +1,7 @@
 import {
   and,
   authorization,
+  type CapturedTransaction,
   constant,
   type HttpRequest,
   httpRule,
@@ -52,6 +53,20 @@ const flagsDeprecation = httpRule('rules-testing/flags-deprecation')
   .type('test')
   .rule((ctx) =>
     ctx.validateHttpTransactions(constant(true), responseHeader('deprecation')),
+  )
+  .done();
+
+// Flags every recorded response that carries a `Deprecation` header.
+const flagsDeprecationRecorded = httpRule(
+  'rules-testing/flags-deprecation-recorded',
+)
+  .severity('error')
+  .type('analytics')
+  .rule((ctx) =>
+    ctx.validateCommonHttpTransactions({
+      appliesTo: constant(true),
+      violatedWhen: responseHeader('deprecation'),
+    }),
   )
   .done();
 
@@ -239,45 +254,203 @@ describe('an observed list', () => {
     });
   });
 
-  // A rule scoped to one Operation: both rows carry the header it flags, so a
-  // second violation would mean the out-of-scope row was flagged.
-  describe.each<Extract<ValidationContext, 'static' | 'test'>>([
-    'static',
-    'test',
-  ])('for a rule scoped to one Operation, in %s', (context) => {
-    it('flags the in-scope row and never the out-of-scope one', async () => {
-      const scoped = httpRule('rules-testing/scoped')
+  describe('in analytics', () => {
+    // Records every transaction the analyzer holds, as it was recorded.
+    async function recorded(
+      rows: ObservedTransaction[],
+    ): Promise<CapturedTransaction[]> {
+      const transactions: CapturedTransaction[] = [];
+      const recordsTraffic = httpRule('rules-testing/records-traffic')
         .severity('error')
-        .type('static', 'test')
-        .rule((ctx) =>
-          ctx.validateCommonHttpTransactions({
-            appliesTo: and(method('GET'), path('/orders')),
-            violatedWhen: responseHeader('deprecation'),
-          }),
+        .type('analytics')
+        .overrideAnalyticsRule((ctx) =>
+          ctx.validateCapturedHttpTransactions(
+            constant(true),
+            (transaction) => {
+              transactions.push(transaction);
+              return [];
+            },
+          ),
         )
         .done();
-      const deprecated = { deprecation: createParameter() };
 
-      const results = await runInContext(context, scoped, {
-        observed: [
-          {
-            described: described(
-              { method: 'GET', path: '/orders' },
-              { headers: deprecated },
-            ),
-            actual: { response: { headers: { deprecation: 'true' } } },
-          },
-          {
-            described: described(
-              { method: 'GET', path: '/customers' },
-              { headers: deprecated },
-            ),
-            actual: { response: { headers: { deprecation: 'true' } } },
-          },
-        ],
-      });
+      await runInContext('analytics', recordsTraffic, { observed: rows });
+      return transactions;
+    }
+
+    it("records one transaction per row, built from the row's actual part", async () => {
+      const results = await runInContext(
+        'analytics',
+        flagsDeprecationRecorded,
+        {
+          observed: [
+            {
+              described: described({ path: '/a' }),
+              actual: { response: { headers: { deprecation: 'true' } } },
+            },
+            { described: described({ path: '/b' }) },
+          ],
+        },
+      );
 
       expect(violations(results)).toHaveLength(1);
     });
+
+    it('records the described status, no headers, no trailers and a duration of 1', async () => {
+      const [transaction] = await recorded([
+        { described: described({}, { statusCode: 201 }) },
+      ]);
+
+      expect(transaction?.response.data).toMatchObject({
+        statusCode: 201,
+        headers: {},
+        trailers: {},
+        duration: 1,
+      });
+    });
+
+    it("overrides the sampled request with the row's actual request", async () => {
+      const [transaction] = await recorded([
+        {
+          described: described({ method: 'GET', path: '/orders' }),
+          actual: { request: { headers: { 'x-trace': '1' } } },
+        },
+      ]);
+
+      expect(transaction?.request.data).toMatchObject({
+        method: 'GET',
+        path: '/orders',
+        headers: { 'x-trace': '1' },
+      });
+    });
+
+    it('records a templated path at the concrete path the sampler gives it', async () => {
+      const rows: ObservedTransaction[] = [
+        {
+          described: described({
+            path: '/orders/{id}',
+            pathParameters: {
+              id: createParameter({
+                schema: { type: 'string', examples: ['42'] },
+              }),
+            },
+          }),
+        },
+      ];
+      const scopedToOrder = httpRule('rules-testing/scoped-to-order')
+        .severity('error')
+        .type('analytics')
+        .rule((ctx) =>
+          ctx.validateCommonHttpTransactions({
+            appliesTo: path('/orders/42'),
+            violatedWhen: constant(true),
+          }),
+        )
+        .done();
+
+      const results = await runInContext('analytics', scopedToOrder, {
+        observed: rows,
+      });
+
+      expect(violations(results)).toHaveLength(1);
+      expect((await recorded(rows))[0]?.request.data.path).toBe('/orders/42');
+    });
+
+    it('records the user-agent and the origin server as the roles by default', async () => {
+      const [transaction] = await recorded([{ described: described() }]);
+
+      expect(transaction?.request.meta.role).toBe('user-agent');
+      expect(transaction?.response.meta.role).toBe('origin server');
+    });
+
+    it("records the row's actual roles in place of either default", async () => {
+      const [transaction] = await recorded([
+        { described: described(), actual: { roles: { response: 'proxy' } } },
+      ]);
+
+      expect(transaction?.request.meta.role).toBe('user-agent');
+      expect(transaction?.response.meta.role).toBe('proxy');
+    });
+
+    it("records the described origin, or the row's actual one", async () => {
+      const [fromDescribed, fromActual] = await recorded([
+        { described: described({ path: '/a' }) },
+        {
+          described: described({ path: '/b' }),
+          actual: { request: { origin: 'http://elsewhere.example.com:8080' } },
+        },
+      ]);
+
+      // The analyzer records an origin without its default port.
+      expect(fromDescribed?.request.data.origin).toBe(
+        'https://api.example.com',
+      );
+      expect(fromActual?.request.data.origin).toBe(
+        'http://elsewhere.example.com:8080',
+      );
+    });
+
+    it('records several rows for one Operation', async () => {
+      const results = await runInContext(
+        'analytics',
+        flagsDeprecationRecorded,
+        {
+          observed: [
+            {
+              described: described({ method: 'POST', path: '/orders' }),
+              actual: { response: { headers: { deprecation: 'true' } } },
+            },
+            {
+              described: described({ method: 'POST', path: '/orders' }),
+              actual: { response: { headers: { deprecation: 'true' } } },
+            },
+          ],
+        },
+      );
+
+      expect(violations(results)).toHaveLength(2);
+    });
   });
+
+  // A rule scoped to one Operation: both rows carry the header it flags, so a
+  // second violation would mean the out-of-scope row was flagged.
+  describe.each<ValidationContext>(['static', 'test', 'analytics'])(
+    'for a rule scoped to one Operation, in %s',
+    (context) => {
+      it('flags the in-scope row and never the out-of-scope one', async () => {
+        const scoped = httpRule('rules-testing/scoped')
+          .severity('error')
+          .type('static', 'test', 'analytics')
+          .rule((ctx) =>
+            ctx.validateCommonHttpTransactions({
+              appliesTo: and(method('GET'), path('/orders')),
+              violatedWhen: responseHeader('deprecation'),
+            }),
+          )
+          .done();
+        const deprecated = { deprecation: createParameter() };
+
+        const results = await runInContext(context, scoped, {
+          observed: [
+            {
+              described: described(
+                { method: 'GET', path: '/orders' },
+                { headers: deprecated },
+              ),
+              actual: { response: { headers: { deprecation: 'true' } } },
+            },
+            {
+              described: described(
+                { method: 'GET', path: '/customers' },
+                { headers: deprecated },
+              ),
+              actual: { response: { headers: { deprecation: 'true' } } },
+            },
+          ],
+        });
+
+        expect(violations(results)).toHaveLength(1);
+      });
+    },
+  );
 });
