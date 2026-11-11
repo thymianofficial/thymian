@@ -4,10 +4,12 @@
 
 import type { Rule, RuleFnResult } from '@thymian/core';
 
+import type { ObservedInput } from './observed.js';
 import {
   type InputOf,
   runInContext,
   type ValidationContext,
+  validationContexts,
 } from './run-in-context.js';
 
 /**
@@ -28,6 +30,35 @@ export type ContextFixture<Context extends ValidationContext> = {
 export type RuleFixtures = { rule: Rule } & {
   [Context in ValidationContext]?: ContextFixture<Context>;
 };
+
+/**
+ * One fixture for every context `rule` declares, each made of the same
+ * `observed` lists: for an assertion every context makes alike. `skips`,
+ * when given, goes into every context too. To give one context other inputs,
+ * spread the result and override that context's entry.
+ */
+export function inDeclaredContexts(
+  rule: Rule,
+  inputs: {
+    violates: ObservedInput;
+    conforms: ObservedInput;
+    skips?: ObservedInput;
+  },
+): RuleFixtures {
+  const { violates, conforms, skips } = inputs;
+  const fixture =
+    skips === undefined
+      ? { violates, conforms }
+      : { violates, conforms, skips };
+
+  const fixtures: RuleFixtures = { rule };
+  for (const context of validationContexts) {
+    if (rule.meta.type.includes(context)) {
+      fixtures[context] = { ...fixture };
+    }
+  }
+  return fixtures;
+}
 
 /** The promise an input makes: the name of its `ContextFixture` field. */
 export type FixtureExpectation = 'violates' | 'conforms' | 'skips';

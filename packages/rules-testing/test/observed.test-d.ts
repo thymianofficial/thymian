@@ -3,6 +3,7 @@ import { describe, expectTypeOf, it } from 'vitest';
 
 import {
   checkInput,
+  inDeclaredContexts,
   type InputOf,
   type ObservedInput,
   type ObservedTransaction,
@@ -33,6 +34,20 @@ describe('ObservedInput', () => {
       analytics: { violates: observed, conforms: observed },
     };
     expectTypeOf(fixtures).toExtend<RuleFixtures>();
+  });
+
+  it('builds RuleFixtures through inDeclaredContexts, one context overridable by spreading', () => {
+    const fixtures = inDeclaredContexts(rule, {
+      violates: observed,
+      conforms: observed,
+    });
+    expectTypeOf(fixtures).toEqualTypeOf<RuleFixtures>();
+
+    const overridden = {
+      ...fixtures,
+      static: { violates: { format: new ThymianFormat() }, conforms: observed },
+    } satisfies RuleFixtures;
+    expectTypeOf(overridden).toExtend<RuleFixtures>();
   });
 
   it('does not mix with the fields of the other inputs', () => {

@@ -3,6 +3,7 @@ export {
   type ContextFixture,
   type FixtureExpectation,
   type FixtureVerdict,
+  inDeclaredContexts,
   type RuleFixtures,
 } from './fixtures.js';
 export { type ObservedInput, type ObservedTransaction } from './observed.js';
