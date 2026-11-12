@@ -35,7 +35,7 @@ export function parseContentRange(
     return [];
   }
 
-  const [_, unit, start, end, size] = match;
+  const [, unit, start, end, size] = match;
 
   if (!unit || !start || !end || !size) {
     return [];
