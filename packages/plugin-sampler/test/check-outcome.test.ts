@@ -16,6 +16,8 @@ import {
   checkedAsUncheckable,
   checkedFromError,
   checkedFromTestCase,
+  type CheckSummary,
+  summaryLineOf,
   summaryOf,
 } from '../src/cli/check-result.js';
 
@@ -397,5 +399,47 @@ describe('the summary', () => {
       errored: 1,
       total: 4,
     });
+  });
+});
+
+describe('the summary line', () => {
+  const summary = (counts: Partial<CheckSummary> & { total: number }) => ({
+    passed: 0,
+    failed: 0,
+    skipped: 0,
+    errored: 0,
+    ...counts,
+  });
+
+  it('says transaction, singular, for one that passed', () => {
+    expect(summaryLineOf(summary({ passed: 1, total: 1 }))).toBe(
+      'Checked 1 transaction. All passed.',
+    );
+  });
+
+  it('says transactions, plural, when more than one passed', () => {
+    expect(summaryLineOf(summary({ passed: 2, total: 2 }))).toBe(
+      'Checked 2 transactions. All passed.',
+    );
+  });
+
+  it('says transaction, singular, in the tally of one', () => {
+    expect(summaryLineOf(summary({ errored: 1, total: 1 }))).toBe(
+      'Checked 1 transaction: 0 passed, 1 errored.',
+    );
+  });
+
+  it('says transactions, plural, in the tally of several', () => {
+    expect(
+      summaryLineOf(
+        summary({ passed: 2, failed: 1, skipped: 0, errored: 1, total: 4 }),
+      ),
+    ).toBe('Checked 4 transactions: 2 passed, 1 failed, 1 errored.');
+  });
+
+  it('says transactions, plural, for none', () => {
+    expect(summaryLineOf(summary({ total: 0 }))).toBe(
+      'Checked 0 transactions. All passed.',
+    );
   });
 });
