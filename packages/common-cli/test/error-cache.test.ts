@@ -1,4 +1,11 @@
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import {
+  chmod,
+  mkdtemp,
+  readFile,
+  rm,
+  stat,
+  writeFile,
+} from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -107,6 +114,32 @@ describe('ErrorCache', () => {
       expect(cached?.name).toBe('SecondError');
       expect(cached?.timestamp).toBe(2000);
     });
+
+    it.skipIf(process.platform === 'win32')(
+      'should make the cache file readable by its owner only, even when it already existed',
+      async () => {
+        const cacheFile = join(tempDir, 'last_error.json');
+        await writeFile(cacheFile, '{}', { mode: 0o644 });
+        await chmod(cacheFile, 0o644);
+
+        await errorCache.write({
+          name: 'TestError',
+          message: 'Test',
+          commandName: 'test',
+          timestamp: Date.now(),
+          argv: [],
+          version: {
+            architecture: 'x64',
+            cliVersion: '1.0.0',
+            nodeVersion: 'v18.0.0',
+          },
+          pluginVersions: [],
+        });
+
+        expect((await stat(cacheFile)).mode & 0o777).toBe(0o600);
+        expect((await errorCache.read())?.name).toBe('TestError');
+      },
+    );
 
     it('should handle write failures gracefully', async () => {
       // Use a null byte in the path to guarantee an invalid path on all OSes.
