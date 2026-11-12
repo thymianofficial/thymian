@@ -9,8 +9,10 @@ import {
   validateBodyForRequest,
 } from '@thymian/core';
 
+const NAME = 'thymian/request-body-must-conform-to-schema';
+
 // eslint-disable-next-line thymian-internal/require-rule-tags -- schema-conformance check against the API description, not a security or privacy concern
-export default httpRule('thymian/request-body-must-conform-to-schema')
+export default httpRule(NAME)
   .severity('error')
   .type('analytics')
   .description('Request body must conform to the API description schema.')
@@ -28,7 +30,7 @@ export default httpRule('thymian/request-body-must-conform-to-schema')
               location,
               findings: [
                 {
-                  title: 'thymian/request-body-must-conform-to-schema',
+                  title: NAME,
                   kind: 'rule-skip',
                   message: `No matching endpoint found in corresponding API description document.`,
                 },
@@ -47,7 +49,7 @@ export default httpRule('thymian/request-body-must-conform-to-schema')
               location,
               findings: [
                 {
-                  title: 'thymian/request-body-must-conform-to-schema',
+                  title: NAME,
                   kind: 'rule-skip',
                   message: `Can't find transaction with given ID ${location.elementId} in Thymian format.`,
                 },

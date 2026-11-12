@@ -1,4 +1,8 @@
 import {
+  rule as noRepeatedRuleName,
+  RULE_NAME as noRepeatedRuleNameName,
+} from './rules/no-repeated-rule-name.js';
+import {
   rule as requireRuleTags,
   RULE_NAME as requireRuleTagsName,
 } from './rules/require-rule-tags.js';
@@ -10,6 +14,7 @@ import {
 // module and destructures `{ rules }` from the result. With only a default
 // export, that resolves to undefined and crashes on `Object.entries`.
 export const rules = {
+  [noRepeatedRuleNameName]: noRepeatedRuleName,
   [requireRuleTagsName]: requireRuleTags,
 };
 

@@ -230,6 +230,9 @@ export default httpRule('<prefix>/<actor>-<keyword>-<constraint>')
   .done();
 ```
 
+- The rule's name is written once. Where the file needs it again — the title of a `rule-skip`
+  finding — declare `const NAME = '<prefix>/…'` and pass `httpRule(NAME)`; the
+  `thymian-internal/no-repeated-rule-name` lint fails on a second literal copy.
 - `.type()` declares **exactly** the contexts step 3 cleared. Declaring one claims a fixture
   in step 5, so a context you cannot demonstrate does not go in.
 - An informational rule carries its tier-1 reason in `.type()`:

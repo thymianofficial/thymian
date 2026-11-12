@@ -12,8 +12,10 @@ import {
   validateHeaders,
 } from '@thymian/core';
 
+const NAME = 'thymian/response-headers-must-conform-to-schema';
+
 // eslint-disable-next-line thymian-internal/require-rule-tags -- schema-conformance check against the API description, not a security or privacy concern
-export default httpRule('thymian/response-headers-must-conform-to-schema')
+export default httpRule(NAME)
   .severity('error')
   .type('test', 'analytics')
   .description(
@@ -34,7 +36,7 @@ export default httpRule('thymian/response-headers-must-conform-to-schema')
               location,
               findings: [
                 {
-                  title: 'thymian/response-headers-must-conform-to-schema',
+                  title: NAME,
                   kind: 'rule-skip',
                   message: `No matching endpoint found in corresponding API description document.`,
                 },
@@ -53,7 +55,7 @@ export default httpRule('thymian/response-headers-must-conform-to-schema')
               location,
               findings: [
                 {
-                  title: 'thymian/response-headers-must-conform-to-schema',
+                  title: NAME,
                   kind: 'rule-skip',
                   message: `Can't find transaction with given ID ${location.elementId} in Thymian format.`,
                 },
