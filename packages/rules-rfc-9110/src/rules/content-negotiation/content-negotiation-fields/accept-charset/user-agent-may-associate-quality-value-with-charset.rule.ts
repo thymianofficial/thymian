@@ -5,6 +5,8 @@ import {
 } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
+import { headerToString } from '../../../../utils.js';
+
 /**
  * Accept-Charset is deprecated by RFC 9110 (Section 12.5.2). This note applies
  * whenever the header is present — independent of whether a quality value is
@@ -23,15 +25,6 @@ const qualityValueHint =
 
 /** The full hint: the permissive MAY followed by the deprecation note. */
 const fullHint = `${qualityValueHint} ${deprecationNote}`;
-
-function headerToString(
-  value: string | string[] | undefined,
-): string | undefined {
-  if (value === undefined) {
-    return undefined;
-  }
-  return Array.isArray(value) ? value.join(',') : value;
-}
 
 /** Whether any charset entry in an Accept-Charset value carries a "q" weight. */
 function hasQualityValue(value: string): boolean {

@@ -5,16 +5,7 @@ import {
 } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
-import { createList } from '../../../../utils.js';
-
-function headerToString(
-  value: string | string[] | undefined,
-): string | undefined {
-  if (value === undefined) {
-    return undefined;
-  }
-  return Array.isArray(value) ? value.join(',') : value;
-}
+import { createList, headerToString } from '../../../../utils.js';
 
 /** Parse an Accept-Encoding field value into a coding → quality-weight map. */
 function parseAcceptEncoding(value: string): Map<string, number> {

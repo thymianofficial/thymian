@@ -237,8 +237,14 @@ describe('ErrorCache', () => {
     });
 
     it('should handle missing file when resetting', async () => {
-      // Should not throw when file doesn't exist
-      await expect(errorCache.reset()).rejects.toThrow();
+      await expect(errorCache.reset()).resolves.toBeUndefined();
+    });
+
+    it('should reject on an error other than a missing file', async () => {
+      // A null byte makes the path invalid on all OSes, as in the tests above.
+      const invalidCache = new ErrorCache('/invalid/\0/path');
+
+      await expect(invalidCache.reset()).rejects.toThrow();
     });
   });
 

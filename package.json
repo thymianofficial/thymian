@@ -59,7 +59,7 @@
     "typescript": "6.0.3",
     "typescript-eslint": "8.72.1",
     "verdaccio": "^6.10.7",
-    "vite": "^7.3.7",
+    "vite": "^8.1.6",
     "vitest": "^4.1.11"
   },
   "workspaces": [

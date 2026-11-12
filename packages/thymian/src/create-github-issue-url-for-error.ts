@@ -3,7 +3,10 @@ import type { CachedError } from '@thymian/common-cli';
 export function createGithubIssueUrlForError(error: CachedError): string {
   const baseUrl = 'https://github.com/thymianofficial/thymian/issues/new';
 
-  const title = `${error.name} while running in command \`${error.commandName}\``;
+  const title = error.commandName
+    ? `${error.name} while running in command \`${error.commandName}\``
+    : error.name;
+  const commandMarkdown = error.commandName ? ` \`${error.commandName}\`` : '';
 
   const pluginTable =
     error?.pluginVersions
@@ -16,7 +19,7 @@ export function createGithubIssueUrlForError(error: CachedError): string {
 - **CLI Version:** \`${error.version.cliVersion || 'N/A'}\`
 - **Node Version:** \`${error.version.nodeVersion || 'N/A'}\`
 - **OS:** \`${error?.version.osVersion || 'N/A'}\` (${error.version.architecture})
-- **Command:** \`${error?.commandName} || ''}\`
+- **Command:**${commandMarkdown}
 - **Timestamp:** ${error ? new Date(error.timestamp).toLocaleString() : 'N/A'}
 
 <details>

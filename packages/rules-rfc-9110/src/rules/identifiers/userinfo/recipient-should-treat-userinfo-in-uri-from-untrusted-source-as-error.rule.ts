@@ -1,9 +1,4 @@
-import {
-  httpRule,
-  or,
-  protocol,
-  type RuleViolationLocation,
-} from '@thymian/core';
+import { httpRule, or, protocol } from '@thymian/core';
 
 export default httpRule(
   'rfc9110/recipient-should-treat-userinfo-in-uri-from-untrusted-source-as-error',
