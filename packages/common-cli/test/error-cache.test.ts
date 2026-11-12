@@ -1,4 +1,11 @@
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import {
+  chmod,
+  mkdtemp,
+  readFile,
+  rm,
+  stat,
+  writeFile,
+} from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -107,6 +114,57 @@ describe('ErrorCache', () => {
       expect(cached?.name).toBe('SecondError');
       expect(cached?.timestamp).toBe(2000);
     });
+
+    it.skipIf(process.platform === 'win32')(
+      'should make the cache file readable by its owner only, even when it already existed',
+      async () => {
+        const cacheFile = join(tempDir, 'last_error.json');
+        // A file an older version left behind; chmod because the umask may
+        // have narrowed writeFile's mode.
+        await writeFile(cacheFile, '{}');
+        await chmod(cacheFile, 0o644);
+
+        await errorCache.write({
+          name: 'TestError',
+          message: 'Test',
+          commandName: 'test',
+          timestamp: Date.now(),
+          argv: [],
+          version: {
+            architecture: 'x64',
+            cliVersion: '1.0.0',
+            nodeVersion: 'v18.0.0',
+          },
+          pluginVersions: [],
+        });
+
+        expect((await stat(cacheFile)).mode & 0o777).toBe(0o600);
+        expect((await errorCache.read())?.name).toBe('TestError');
+      },
+    );
+
+    it.skipIf(process.platform === 'win32')(
+      'should create the cache file readable by its owner only',
+      async () => {
+        // The path of every fresh install: there is no file to chmod yet.
+        await errorCache.write({
+          name: 'TestError',
+          message: 'Test',
+          commandName: 'test',
+          timestamp: Date.now(),
+          argv: [],
+          version: {
+            architecture: 'x64',
+            cliVersion: '1.0.0',
+            nodeVersion: 'v18.0.0',
+          },
+          pluginVersions: [],
+        });
+
+        const cacheFile = join(tempDir, 'last_error.json');
+        expect((await stat(cacheFile)).mode & 0o777).toBe(0o600);
+      },
+    );
 
     it('should handle write failures gracefully', async () => {
       // Use a null byte in the path to guarantee an invalid path on all OSes.

@@ -35,7 +35,12 @@ export class ErrorCache {
     try {
       await fs.mkdir(this.dir, { recursive: true });
 
-      await fs.writeFile(cacheFile, JSON.stringify(error));
+      // Owner-only, like any file that may hold what a user typed. `mode` only
+      // applies when the file is created, so a file left behind by an older
+      // version is tightened before anything is written into it. On Windows
+      // both only toggle the read-only bit, and 0o600 leaves it writable.
+      await fs.chmod(cacheFile, 0o600).catch(() => undefined);
+      await fs.writeFile(cacheFile, JSON.stringify(error), { mode: 0o600 });
     } catch (err) {
       /* empty */
     }
