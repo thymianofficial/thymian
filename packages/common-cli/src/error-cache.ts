@@ -56,13 +56,13 @@ export class ErrorCache {
   async reset(): Promise<void> {
     const cacheFile = path.join(this.dir, 'last_error.json');
 
-    await fs.unlink(cacheFile);
+    // `force` makes a missing file a no-op; any other error still rejects.
+    await fs.rm(cacheFile, { force: true });
   }
 
   static forCommand(
     command:
-      | ThymianBaseCommand<typeof Command>
-      | BaseCliRunCommand<typeof Command>,
+      ThymianBaseCommand<typeof Command> | BaseCliRunCommand<typeof Command>,
   ): ErrorCache {
     return new ErrorCache(command.config.cacheDir);
   }
