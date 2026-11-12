@@ -4,23 +4,25 @@ export const REDACTED = '<redacted>';
 /**
  * A value shorter than this is not scrubbed out of free text (message, stack,
  * cause): replacing a short value such as `info` or `yaml` everywhere would
- * mangle the stack, and a value that short is not a credential worth hiding.
- * It is still redacted in argv itself, whatever its length.
+ * mangle the stack. It is still redacted in argv itself, whatever its length,
+ * so this trades a short secret echoed in an error message for a readable
+ * stack.
  */
 const MIN_SCRUBBED_LENGTH = 8;
 
 /**
- * The key of the repeated `-o <plugin>.<path>=<value>` form. A value whose
- * part before `=` has this shape keeps that part; anything else, notably a
- * URL (which has a `:`), is redacted whole.
+ * The key of the repeated `-o <plugin>.<path>=<value>` form: it always has a
+ * `.`. A value whose part before `=` has this shape keeps that part; anything
+ * else is redacted whole — a URL (it has a `:`), and base64 padding (the part
+ * after `=` starts with `=`, and the part before has no `.`).
  */
-const OPTION_KEY = /^[\w@./[\]-]+$/;
+const OPTION_KEY = /^[\w@/[\]-]+\.[\w@./[\]-]+$/;
 
 export type RedactedArgv = {
   /** argv with every value replaced by {@link REDACTED}. */
   argv: string[];
   /** The raw values that were replaced, to scrub them from free text too. */
-  secrets: string[];
+  redactedValues: string[];
 };
 
 /**
@@ -31,37 +33,45 @@ export type RedactedArgv = {
  * cannot tell a flag's value from a positional argument, and redacts both.
  *
  * The command words are the leading non-flag tokens, up to as many `:`- or
- * space-separated parts as `commandId` has. They are kept as typed, not as
- * resolved, so a record for a "did you mean …?" suggestion still shows the
- * command the user actually typed. Without a `commandId` none are kept.
+ * space-separated parts as `commandId` has. The first is kept as typed, not
+ * as resolved, so a record for a "did you mean …?" suggestion still shows the
+ * command the user actually typed; a later one only when it matches the
+ * resolved id, since a mismatch may be a positional argument. Without a
+ * `commandId` none are kept.
  */
 export function redactArgv(
   argv: readonly string[],
   commandId: string | undefined,
 ): RedactedArgv {
-  const secrets: string[] = [];
+  const redactedValues: string[] = [];
   const redactValue = (value: string): string => {
-    const eq = value.indexOf('=');
-    const key = value.slice(0, eq);
-    if (eq > 0 && OPTION_KEY.test(key)) {
-      secrets.push(value.slice(eq + 1));
+    const [key, rest] = splitAtEquals(value);
+    if (rest !== undefined && OPTION_KEY.test(key) && !rest.startsWith('=')) {
+      redactedValues.push(rest);
       return `${key}=${REDACTED}`;
     }
-    secrets.push(value);
+    redactedValues.push(value);
     return REDACTED;
   };
 
   const [node, bin, ...rest] = argv;
   const head = [node, bin].filter((entry) => entry !== undefined);
 
-  let commandParts = commandId ? commandId.split(/[: ]/).length : 0;
+  const idParts = commandId ? commandId.split(/[: ]/) : [];
+  let consumed = 0;
   const commandWords: string[] = [];
   for (const token of rest) {
-    const parts = token.split(':').length;
-    if (token.startsWith('-') || parts > commandParts) {
+    const parts = token.split(':');
+    const end = consumed + parts.length;
+    const matchesId = parts.every((part, i) => part === idParts[consumed + i]);
+    if (
+      token.startsWith('-') ||
+      end > idParts.length ||
+      (consumed > 0 && !matchesId)
+    ) {
       break;
     }
-    commandParts -= parts;
+    consumed = end;
     commandWords.push(token);
   }
 
@@ -74,12 +84,8 @@ export function redactArgv(
       afterDoubleDash = true;
       tail.push(token);
     } else if (token.startsWith('--')) {
-      const eq = token.indexOf('=');
-      tail.push(
-        eq === -1
-          ? token
-          : `${token.slice(0, eq + 1)}${redactValue(token.slice(eq + 1))}`,
-      );
+      const [name, value] = splitAtEquals(token);
+      tail.push(value === undefined ? name : `${name}=${redactValue(value)}`);
     } else if (token.startsWith('-') && token.length > 2) {
       // `-tVALUE` or `-t=VALUE`; a cluster of booleans (`-dv`) looks the same
       // and is redacted too, which is the safe side to err on.
@@ -94,10 +100,19 @@ export function redactArgv(
 
   return {
     argv: [...head, ...commandWords, ...tail],
-    secrets: [...secrets, ...secrets.flatMap(urlCredentials)].filter(
-      (secret) => secret.length > 0,
-    ),
+    redactedValues: [
+      ...redactedValues,
+      ...redactedValues.flatMap(urlCredentials),
+    ].filter((value) => value.length > 0),
   };
+}
+
+/** Split at the first `=`; the second part is undefined without one. */
+function splitAtEquals(token: string): [string, string | undefined] {
+  const eq = token.indexOf('=');
+  return eq === -1
+    ? [token, undefined]
+    : [token.slice(0, eq), token.slice(eq + 1)];
 }
 
 /**
@@ -121,13 +136,18 @@ function urlCredentials(value: string): string[] {
 }
 
 /**
- * Replace every occurrence of `secrets` in the strings of `value`, walking
- * arrays and plain objects. Used on the record's free-text fields, which can
- * echo a flag value back (e.g. `Invalid option format: "<input>"`).
+ * Replace every occurrence of `redactedValues` in the strings of `value`,
+ * walking arrays and objects the way `JSON.stringify` would (own enumerable
+ * properties, or what `toJSON()` returns). Used on the record's free-text
+ * fields, which can echo a flag value back (e.g. `Invalid option format:
+ * "<input>"`).
  */
-export function scrubSecrets<T>(value: T, secrets: readonly string[]): T {
-  const scrubbable = secrets.filter(
-    (secret) => secret.length >= MIN_SCRUBBED_LENGTH,
+export function scrubSecrets<T>(
+  value: T,
+  redactedValues: readonly string[],
+): T {
+  const scrubbable = redactedValues.filter(
+    (redacted) => redacted.length >= MIN_SCRUBBED_LENGTH,
   );
   if (scrubbable.length === 0) {
     return value;
@@ -143,6 +163,9 @@ export function scrubSecrets<T>(value: T, secrets: readonly string[]): T {
     }
     if (typeof current !== 'object' || current === null) {
       return current;
+    }
+    if ('toJSON' in current && typeof current.toJSON === 'function') {
+      return walk(current.toJSON());
     }
     if (ancestors.has(current)) {
       return '[Circular]';

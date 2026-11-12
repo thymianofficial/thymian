@@ -38,15 +38,15 @@ export async function writeErrorRecord(
     .filter(([name]) => !name.startsWith('@oclif'))
     .map(([name, version]) => ({ name, version: version.version }));
 
-  const { argv, secrets } = redactArgv(process.argv, command.id);
+  const { argv, redactedValues } = redactArgv(process.argv, command.id);
 
   await errorCache?.write({
     name: err.name,
-    message: scrubSecrets(err.message, secrets),
+    message: scrubSecrets(err.message, redactedValues),
     commandName: command.id ?? 'unknown command',
     timestamp: Date.now(),
-    cause: scrubSecrets(err.cause, secrets),
-    stack: scrubSecrets(err.stack, secrets),
+    cause: scrubSecrets(err.cause, redactedValues),
+    stack: scrubSecrets(err.stack, redactedValues),
     argv,
     version: {
       architecture: versionDetails.architecture,

@@ -5,8 +5,8 @@ import { redactArgv, REDACTED, scrubSecrets } from '../src/redact-argv.js';
 const BASE = ['/usr/bin/node', '/usr/local/bin/thymian'];
 const SECRET = 'ghp_s3cr3tT0ken';
 
-const redact = (tail: string[], ...commandId: [string?]) =>
-  redactArgv([...BASE, ...tail], commandId.length ? commandId[0] : 'lint');
+const redact = (tail: string[], commandId = 'lint') =>
+  redactArgv([...BASE, ...tail], commandId);
 
 describe('redactArgv', () => {
   it('keeps the node and bin entries and the command words', () => {
@@ -22,11 +22,23 @@ describe('redactArgv', () => {
     ]);
   });
 
-  it('keeps the command words as typed when they differ from the resolved id', () => {
-    // A "did you mean …?" suggestion ran `generate:config` for `generate confi`.
+  it('keeps the first command word as typed when it differs from the resolved id', () => {
+    // A "did you mean …?" suggestion ran `generate:config` for `generat config`.
+    expect(
+      redact(['generat', 'config', '--bogus'], 'generate:config').argv,
+    ).toEqual([...BASE, 'generat', 'config', '--bogus']);
+  });
+
+  it('redacts a later word that does not match the resolved id', () => {
+    // It may be a positional the suggestion did not count as a command word.
     expect(
       redact(['generate', 'confi', '--bogus'], 'generate:config').argv,
-    ).toEqual([...BASE, 'generate', 'confi', '--bogus']);
+    ).toEqual([...BASE, 'generate', REDACTED, '--bogus']);
+    expect(redact(['lnt', SECRET], 'explain:rule').argv).toEqual([
+      ...BASE,
+      'lnt',
+      REDACTED,
+    ]);
   });
 
   it('redacts a positional argument after the command words', () => {
@@ -47,7 +59,7 @@ describe('redactArgv', () => {
   });
 
   it('keeps no command words when the command id is unknown', () => {
-    expect(redact([SECRET, '--debug'], undefined).argv).toEqual([
+    expect(redactArgv([...BASE, SECRET, '--debug'], undefined).argv).toEqual([
       ...BASE,
       REDACTED,
       '--debug',
@@ -91,6 +103,16 @@ describe('redactArgv', () => {
       [`--traffic=${REDACTED}`],
     ],
     [
+      'a base64 value with padding',
+      ['--token', 'Z2hwX3MzY3IzdFQwa2Vu=='],
+      ['--token', REDACTED],
+    ],
+    [
+      'a base64 value with a slash and padding',
+      ['--token=ghp/s3cr3tT0ken=='],
+      [`--token=${REDACTED}`],
+    ],
+    [
       'everything after --',
       ['--debug', '--', '--token', SECRET],
       ['--debug', '--', REDACTED, REDACTED],
@@ -100,7 +122,13 @@ describe('redactArgv', () => {
 
     expect(result.argv).toEqual([...BASE, 'lint', ...expected]);
     expect(JSON.stringify(result.argv)).not.toContain(SECRET);
-    expect(result.secrets).toContain(SECRET);
+    // What was redacted is handed on, so the free text can be scrubbed too.
+    const redacted = tail.filter((token) => !expected.includes(token));
+    for (const token of redacted) {
+      expect(result.redactedValues.some((value) => token.endsWith(value))).toBe(
+        true,
+      );
+    }
   });
 
   it('keeps flag names, boolean flags and their order', () => {
@@ -148,6 +176,17 @@ describe('scrubSecrets', () => {
     expect(scrubbed).toEqual({
       message: `Invalid option format: "x.token=${REDACTED}"`,
       nested: [{ url: `https://u:${REDACTED}@example.com` }, 42, null],
+    });
+  });
+
+  it('scrubs what JSON would write for an object with toJSON', () => {
+    const at = new Date(0);
+
+    expect(
+      scrubSecrets({ at, url: new URL(`https://x/?t=${SECRET}`) }, [SECRET]),
+    ).toEqual({
+      at: at.toJSON(),
+      url: `https://x/?t=${REDACTED}`,
     });
   });
 

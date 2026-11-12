@@ -119,7 +119,9 @@ describe('ErrorCache', () => {
       'should make the cache file readable by its owner only, even when it already existed',
       async () => {
         const cacheFile = join(tempDir, 'last_error.json');
-        await writeFile(cacheFile, '{}', { mode: 0o644 });
+        // A file an older version left behind; chmod because the umask may
+        // have narrowed writeFile's mode.
+        await writeFile(cacheFile, '{}');
         await chmod(cacheFile, 0o644);
 
         await errorCache.write({
