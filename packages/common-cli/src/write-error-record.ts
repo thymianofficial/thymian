@@ -3,6 +3,7 @@ import type { CommandError } from '@oclif/core/interfaces';
 
 import type { ErrorCache } from './error-cache.js';
 import type { Feedback } from './feedback.js';
+import { redactArgv, scrubSecrets } from './redact-argv.js';
 
 /**
  * Emit the shared error side effects for a failing command: run the feedback
@@ -16,9 +17,12 @@ import type { Feedback } from './feedback.js';
  * and so trail the required parameters — a command that fails during `init()`
  * has neither wired up yet.
  *
- * `process.argv` is recorded verbatim on purpose: it must reflect what the user
- * actually typed. This runs before any argv repointing at the execute/handle
- * boundary, so the record is never contaminated by that fix.
+ * `process.argv` is recorded as the user typed it, not as it was resolved: its
+ * command words stay as typed, and this runs before any argv repointing at the
+ * execute/handle boundary, so the record is never contaminated by that fix.
+ * Its values are redacted, though, and scrubbed from the message, stack and
+ * cause too: a flag can carry a credential (`-o some-plugin.auth.token=…`),
+ * and `thymian feedback` puts the stack into a public GitHub issue.
  */
 export async function writeErrorRecord(
   command: Command,
@@ -34,14 +38,16 @@ export async function writeErrorRecord(
     .filter(([name]) => !name.startsWith('@oclif'))
     .map(([name, version]) => ({ name, version: version.version }));
 
+  const { argv, secrets } = redactArgv(process.argv, command.id);
+
   await errorCache?.write({
     name: err.name,
-    message: err.message,
+    message: scrubSecrets(err.message, secrets),
     commandName: command.id ?? 'unknown command',
     timestamp: Date.now(),
-    cause: err.cause,
-    stack: err.stack,
-    argv: process.argv,
+    cause: scrubSecrets(err.cause, secrets),
+    stack: scrubSecrets(err.stack, secrets),
+    argv,
     version: {
       architecture: versionDetails.architecture,
       cliVersion: versionDetails.cliVersion,
