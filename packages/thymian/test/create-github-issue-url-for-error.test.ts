@@ -104,7 +104,59 @@ describe('createGithubIssueUrlForError', () => {
     expect(body).toContain('**CLI Version:** `2.0.0`');
     expect(body).toContain('**Node Version:** `v20.0.0`');
     expect(body).toContain('**OS:** `Darwin 23.0.0` (arm64)');
-    expect(body).toContain('**Command:** `test');
+    expect(body).toContain('**Command:** `test`');
+  });
+
+  it('should render the command name with nothing after it', () => {
+    const error: CachedError = {
+      name: 'TestError',
+      message: 'Test',
+      commandName: 'lint',
+      timestamp: Date.now(),
+      argv: [],
+      version: {
+        architecture: 'x64',
+        cliVersion: '1.0.0',
+        nodeVersion: 'v18.0.0',
+      },
+      pluginVersions: [],
+    };
+
+    const body = new URL(createGithubIssueUrlForError(error)).searchParams.get(
+      'body',
+    );
+
+    expect(body?.split('\n')).toContain('- **Command:** `lint`');
+  });
+
+  // The record is read back from last_error.json without validation, so an
+  // older or hand-edited record can lack a command name despite the type.
+  it.each([
+    ['missing', undefined],
+    ['empty', ''],
+  ])('should render no command when the command name is %s', (_, value) => {
+    const error = {
+      name: 'TestError',
+      message: 'Test',
+      commandName: value,
+      timestamp: Date.now(),
+      argv: [],
+      version: {
+        architecture: 'x64',
+        cliVersion: '1.0.0',
+        nodeVersion: 'v18.0.0',
+      },
+      pluginVersions: [],
+    } as unknown as CachedError;
+
+    const parsedUrl = new URL(createGithubIssueUrlForError(error));
+    const title = parsedUrl.searchParams.get('title');
+    const body = parsedUrl.searchParams.get('body');
+
+    expect(body?.split('\n')).toContain('- **Command:**');
+    expect(body).not.toContain('undefined');
+    expect(body).not.toContain("|| ''");
+    expect(title).toBe('TestError');
   });
 
   it('should include plugin table in collapsible section', () => {
