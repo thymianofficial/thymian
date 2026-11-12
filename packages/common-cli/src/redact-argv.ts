@@ -132,21 +132,39 @@ function splitAtEquals(token: string): [string, string | undefined] {
 /**
  * The userinfo and query values of every URL inside `value`. Free text tends
  * to echo a URL's parts rather than the raw argv token (`har:https://…`), so
- * they are scrubbed on their own too.
+ * they are scrubbed on their own too — percent-encoded as they were typed,
+ * and decoded, since the text may echo either.
  */
 function urlCredentials(value: string): string[] {
   return [...value.matchAll(/[a-z][\w+.-]*:\/\/\S+/gi)].flatMap(([match]) => {
     try {
       const url = new URL(match);
+      const typed = [
+        url.username,
+        url.password,
+        ...url.search
+          .slice(1)
+          .split('&')
+          .map((pair) => splitAtEquals(pair)[1] ?? ''),
+      ];
       return [
-        decodeURIComponent(url.username),
-        decodeURIComponent(url.password),
+        ...typed,
+        ...typed.map(decodeOrKeep),
         ...url.searchParams.values(),
       ];
     } catch {
       return [];
     }
   });
+}
+
+/** Percent-decode `value`, or return it as it is when it is malformed. */
+function decodeOrKeep(value: string): string {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
 }
 
 /**

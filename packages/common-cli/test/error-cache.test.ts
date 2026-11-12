@@ -143,6 +143,29 @@ describe('ErrorCache', () => {
       },
     );
 
+    it.skipIf(process.platform === 'win32')(
+      'should create the cache file readable by its owner only',
+      async () => {
+        // The path of every fresh install: there is no file to chmod yet.
+        await errorCache.write({
+          name: 'TestError',
+          message: 'Test',
+          commandName: 'test',
+          timestamp: Date.now(),
+          argv: [],
+          version: {
+            architecture: 'x64',
+            cliVersion: '1.0.0',
+            nodeVersion: 'v18.0.0',
+          },
+          pluginVersions: [],
+        });
+
+        const cacheFile = join(tempDir, 'last_error.json');
+        expect((await stat(cacheFile)).mode & 0o777).toBe(0o600);
+      },
+    );
+
     it('should handle write failures gracefully', async () => {
       // Use a null byte in the path to guarantee an invalid path on all OSes.
       // A plain '/invalid/...' path may be writable on Windows because it resolves

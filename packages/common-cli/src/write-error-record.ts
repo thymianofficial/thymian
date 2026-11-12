@@ -20,9 +20,10 @@ import { redactArgv, scrubSecrets } from './redact-argv.js';
  * `process.argv` is recorded as the user typed it, not as it was resolved: its
  * command words stay as typed, and this runs before any argv repointing at the
  * execute/handle boundary, so the record is never contaminated by that fix.
- * Its values are redacted, though, and scrubbed from the message, stack and
- * cause too: a flag can carry a credential (`-o some-plugin.auth.token=…`),
- * and `thymian feedback` puts the stack into a public GitHub issue.
+ * Its values are redacted, though, and scrubbed from the message, the head of
+ * the stack and the cause too: a flag can carry a credential
+ * (`-o some-plugin.auth.token=…`), and `thymian feedback` puts the stack into
+ * a public GitHub issue.
  */
 export async function writeErrorRecord(
   command: Command,
@@ -46,7 +47,7 @@ export async function writeErrorRecord(
     redacted = {
       argv,
       message: scrubSecrets(err.message, redactedValues),
-      stack: scrubSecrets(err.stack, redactedValues),
+      stack: scrubStack(err.stack, redactedValues),
       cause: scrubCause(err.cause, redactedValues),
     };
   } catch {
@@ -67,6 +68,23 @@ export async function writeErrorRecord(
     },
     pluginVersions,
   });
+}
+
+/**
+ * Scrub the head of the stack — the message it repeats — and leave the frames
+ * alone. A path given as a flag (`--cwd /home/me/proj`) is a prefix of every
+ * frame of a locally installed CLI, and scrubbing it there would leave a stack
+ * nobody can read; the frames hold file paths, not what was typed.
+ */
+function scrubStack(
+  stack: string | undefined,
+  redactedValues: readonly string[],
+): string | undefined {
+  const frames = stack?.search(/^[ \t]+at /m) ?? -1;
+  return stack === undefined || frames === -1
+    ? scrubSecrets(stack, redactedValues)
+    : scrubSecrets(stack.slice(0, frames), redactedValues) +
+        stack.slice(frames);
 }
 
 /**

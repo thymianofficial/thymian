@@ -81,6 +81,65 @@ describe('writeErrorRecord', () => {
     });
   });
 
+  it('scrubs the head of the stack and leaves its frames readable', async () => {
+    const cwd = '/home/me/proj';
+    process.argv = [
+      '/usr/bin/node',
+      '/usr/local/bin/thymian',
+      'lint',
+      '--cwd',
+      cwd,
+    ];
+    const frames = [
+      `    at run (${cwd}/node_modules/@thymian/cli/dist/lint.js:1:1)`,
+      `    at main (${cwd}/node_modules/@oclif/core/lib/main.js:2:2)`,
+    ].join('\n');
+    const err = Object.assign(new Error(`No config in "${cwd}"`), {
+      stack: `Error: No config in "${cwd}"\n${frames}`,
+    }) as CommandError;
+
+    await writeErrorRecord(
+      command('lint'),
+      err,
+      undefined,
+      new ErrorCache(dir),
+    );
+
+    const record = JSON.parse(
+      await readFile(join(dir, 'last_error.json'), 'utf-8'),
+    );
+    expect(record.message).toBe(`No config in "${REDACTED}"`);
+    expect(record.stack).toBe(`Error: No config in "${REDACTED}"\n${frames}`);
+  });
+
+  it('scrubs a URL credential the message echoes percent-encoded', async () => {
+    const encoded = 'p%40ss%2Fw0rd';
+    process.argv = [
+      '/usr/bin/node',
+      '/usr/local/bin/thymian',
+      'analyze',
+      '--traffic',
+      `har:https://user:${encoded}@example.com/t.har?key=a%20secret%20value`,
+    ];
+    const err = new Error(
+      `Cannot fetch https://user:${encoded}@example.com/t.har (password "p@ss/w0rd", key a%20secret%20value)`,
+    ) as CommandError;
+
+    await writeErrorRecord(
+      command('analyze'),
+      err,
+      undefined,
+      new ErrorCache(dir),
+    );
+
+    const record = JSON.parse(
+      await readFile(join(dir, 'last_error.json'), 'utf-8'),
+    );
+    expect(record.message).toBe(
+      `Cannot fetch https://user:${REDACTED}@example.com/t.har (password "${REDACTED}", key ${REDACTED})`,
+    );
+  });
+
   it.each([
     [
       'a throwing getter',
