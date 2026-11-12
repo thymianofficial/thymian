@@ -7,17 +7,8 @@ import {
   type RuleViolationLocation,
 } from '@thymian/core';
 
-import { createList } from '../../../../utils.js';
+import { createList, headerToString } from '../../../../utils.js';
 import { sensitiveHeaders } from './trace-sensitive-headers.js';
-
-function headerToString(
-  value: string | string[] | undefined,
-): string | undefined {
-  if (value === undefined) {
-    return undefined;
-  }
-  return Array.isArray(value) ? value.join(', ') : value;
-}
 
 // This SHOULD check needs a REAL sensitive request header VALUE echoed into the
 // TRACE response body. In a generated test the request is Thymian-generated and
@@ -51,7 +42,12 @@ export default httpRule(
         // Sensitive request header values whose verbatim text was echoed back
         // into the reflected response content.
         const leaked = sensitiveHeaders.filter((name) => {
-          const value = headerToString(getHeader(req.headers ?? {}, name));
+          // The joined value is matched verbatim against the body, so the
+          // separator is part of what this rule detects.
+          const value = headerToString(
+            getHeader(req.headers ?? {}, name),
+            ', ',
+          );
 
           if (!value || value.trim().length === 0) {
             return false;
