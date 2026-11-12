@@ -12,9 +12,10 @@ const MIN_SCRUBBED_LENGTH = 8;
 
 /**
  * The key of the repeated `-o <plugin>.<path>=<value>` form: it always has a
- * `.`. A value whose part before `=` has this shape keeps that part; anything
- * else is redacted whole — a URL (it has a `:`), and base64 padding (the part
- * after `=` starts with `=`, and the part before has no `.`).
+ * `.`. A value of `-o`/`--option` whose part before `=` has this shape keeps
+ * that part, as long as something other than `=` follows; anything else is
+ * redacted whole. The value of any other flag is never split: a dotted token
+ * with base64 padding (`aaa.bbb.ccc=`) has the same shape.
  */
 const OPTION_KEY = /^[\w@/[\]-]+\.[\w@./[\]-]+$/;
 
@@ -44,9 +45,14 @@ export function redactArgv(
   commandId: string | undefined,
 ): RedactedArgv {
   const redactedValues: string[] = [];
-  const redactValue = (value: string): string => {
+  const redactValue = (value: string, isOptionValue = false): string => {
     const [key, rest] = splitAtEquals(value);
-    if (rest !== undefined && OPTION_KEY.test(key) && !rest.startsWith('=')) {
+    if (
+      isOptionValue &&
+      rest &&
+      OPTION_KEY.test(key) &&
+      !rest.startsWith('=')
+    ) {
       redactedValues.push(rest);
       return `${key}=${REDACTED}`;
     }
@@ -77,6 +83,9 @@ export function redactArgv(
 
   const tail: string[] = [];
   let afterDoubleDash = false;
+  // `-o`/`--option` takes several values (`-o a.b=1 c.d=2`), so every token
+  // up to the next flag counts as one of them.
+  let inOption = false;
   for (const token of rest.slice(commandWords.length)) {
     if (afterDoubleDash) {
       tail.push(redactValue(token));
@@ -85,16 +94,21 @@ export function redactArgv(
       tail.push(token);
     } else if (token.startsWith('--')) {
       const [name, value] = splitAtEquals(token);
-      tail.push(value === undefined ? name : `${name}=${redactValue(value)}`);
+      inOption = name === '--option';
+      tail.push(
+        value === undefined ? name : `${name}=${redactValue(value, inOption)}`,
+      );
     } else if (token.startsWith('-') && token.length > 2) {
       // `-tVALUE` or `-t=VALUE`; a cluster of booleans (`-dv`) looks the same
       // and is redacted too, which is the safe side to err on.
       const name = token.slice(0, token[2] === '=' ? 3 : 2);
-      tail.push(`${name}${redactValue(token.slice(name.length))}`);
+      inOption = name.startsWith('-o');
+      tail.push(`${name}${redactValue(token.slice(name.length), inOption)}`);
     } else if (token.startsWith('-')) {
+      inOption = token === '-o';
       tail.push(token); // `-t`, or `-` for stdin
     } else {
-      tail.push(redactValue(token));
+      tail.push(redactValue(token, inOption));
     }
   }
 
@@ -140,7 +154,8 @@ function urlCredentials(value: string): string[] {
  * walking arrays and objects the way `JSON.stringify` would (own enumerable
  * properties, or what `toJSON()` returns). Used on the record's free-text
  * fields, which can echo a flag value back (e.g. `Invalid option format:
- * "<input>"`).
+ * "<input>"`). Like `JSON.stringify`, it throws what a getter or a `toJSON()`
+ * of `value` throws.
  */
 export function scrubSecrets<T>(
   value: T,
@@ -164,20 +179,27 @@ export function scrubSecrets<T>(
     if (typeof current !== 'object' || current === null) {
       return current;
     }
-    if ('toJSON' in current && typeof current.toJSON === 'function') {
-      return walk(current.toJSON());
-    }
     if (ancestors.has(current)) {
       return '[Circular]';
     }
     ancestors.add(current);
-    const walked = Array.isArray(current)
-      ? current.map(walk)
-      : Object.fromEntries(
-          Object.entries(current).map(([key, entry]) => [key, walk(entry)]),
-        );
-    ancestors.delete(current);
-    return walked;
+    try {
+      const json: unknown =
+        'toJSON' in current && typeof current.toJSON === 'function'
+          ? current.toJSON()
+          : current;
+      // A `toJSON()` that hands back the object itself is walked as it is.
+      if (json !== current) {
+        return walk(json);
+      }
+      return Array.isArray(current)
+        ? current.map(walk)
+        : Object.fromEntries(
+            Object.entries(current).map(([key, entry]) => [key, walk(entry)]),
+          );
+    } finally {
+      ancestors.delete(current);
+    }
   };
 
   return walk(value) as T;

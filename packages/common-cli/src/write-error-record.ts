@@ -1,7 +1,7 @@
 import type { Command } from '@oclif/core';
 import type { CommandError } from '@oclif/core/interfaces';
 
-import type { ErrorCache } from './error-cache.js';
+import type { CachedError, ErrorCache } from './error-cache.js';
 import type { Feedback } from './feedback.js';
 import { redactArgv, scrubSecrets } from './redact-argv.js';
 
@@ -38,16 +38,27 @@ export async function writeErrorRecord(
     .filter(([name]) => !name.startsWith('@oclif'))
     .map(([name, version]) => ({ name, version: version.version }));
 
-  const { argv, redactedValues } = redactArgv(process.argv, command.id);
+  // The record is best effort and must never replace the error the user is
+  // about to see: this runs inside the command's `catch()`.
+  let redacted: Pick<CachedError, 'argv' | 'message' | 'stack' | 'cause'>;
+  try {
+    const { argv, redactedValues } = redactArgv(process.argv, command.id);
+    redacted = {
+      argv,
+      message: scrubSecrets(err.message, redactedValues),
+      stack: scrubSecrets(err.stack, redactedValues),
+      cause: scrubCause(err.cause, redactedValues),
+    };
+  } catch {
+    // Without redaction there is nothing safe to write.
+    return;
+  }
 
   await errorCache?.write({
     name: err.name,
-    message: scrubSecrets(err.message, redactedValues),
     commandName: command.id ?? 'unknown command',
     timestamp: Date.now(),
-    cause: scrubSecrets(err.cause, redactedValues),
-    stack: scrubSecrets(err.stack, redactedValues),
-    argv,
+    ...redacted,
     version: {
       architecture: versionDetails.architecture,
       cliVersion: versionDetails.cliVersion,
@@ -56,4 +67,20 @@ export async function writeErrorRecord(
     },
     pluginVersions,
   });
+}
+
+/**
+ * A cause is whatever was thrown, so walking it can throw too (a getter, a
+ * `toJSON()`). Such a cause is left out of the record, as it was when
+ * serializing it failed.
+ */
+function scrubCause(
+  cause: unknown,
+  redactedValues: readonly string[],
+): unknown {
+  try {
+    return scrubSecrets(cause, redactedValues);
+  } catch {
+    return undefined;
+  }
 }

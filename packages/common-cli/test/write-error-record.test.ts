@@ -80,4 +80,47 @@ describe('writeErrorRecord', () => {
       input: `some-plugin.auth.token=${REDACTED}`,
     });
   });
+
+  it.each([
+    [
+      'a throwing getter',
+      {
+        get input(): string {
+          throw new Error('getter failed');
+        },
+      },
+    ],
+    [
+      'a toJSON that never settles',
+      {
+        toJSON() {
+          return { ...this };
+        },
+      },
+    ],
+  ])(
+    'writes the record without the cause when it has %s',
+    async (_shape, cause) => {
+      process.argv = [
+        '/usr/bin/node',
+        '/usr/local/bin/thymian',
+        'lint',
+        '--token',
+        SECRET,
+      ];
+      const err = Object.assign(new Error(`Bad token "${SECRET}"`), {
+        cause,
+      }) as CommandError;
+
+      await expect(
+        writeErrorRecord(command('lint'), err, undefined, new ErrorCache(dir)),
+      ).resolves.toBeUndefined();
+
+      const record = JSON.parse(
+        await readFile(join(dir, 'last_error.json'), 'utf-8'),
+      );
+      expect(record.message).toBe(`Bad token "${REDACTED}"`);
+      expect(record).not.toHaveProperty('cause');
+    },
+  );
 });

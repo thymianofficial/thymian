@@ -93,6 +93,40 @@ describe('redactArgv', () => {
       [`-osome-plugin.auth.token=${REDACTED}`],
     ],
     [
+      '-o=key=value',
+      [`-o=some-plugin.auth.token=${SECRET}`],
+      [`-o=some-plugin.auth.token=${REDACTED}`],
+    ],
+    [
+      '-o key=value key=value',
+      ['-o', 'some-plugin.level=verbose', `some-plugin.auth.token=${SECRET}`],
+      [
+        '-o',
+        `some-plugin.level=${REDACTED}`,
+        `some-plugin.auth.token=${REDACTED}`,
+      ],
+    ],
+    [
+      'a dotted value with padding',
+      ['--token', 'aaa.bbb.ghp_s3cr3tT0ken='],
+      ['--token', REDACTED],
+    ],
+    [
+      'a dotted value with padding, given to -o',
+      ['-o', 'aaa.bbb.ghp_s3cr3tT0ken='],
+      ['-o', REDACTED],
+    ],
+    [
+      'a host and path with an equals sign',
+      ['--spec', 'example.com/ghp_s3cr3tT0ken=x'],
+      ['--spec', REDACTED],
+    ],
+    [
+      'a key=value after another flag ended the -o values',
+      ['-o', 'some-plugin.level=verbose', '--spec', `a.b=${SECRET}`],
+      ['-o', `some-plugin.level=${REDACTED}`, '--spec', REDACTED],
+    ],
+    [
       'a URL value with a query token',
       ['--spec', `openapi:https://example.com/spec?token=${SECRET}`],
       ['--spec', REDACTED],
@@ -202,5 +236,18 @@ describe('scrubSecrets', () => {
     cyclic['self'] = cyclic;
 
     expect(() => scrubSecrets(cyclic, [SECRET])).not.toThrow();
+  });
+
+  it('survives a toJSON that returns the object itself', () => {
+    const self = {
+      token: SECRET,
+      toJSON() {
+        return this;
+      },
+    };
+
+    expect(scrubSecrets({ self }, [SECRET])).toMatchObject({
+      self: { token: REDACTED },
+    });
   });
 });
