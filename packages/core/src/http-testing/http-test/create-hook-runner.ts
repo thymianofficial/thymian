@@ -3,7 +3,10 @@ import { deepmerge } from '../../utils.js';
 import type { HttpTestContext } from './http-test-context.js';
 import type { HttpTestHooks } from './http-test-hooks.js';
 
-declare module '@thymian/core' {
+// Augment the module that declares `ThymianActions`, not `@thymian/core`:
+// from core's own emitted declarations, `@thymian/core` resolves back to
+// core's sources, so a consumer never saw these actions.
+declare module '../../actions/index.js' {
   interface ThymianActions {
     'http-testing.beforeRequest': {
       event: HttpTestHooks['beforeRequest']['arg'];

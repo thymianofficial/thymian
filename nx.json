@@ -34,6 +34,14 @@
         "testTargetName": "test"
       },
       "exclude": ["e2e-tests/**"]
+    },
+    {
+      "plugin": "@nx/vitest",
+      "options": {
+        "testMode": "watch",
+        "testTargetName": "e2e"
+      },
+      "include": ["e2e-tests/**/*"]
     }
   ],
   "release": {
@@ -78,5 +86,8 @@
       }
     }
   },
-  "analytics": false
+  "analytics": false,
+  "affected": {
+    "legacy": true
+  }
 }

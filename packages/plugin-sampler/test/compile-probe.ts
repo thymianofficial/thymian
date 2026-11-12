@@ -11,7 +11,7 @@ import {
 } from '../src/generation/types/generate-type-surface.js';
 import { surfaceDiagnostics } from '../src/generation/types/self-check-surface.js';
 import type { TransactionCatalog } from '../src/selectors/transaction-catalog.js';
-import { isSameTsPath } from '../src/ts-path.js';
+import { isSameTsPath, toTypeScriptPath } from '../src/ts-path.js';
 import { sharedCompilerHost } from '../src/validation/shared-compiler-host.js';
 
 export type Diagnostic = {
@@ -58,8 +58,9 @@ export async function compileHook(
     moduleResolution: ts.ModuleResolutionKind.NodeNext,
     target: ts.ScriptTarget.ES2023,
     skipLibCheck: true,
-    baseUrl: root,
-    paths: { '@thymian/hooks': [`./generated/${HOOKS_API_FILE}`] },
+    paths: {
+      '@thymian/hooks': [toTypeScriptPath(join(generated, HOOKS_API_FILE))],
+    },
     // The probe imports nothing from node, and pinning the lib keeps the
     // diagnostics about the surface rather than about the environment.
     lib: ['lib.es2023.d.ts'],

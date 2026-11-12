@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { ThymianBaseError } from '@thymian/core';
 import ts from 'typescript';
 
-import { tsPathRelativeTo } from '../../ts-path.js';
+import { toTypeScriptPath, tsPathRelativeTo } from '../../ts-path.js';
 import { sharedCompilerHost } from '../../validation/shared-compiler-host.js';
 import {
   HOOKS_API_FILE,
@@ -52,8 +52,8 @@ export async function surfaceDiagnostics(
       target: ts.ScriptTarget.ES2023,
       // The whole point of this probe: do not skip the files under test.
       skipLibCheck: false,
-      baseUrl: root,
-      paths: { '@thymian/hooks': [`./generated/${HOOKS_API_FILE}`] },
+      // Absolute, so it needs no `baseUrl`, which TypeScript 6 deprecates.
+      paths: { '@thymian/hooks': [toTypeScriptPath(hooksApi)] },
       lib: ['lib.es2023.d.ts'],
       types: [],
     };

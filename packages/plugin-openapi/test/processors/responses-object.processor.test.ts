@@ -100,7 +100,7 @@ describe('processResponsesObject', () => {
   });
 
   it('should not take response headers from the request parameters', () => {
-    const [{ responses }] = processResponsesObject(
+    const [result] = processResponsesObject(
       { '200': okResponse },
       {
         ...parameters,
@@ -109,6 +109,6 @@ describe('processResponsesObject', () => {
       document,
     );
 
-    expect(responses[0]?.headers).toStrictEqual({});
+    expect(result?.responses[0]?.headers).toStrictEqual({});
   });
 });
