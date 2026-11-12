@@ -21,6 +21,7 @@ import {
   type CheckReport,
   type Outcome,
   reportOf,
+  summaryLineOf,
   summaryOf,
 } from '../../check-result.js';
 import { createContext } from '../../create-context.js';
@@ -198,27 +199,17 @@ export default class Check extends BaseCliRunCommand<typeof Check> {
   /** The tally. */
   private summarize(checked: readonly CheckedTransaction[]): void {
     const summary = summaryOf(checked);
+    const line = summaryLineOf(summary);
 
     this.log();
 
     if (summary.passed === summary.total) {
-      this.log(
-        oclif.ux.colorize(
-          'green',
-          `Checked ${summary.total} transactions. All passed.`,
-        ),
-      );
+      this.log(oclif.ux.colorize('green', line));
 
       return;
     }
 
-    const tally = (['failed', 'skipped', 'errored'] as const)
-      .filter((outcome) => summary[outcome] > 0)
-      .map((outcome) => `${summary[outcome]} ${outcome}`);
-
-    this.log(
-      `Checked ${summary.total} transactions: ${summary.passed} passed, ${tally.join(', ')}.`,
-    );
+    this.log(line);
 
     this.setExitCode(checked);
   }
