@@ -1,4 +1,9 @@
-import { type HttpFilterExpression, isRuleCriteria } from '@thymian/core';
+import {
+  type CommonHttpRuleCriteria,
+  type HttpFilterExpression,
+  isRuleCriteria,
+  type RuleFnResult,
+} from '@thymian/core';
 
 /**
  * How the rule-context calls of one validation context take the rule's
@@ -15,7 +20,7 @@ export type ApplicabilityCalls = {
    * The calls that say nothing about a transaction the rule did not flag:
    * they take the Applicability as a plain callback, or take none.
    */
-  silent: ReadonlySet<PropertyKey>;
+  notStating: ReadonlySet<PropertyKey>;
 };
 
 /**
@@ -33,7 +38,7 @@ export type StatedApplicability = HttpFilterExpression[] | undefined;
  */
 export function observeApplicability<Context extends object>(
   context: Context,
-  { stating, silent }: ApplicabilityCalls,
+  { stating, notStating }: ApplicabilityCalls,
 ): { context: Context; stated(): StatedApplicability } {
   const expressions: HttpFilterExpression[] = [];
   let unstated = false;
@@ -61,7 +66,7 @@ export function observeApplicability<Context extends object>(
             // the rule accepted.
             unstated = true;
           }
-        } else if (silent.has(property)) {
+        } else if (notStating.has(property)) {
           unstated = true;
         }
 
@@ -75,4 +80,40 @@ export function observeApplicability<Context extends object>(
     stated: () =>
       unstated || expressions.length === 0 ? undefined : expressions,
   };
+}
+
+/**
+ * The transactions the stated Applicability accepts, asked of the engine's
+ * context in a call of its own; `undefined` when the rule stated none, so that
+ * every transaction counts as applicable.
+ *
+ * The context is one the rule did not run on. Whatever it does not locate on
+ * a transaction is left out.
+ */
+export function applicableTransactions(
+  stated: StatedApplicability,
+  context: {
+    validateCommonHttpTransactions(
+      criteria: CommonHttpRuleCriteria,
+    ): RuleFnResult[];
+  },
+): Set<string> | undefined {
+  if (stated === undefined) {
+    return undefined;
+  }
+
+  return new Set(
+    stated
+      .flatMap((appliesTo) =>
+        context.validateCommonHttpTransactions({
+          appliesTo,
+          violatedWhen: (_req, _res, location): RuleFnResult[] => [
+            { location, findings: [] },
+          ],
+        }),
+      )
+      .flatMap(({ location }) =>
+        typeof location === 'string' ? [] : [location.elementId],
+      ),
+  );
 }

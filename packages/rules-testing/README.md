@@ -85,13 +85,15 @@ Two things make a transaction `skipped` in `test`, each with a `reason`, because
 
 ### The traffic in `analytics`
 
-`analytics` reads no file and no recording of yours: the analyzer is handed traffic held in memory, with the format present, as `thymian analyze` hands it a HAR file together with the specification.
+`analytics` reads no recording from disk: the analyzer is handed traffic held in memory, with the format present, as `thymian analyze` hands it a HAR file together with the specification.
 
-**The traffic is every transaction of the format recorded once, conforming:** the request the tester would send for it, with the examples the format carries and the media type the format declares for it as `content-type`, answered with the conforming response described above. So a format gives the same result in `analytics` as in `static` and `test`.
+**The traffic is every transaction of the format recorded once, conforming:** the request the tester would send for it, with the examples the format carries and the media type the format declares for it as `content-type`, answered with the conforming response described above. So a rule that judges a transaction by what the format declares gives the same executions in `analytics` as in `static` and `test`.
 
 Each pair is recorded the way traffic read from a HAR file is by default, as a user agent talking to an origin server, so a rule that speaks about one participant (`.appliesTo('server')`) is asked about it.
 
-The analyzer locates a result on the transaction of the format the recorded pair matches, so you name a transaction by the same id as in the other contexts. A result the rule locates itself, as a rule that reads captured transactions or whole traces does with the label it is given, keeps that location and comes last.
+The analyzer locates an execution on the transaction of the format the recorded pair matches, so you name a transaction by the same id as in the other contexts. An execution the rule locates itself, as a rule that reads captured transactions or whole traces does with the label it is given, keeps that location and comes last.
+
+The analyzer recognises a transaction in a recording by method, origin, path, status and media types, as it does for real traffic. Where that does not single out the transaction you added, `analytics` differs from `static` and `test`: two answers of one request with the same status and media type match neither, so both are `notApplicable` and an execution on their recording keeps its label; and a recording of `/launches/{id}` with the example `latest` is taken for a transaction on the literal path `/launches/latest` when the format has one.
 
 A request that cannot be built, for example for a path parameter without an example, makes `analytics` throw and name the transaction: there is nothing to record for it. Give the parameter's schema an example, as for `test`.
 
