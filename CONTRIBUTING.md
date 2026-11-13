@@ -36,6 +36,7 @@ When making commits, use one of the following scopes to indicate the area of the
 | rules-rfc-6797                   | RFC 6797 (HSTS) rule set                                                               |
 | rules-rfc-6265bis                | RFC 6265bis (Cookies) rule set                                                         |
 | rules-api-description-validation | API description validation rule set                                                    |
+| rules-testing                    | Rule tests through each context's real engine (`@thymian/rules-testing`)               |
 | e2e                              | End-to-end test workspace                                                              |
 
 Use these scopes in your commit messages for clarity and traceability.
