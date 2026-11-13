@@ -10,7 +10,6 @@ export default [
         {
           ignoredFiles: [
             '{projectRoot}/eslint.config.{js,cjs,mjs}',
-            '{projectRoot}/src/**/*.fixtures.ts',
             '{projectRoot}/src/test/**',
           ],
           ignoredDependencies: ['vitest', '@thymian/test-utils'],
