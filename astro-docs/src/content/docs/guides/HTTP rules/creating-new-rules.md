@@ -369,6 +369,7 @@ or(method('GET'), method('POST'));
 
 Now that you know how to create rules:
 
+- [Test your rule](/guides/http-rules/testing-rules/) in every validation context it declares
 - Explore [rule types in depth](/concepts/rule-types/) to understand context-specific features
 - Learn about [combining rule types](/guides/http-rules/combining-types/) for hybrid rules
 - See [how to use rules](/guides/http-rules/how-to-use-rules/) in your projects
