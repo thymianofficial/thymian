@@ -290,6 +290,44 @@ describe('runRule(rule).static(format)', () => {
     ]);
   });
 
+  it('reads the applicability of a positional rule-context call too', async () => {
+    const rule = httpRule('test/states-positionally')
+      .severity('error')
+      .type('static')
+      .rule((ctx) =>
+        ctx.validateCommonHttpTransactions(statusCode(201), () => []),
+      )
+      .done();
+    const format = createThymianFormat();
+    addTransaction(format, createGetRequest(), createOkResponse());
+    addTransaction(format, createPostRequest(), createCreatedResponse());
+
+    const executions = await runRule(rule).static(format);
+
+    expect(executions.map(({ status }) => status)).toEqual([
+      'notApplicable',
+      'passed',
+    ]);
+  });
+
+  it('reports every unflagged transaction as passed when a call gives only a violation condition', async () => {
+    const rule = httpRule('test/states-only-a-condition')
+      .severity('error')
+      .type('static')
+      .rule((ctx) => ctx.validateCommonHttpTransactions(statusCode(201)))
+      .done();
+    const format = createThymianFormat();
+    addTransaction(format, createGetRequest(), createOkResponse());
+    addTransaction(format, createPostRequest(), createCreatedResponse());
+
+    const executions = await runRule(rule).static(format);
+
+    expect(executions.map(({ status }) => status)).toEqual([
+      'passed',
+      'failed',
+    ]);
+  });
+
   describe('a rule that decides applicability in a plain callback', () => {
     const rule = httpRule('test/decides-in-a-callback')
       .severity('error')

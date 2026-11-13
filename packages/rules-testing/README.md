@@ -75,7 +75,7 @@ The `label` is the readable name of the location, so a failing comparison says w
 
 **Where `passed` and `notApplicable` come from.** The linter reports only what a rule returns, which for most rules is its violations. `runRule` works out the rest from the `appliesTo` the rule states in its rule-context calls: a transaction inside it that the engine reported nothing on is `passed`, one outside it is `notApplicable`. Several calls count together; a transaction is applicable when any of them accepts it.
 
-A rule whose applicability cannot be read from outside, because it decides in a plain callback (`validateHttpTransactions` in `static`) or makes no rule-context call at all, gets `passed` for every transaction it did not flag.
+A rule whose applicability cannot be read from outside, because it decides in a plain callback (`validateHttpTransactions` in `static`), passes only a violation condition, or makes no rule-context call at all, gets `passed` for every transaction it did not flag.
 
 `notApplicable` is filled in for transactions only. A node or a free string appears only when the engine reports an execution on it.
 

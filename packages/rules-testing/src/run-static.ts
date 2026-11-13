@@ -97,7 +97,7 @@ function withEngineLabel(
     rule.meta.name,
   );
 
-  return { ...location, label: heading };
+  return heading === '' ? location : { ...location, label: heading };
 }
 
 /**

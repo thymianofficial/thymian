@@ -55,9 +55,13 @@ declares, and return what the rule said about **every transaction** of the input
   `notApplicable`. A rule whose applicability cannot be read from outside, because it
   decides in a plain callback, gets `passed` for every transaction it did not flag.
 - **Locations are the engine's.** An execution carries the location the engine reported: a
-  transaction, a node, or a free string. `notApplicable` and `passed` are filled in for
-  transactions only.
+  transaction, a node, or a free string. The one addition is the readable label: where a
+  node or transaction location has none, the harness fills in the label a report prints for
+  it, so a failing comparison names the transaction although ids are hashes. `notApplicable`
+  and `passed` are filled in for transactions only.
 - **Rule tests replace the `Fixture`** as the way to show that a rule works in a context.
+  The fixture modules of the existing rule sets, and the records that describe them, stay
+  as they are until those rule sets are moved onto rule tests.
 
 ### Rejected alternative: the engines report passes
 
@@ -85,8 +89,10 @@ transaction, and the harness would only add `notApplicable`. Rejected:
 **Negative:**
 
 - The harness evaluates `appliesTo` in a call of its own, beside the engine's evaluation of
-  the rule. A fault in how an engine filters therefore shows as a wrong `failed`, not as a
-  wrong `passed`/`notApplicable` split. Accepted.
+  the rule, so the `passed`/`notApplicable` split is the harness's reading and not the
+  engine's. In `static` both calls go through the linter's filter, so a fault in that filter
+  moves both sides alike and a rule test does not expose it. Accepted: a rule test tests the
+  rule, and the engines' filters have tests of their own.
 - For a rule that decides applicability in a plain callback, `passed` cannot be told from
   `notApplicable`. Stating `appliesTo` as a filter expression is what makes a rule's scope
   testable.
