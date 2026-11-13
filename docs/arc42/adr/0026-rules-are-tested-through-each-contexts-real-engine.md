@@ -50,8 +50,9 @@ declares, and return what the rule said about **every transaction** of the input
   context over the analyzer's own store, held in memory, driven by core's rule runner and
   report builder as `thymian analyze` drives it; the traffic is every transaction of the
   format recorded once, the request the tester would send answered with the response the
-  format declares, so no traffic plugin and no recording on disk is involved. The harness
-  does not reimplement what a context does with a rule.
+  format declares, or the recorded pairs the author hands in, so no traffic plugin and no
+  recording on disk is involved. The harness does not reimplement what a context does with
+  a rule.
 - **Any rule runs, as it ships.** The rule runner leaves a rule with severity `off` out, so
   the harness hands it to the engine enabled, on a copy, and reports the severity the rule
   declares. `runRule(rule, { options })` passes the rule's options through the rules
@@ -117,6 +118,12 @@ transaction, and the harness would only add `notApplicable`. Rejected:
 - The harness observes the rule-context calls a rule makes. A new rule-context method that
   takes an applicability has to be made known to it, per context: `validateHttpTransactions`
   takes a plain callback in `static` and a filter expression in `analytics`.
+- The analyzer locates an execution on the transaction a recorded pair matches, not on the
+  pair. Where the author records one transaction several times, the harness learns which
+  recording an execution is about by running the rule on each of those recordings alone as
+  well. A rule that compares recordings with each other says something else about one that
+  stands alone; the harness notices by the number of executions and then shows what the
+  rule reported on the transaction, with all traffic present, on every recording of it.
 - The traffic of a rule test in `analytics` is recorded as a user agent talking to an origin
   server, the roles traffic read from a HAR file gets by default. A rule that speaks only
   about an intermediary is not asked about it.
@@ -147,3 +154,4 @@ transaction, and the harness would only add `notApplicable`. Rejected:
 | ---------- | -------- | --------------------------------------------------- |
 | 2026-11-13 | Accepted | Initial draft                                       |
 | 2026-11-13 | Accepted | `analytics` added: traffic recorded from the format |
+| 2026-11-13 | Accepted | `analytics` takes handed-in traffic                 |

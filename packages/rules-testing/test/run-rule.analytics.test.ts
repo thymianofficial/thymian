@@ -6,6 +6,7 @@ import {
   type HttpResponse,
   httpRule,
   not,
+  requestHeader,
   responseHeader,
   statusCode,
 } from '@thymian/core';
@@ -24,7 +25,7 @@ import {
 } from '@thymian/core-testing';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { runRule } from '../src/index.js';
+import { recorded, runRule } from '../src/index.js';
 import { createdResponsesHaveLocation } from './rules/created-responses-have-location.js';
 
 vi.mock('node:fs/promises', { spy: true });
@@ -317,6 +318,42 @@ describe('runRule(rule).analytics(format)', () => {
       expect(executions).toHaveLength(3);
     });
 
+    it('keeps the order of the format for a transaction that has no recording of its own', async () => {
+      const format = createThymianFormat();
+      const createAstronaut = createPostRequest({ path: '/astronauts' });
+      const createdBare = addTransaction(
+        format,
+        createAstronaut,
+        createCreatedResponse(),
+      );
+      const createdWithLocation = addTransaction(
+        format,
+        createAstronaut,
+        createCreatedResponse({
+          headers: { location: createRequiredParameter() },
+        }),
+      );
+      const launchesListed = addTransaction(
+        format,
+        createGetRequest({ path: '/launches' }),
+        createOkResponse(),
+      );
+
+      const executions = await runRule(createdResponsesHaveLocation).analytics(
+        format,
+      );
+
+      expect(
+        executions
+          .filter(({ location }) => typeof location !== 'string')
+          .map(({ location }) => location),
+      ).toMatchObject([
+        { elementId: createdBare },
+        { elementId: createdWithLocation },
+        { elementId: launchesListed },
+      ]);
+    });
+
     it('cannot be recorded for a request that cannot be built, and says which', async () => {
       const format = createThymianFormat();
       addTransaction(
@@ -331,6 +368,468 @@ describe('runRule(rule).analytics(format)', () => {
       await expect(
         runRule(createdResponsesHaveLocation).analytics(format),
       ).rejects.toThrow(
+        /^Cannot record ".*\/launches\/\{id\}.*": Missing value for path parameter "id"\./,
+      );
+    });
+  });
+
+  describe('handed-in traffic', () => {
+    it('judges each recording of a transaction on its own: recorded conforming and not, it is passed and failed', async () => {
+      const format = createThymianFormat();
+      const launchesListed = addTransaction(
+        format,
+        createGetRequest({ path: '/launches' }),
+        createOkResponse(),
+      );
+      const launchCreated = addTransaction(
+        format,
+        createPostRequest({ path: '/launches' }),
+        createCreatedResponse({
+          headers: { location: createRequiredParameter() },
+        }),
+      );
+
+      const executions = await runRule(createdResponsesHaveLocation).analytics(
+        format,
+        {
+          traffic: [
+            recorded(format, launchCreated),
+            recorded(format, launchCreated, { response: { headers: {} } }),
+          ],
+        },
+      );
+
+      expect(executions).toMatchObject([
+        {
+          location: { elementType: 'edge', elementId: launchCreated },
+          status: 'passed',
+        },
+        {
+          location: { elementType: 'edge', elementId: launchCreated },
+          status: 'failed',
+          severity: 'warn',
+          message:
+            'A 201 Created response must name the new resource in a Location header',
+        },
+        { location: { elementId: launchesListed }, status: 'notApplicable' },
+      ]);
+      expect(executions).toHaveLength(3);
+    });
+
+    it('lists the recordings in traffic order, then the transactions never recorded, then other locations', async () => {
+      const rule = httpRule('test/flags-bare-201-twice')
+        .severity('error')
+        .type('analytics')
+        .rule(async (ctx) => [
+          ...ctx.validateCommonHttpTransactions({
+            appliesTo: statusCode(201),
+            violatedWhen: not(responseHeader('location')),
+          }),
+          ...(await ctx.validateCapturedHttpTransactions(
+            statusCode(201),
+            (_pair, label) => [
+              { location: label, violation: {}, findings: [] },
+            ],
+          )),
+        ])
+        .done();
+      const format = createThymianFormat();
+      const launchesListed = addTransaction(
+        format,
+        createGetRequest({ path: '/launches' }),
+        createOkResponse(),
+      );
+      const astronautCreated = addTransaction(
+        format,
+        createPostRequest({ path: '/astronauts' }),
+        createCreatedResponse(),
+      );
+      const launchCreated = addTransaction(
+        format,
+        createPostRequest({ path: '/launches' }),
+        createCreatedResponse(),
+      );
+      const astronautsListed = addTransaction(
+        format,
+        createGetRequest({ path: '/astronauts' }),
+        createOkResponse(),
+      );
+
+      const executions = await runRule(rule).analytics(format, {
+        traffic: [
+          recorded(format, launchCreated),
+          recorded(format, astronautsListed),
+          recorded(format, astronautCreated),
+        ],
+      });
+
+      expect(executions).toMatchObject([
+        { location: { elementId: launchCreated }, status: 'failed' },
+        { location: { elementId: astronautsListed }, status: 'notApplicable' },
+        { location: { elementId: astronautCreated }, status: 'failed' },
+        { location: { elementId: launchesListed }, status: 'notApplicable' },
+        { location: expect.stringContaining('/launches'), status: 'failed' },
+        { location: expect.stringContaining('/astronauts'), status: 'failed' },
+      ]);
+      expect(executions).toHaveLength(6);
+    });
+
+    it('keeps the string location of a recording that matches no transaction', async () => {
+      const format = createThymianFormat();
+      const launchCreated = addTransaction(
+        format,
+        createPostRequest({ path: '/launches' }),
+        createCreatedResponse({
+          headers: { location: createRequiredParameter() },
+        }),
+      );
+
+      const executions = await runRule(createdResponsesHaveLocation).analytics(
+        format,
+        {
+          traffic: [
+            recorded(format, launchCreated),
+            recorded(format, launchCreated, {
+              request: { path: '/probes' },
+              response: { headers: {} },
+            }),
+          ],
+        },
+      );
+
+      expect(executions).toMatchObject([
+        { location: { elementId: launchCreated }, status: 'passed' },
+        { location: expect.stringContaining('/probes'), status: 'failed' },
+      ]);
+      expect(executions).toHaveLength(2);
+    });
+
+    it('hands request overrides to the rule, so a rule about a request header is testable', async () => {
+      const rule = httpRule('test/requests-are-authorized')
+        .severity('error')
+        .type('analytics')
+        .rule((ctx) =>
+          ctx.validateCommonHttpTransactions({
+            appliesTo: statusCode(200),
+            violatedWhen: not(requestHeader('authorization')),
+          }),
+        )
+        .done();
+      const format = createThymianFormat();
+      const launchesListed = addTransaction(
+        format,
+        createGetRequest({ path: '/launches' }),
+        createOkResponse(),
+      );
+
+      const executions = await runRule(rule).analytics(format, {
+        traffic: [
+          recorded(format, launchesListed, {
+            request: { headers: { authorization: 'Bearer apollo' } },
+          }),
+          recorded(format, launchesListed),
+        ],
+      });
+
+      expect(executions).toMatchObject([
+        { location: { elementId: launchesListed }, status: 'passed' },
+        { location: { elementId: launchesListed }, status: 'failed' },
+      ]);
+      expect(executions).toHaveLength(2);
+    });
+
+    it("asks the applicability of each recording: one that left the rule's scope is notApplicable", async () => {
+      const rule = httpRule('test/speaks-about-tagged-responses')
+        .severity('error')
+        .type('analytics')
+        .rule((ctx) =>
+          ctx.validateCommonHttpTransactions({
+            appliesTo: responseHeader('etag'),
+            violatedWhen: not(responseHeader('cache-control')),
+          }),
+        )
+        .done();
+      const format = createThymianFormat();
+      const launchesListed = addTransaction(
+        format,
+        createGetRequest({ path: '/launches' }),
+        createOkResponse({
+          headers: {
+            etag: createOptionalParameter(),
+            'cache-control': createOptionalParameter(),
+          },
+        }),
+      );
+
+      const executions = await runRule(rule).analytics(format, {
+        traffic: [
+          recorded(format, launchesListed, { response: { headers: {} } }),
+          recorded(format, launchesListed),
+          recorded(format, launchesListed, {
+            response: { headers: { etag: '"apollo"' } },
+          }),
+        ],
+      });
+
+      expect(executions).toMatchObject([
+        { location: { elementId: launchesListed }, status: 'notApplicable' },
+        { location: { elementId: launchesListed }, status: 'passed' },
+        { location: { elementId: launchesListed }, status: 'failed' },
+      ]);
+      expect(executions).toHaveLength(3);
+    });
+
+    it('gives every recording of a transaction what a rule that compares recordings said about the transaction', async () => {
+      const format = createThymianFormat();
+      const launchesListed = addTransaction(
+        format,
+        createGetRequest({ path: '/launches' }),
+        createOkResponse(),
+      );
+      const rule = httpRule('test/nothing-is-recorded-twice')
+        .severity('error')
+        .type('analytics')
+        .rule((ctx) => {
+          const traces = ctx.validateCapturedHttpTraces((trace) => [
+            { location: String(trace.length), findings: [] },
+          ]);
+
+          return traces.length > 1
+            ? [
+                {
+                  location: { elementType: 'edge', elementId: launchesListed },
+                  violation: { message: 'recorded more than once' },
+                  findings: [],
+                },
+              ]
+            : [];
+        })
+        .done();
+
+      const executions = await runRule(rule).analytics(format, {
+        traffic: [
+          recorded(format, launchesListed),
+          recorded(format, launchesListed),
+        ],
+      });
+
+      expect(
+        executions.filter(({ location }) => typeof location !== 'string'),
+      ).toMatchObject([
+        {
+          location: { elementId: launchesListed },
+          status: 'failed',
+          message: 'recorded more than once',
+        },
+        {
+          location: { elementId: launchesListed },
+          status: 'failed',
+          message: 'recorded more than once',
+        },
+      ]);
+    });
+
+    it('is what the format alone records when it holds every conforming pair in the order of the format', async () => {
+      const format = createThymianFormat();
+      const launchesListed = addTransaction(
+        format,
+        createGetRequest({ path: '/launches' }),
+        createOkResponse(),
+      );
+      const astronautCreated = addTransaction(
+        format,
+        createPostRequest({ path: '/astronauts' }),
+        createCreatedResponse(),
+      );
+      const run = runRule(createdResponsesHaveLocation);
+
+      expect(
+        await run.analytics(format, {
+          traffic: [
+            recorded(format, launchesListed),
+            recorded(format, astronautCreated),
+          ],
+        }),
+      ).toEqual(await run.analytics(format));
+      expect(await run.analytics(format, {})).toEqual(
+        await run.analytics(format),
+      );
+    });
+
+    it('leaves every transaction notApplicable when nothing was recorded', async () => {
+      const format = createThymianFormat();
+      const astronautCreated = addTransaction(
+        format,
+        createPostRequest({ path: '/astronauts' }),
+        createCreatedResponse(),
+      );
+
+      expect(
+        await runRule(createdResponsesHaveLocation).analytics(format, {
+          traffic: [],
+        }),
+      ).toMatchObject([
+        { location: { elementId: astronautCreated }, status: 'notApplicable' },
+      ]);
+    });
+
+    it('takes pairs written by hand, which need not come from the format', async () => {
+      const format = createThymianFormat();
+      const astronautCreated = addTransaction(
+        format,
+        createPostRequest({ path: '/astronauts' }),
+        createCreatedResponse(),
+      );
+      const { request } = recorded(format, astronautCreated);
+
+      const executions = await runRule(createdResponsesHaveLocation).analytics(
+        format,
+        {
+          traffic: [
+            {
+              request,
+              response: {
+                statusCode: 201,
+                headers: {
+                  'content-type': 'application/json',
+                  location: '/astronauts/7',
+                },
+                trailers: {},
+                duration: 12,
+              },
+            },
+          ],
+        },
+      );
+
+      expect(executions).toMatchObject([
+        { location: { elementId: astronautCreated }, status: 'passed' },
+      ]);
+      expect(executions).toHaveLength(1);
+    });
+  });
+
+  describe('recorded(format, transactionId)', () => {
+    it('is the pair the format alone records for the transaction', async () => {
+      const format = createThymianFormat();
+      const astronautCreated = addTransaction(
+        format,
+        createPostRequest({
+          path: '/astronauts',
+          mediaType: 'application/json',
+          body: createObjectSchema({}, { examples: [{ name: 'Sally Ride' }] }),
+        }),
+        createCreatedResponse({
+          headers: {
+            location: createRequiredParameter({
+              schema: createStringSchema({ examples: ['/astronauts/7'] }),
+            }),
+          },
+        }),
+      );
+
+      const pair = recorded(format, astronautCreated);
+
+      expect(await recordedPairsOf(format)).toMatchObject([
+        {
+          request: { headers: pair.request.headers, body: pair.request.body },
+          response: { headers: pair.response.headers },
+        },
+      ]);
+      expect(pair).toMatchObject({
+        request: {
+          method: 'POST',
+          path: '/astronauts',
+          headers: { 'content-type': 'application/json' },
+          body: '{"name":"Sally Ride"}',
+        },
+        response: { statusCode: 201, headers: { location: '/astronauts/7' } },
+      });
+    });
+
+    it('replaces the fields of the request and of the response that are overridden, and keeps the others', () => {
+      const format = createThymianFormat();
+      const astronautCreated = addTransaction(
+        format,
+        createPostRequest({ path: '/astronauts' }),
+        createCreatedResponse({
+          mediaType: '',
+          headers: { location: createRequiredParameter() },
+        }),
+      );
+
+      const pair = recorded(format, astronautCreated, {
+        request: { headers: { authorization: 'Bearer apollo' } },
+        response: { statusCode: 202 },
+      });
+
+      expect(pair).toMatchObject({
+        request: {
+          method: 'POST',
+          path: '/astronauts',
+          headers: { authorization: 'Bearer apollo' },
+        },
+        response: {
+          statusCode: 202,
+          headers: { location: expect.any(String) },
+        },
+      });
+    });
+
+    it('keeps naming the declared media type when headers are overridden, unless they name one', () => {
+      const format = createThymianFormat();
+      const astronautCreated = addTransaction(
+        format,
+        createPostRequest({
+          path: '/astronauts',
+          mediaType: 'application/json',
+          body: createObjectSchema({}, { examples: [{ name: 'Sally Ride' }] }),
+        }),
+        createCreatedResponse({
+          mediaType: 'application/json',
+          headers: { location: createRequiredParameter() },
+        }),
+      );
+
+      expect(
+        recorded(format, astronautCreated, {
+          request: { headers: { authorization: 'Bearer apollo' } },
+          response: { headers: {} },
+        }),
+      ).toMatchObject({
+        request: {
+          headers: {
+            'content-type': 'application/json',
+            authorization: 'Bearer apollo',
+          },
+        },
+        response: { headers: { 'content-type': 'application/json' } },
+      });
+      expect(
+        recorded(format, astronautCreated, {
+          response: { headers: { 'Content-Type': 'text/html' } },
+        }).response.headers,
+      ).toEqual({ 'Content-Type': 'text/html' });
+    });
+
+    it('throws for an id the format has no transaction with', () => {
+      expect(() => recorded(createThymianFormat(), 'no-such-id')).toThrow(
+        'Cannot record "no-such-id": the format has no transaction with that id.',
+      );
+    });
+
+    it('throws for a request that cannot be built, and says which', () => {
+      const format = createThymianFormat();
+      const launchFound = addTransaction(
+        format,
+        createGetRequest({
+          path: '/launches/{id}',
+          pathParameters: { id: createRequiredParameter() },
+        }),
+        createOkResponse(),
+      );
+
+      expect(() => recorded(format, launchFound)).toThrow(
         /^Cannot record ".*\/launches\/\{id\}.*": Missing value for path parameter "id"\./,
       );
     });

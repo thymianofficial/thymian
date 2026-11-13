@@ -97,6 +97,39 @@ The analyzer recognises a transaction in a recording by method, origin, path, st
 
 A request that cannot be built, for example for a path parameter without an example, makes `analytics` throw and name the transaction: there is nothing to record for it. Give the parameter's schema an example, as for `test`.
 
+**Traffic you hand in** replaces it. `traffic` is a list of recorded pairs, each a request and its response as plain HTTP objects. `recorded(format, transactionId, overrides?)` gives the conforming pair of a transaction, so you write only what deviates:
+
+```typescript
+import { recorded, runRule } from '@thymian/rules-testing';
+
+const executions = await run.analytics(format, {
+  traffic: [recorded(format, launchCreated), recorded(format, launchCreated, { response: { headers: {} } })],
+});
+
+expect(executions).toMatchObject([
+  { location: { elementId: launchCreated }, status: 'passed' },
+  { location: { elementId: launchCreated }, status: 'failed' },
+  { location: { elementId: launchesListed }, status: 'notApplicable' },
+  // ...every other transaction of the format, none of them recorded
+]);
+```
+
+A transaction may be recorded several times, and each recording is judged on its own: here the second one dropped the `Location` header the format declares. The list is then in another order than for `static`: one entry per recording, in traffic order; then the transactions that were never recorded, as `notApplicable`; then executions on any other location.
+
+An override replaces a field of the conforming request or response as a whole: `{ request: { headers: { authorization: 'Bearer apollo' } } }` records exactly that request header, which is how a rule about a request header is tested. One thing is kept: the media type the format declares is still named as `content-type`, because the analyzer recognises the transaction by it, unless the headers you give name a `content-type` themselves. `recorded` throws for an id the format has no transaction with, and for a request that cannot be built.
+
+A recording that the analyzer matches to no transaction of the format, for example one with another path or status, has no transaction to appear on. What the rule says about it is located on a free string, the label of the recording, and comes last:
+
+```typescript
+const executions = await run.analytics(format, {
+  traffic: [recorded(format, launchCreated, { request: { path: '/probes' }, response: { headers: {} } })],
+});
+
+expect(executions.at(-1)).toMatchObject({ location: expect.stringContaining('/probes'), status: 'failed' });
+```
+
+The analyzer names the transaction an execution is about, not the recording. For a transaction recorded several times, `runRule` therefore also runs the rule on each of its recordings alone to learn which one an execution belongs to. A rule that compares recordings with each other says something else about a recording that stands alone; what such a rule reports on the transaction then appears on every recording of it.
+
 ### Any rule runs
 
 **A rule that ships with severity `off`** runs like any other, so a rule that is only switched on by a config or a profile is testable as it ships. A `failed` execution carries the severity the rule declares, here `off`.
@@ -128,9 +161,9 @@ A list of executions. Each one has:
 
 The `label` is the readable name of the location, so a failing comparison says which transaction it is about although ids are hashes. A label the rule set itself is kept.
 
-**Order.** Every transaction of the format, in the order it was added. A transaction the engine reported several executions on appears once per execution, in the order the engine reported them. Executions on any other location come last.
+**Order.** Every transaction of the format, in the order it was added. A transaction the engine reported several executions on appears once per execution, in the order the engine reported them. Executions on any other location come last. With traffic handed to `analytics` the recordings come first, in traffic order, as described above.
 
-**Where `passed` and `notApplicable` come from.** In `test` the tester reports an execution for every transaction it sent a request for, `passed` and `skipped` included; `runRule` takes them as reported and adds only `notApplicable`, for a transaction no request was sent for. The linter and the analyzer report only what a rule returns, which for most rules is its violations. In `static` and `analytics`, `runRule` works out the rest from the `appliesTo` the rule states in its rule-context calls: a transaction inside it that the engine reported nothing on is `passed`, one outside it is `notApplicable`. Several calls count together; a transaction is applicable when any of them accepts it. `static` asks the `appliesTo` of the format, `analytics` of the recorded pair.
+**Where `passed` and `notApplicable` come from.** In `test` the tester reports an execution for every transaction it sent a request for, `passed` and `skipped` included; `runRule` takes them as reported and adds only `notApplicable`, for a transaction no request was sent for. The linter and the analyzer report only what a rule returns, which for most rules is its violations. In `static` and `analytics`, `runRule` works out the rest from the `appliesTo` the rule states in its rule-context calls: a transaction inside it that the engine reported nothing on is `passed`, one outside it is `notApplicable`. Several calls count together; a transaction is applicable when any of them accepts it. `static` asks the `appliesTo` of the format, `analytics` of the recorded pair, so two recordings of one transaction can differ in it.
 
 A rule whose applicability cannot be read from outside gets `passed` for every transaction it did not flag. That is a rule that passes only a violation condition or makes no rule-context call at all, and:
 

@@ -7,6 +7,7 @@ import {
   type RuleViolationLocation,
   type RunRulesResult,
   type ThymianFormat,
+  type ThymianHttpTransaction,
   thymianHttpTransactionToString,
 } from '@thymian/core';
 
@@ -64,45 +65,77 @@ export function listExecutions(
   isApplicable: (transactionId: string) => boolean,
 ): RuleTestExecution[] {
   const transactions = format.getThymianHttpTransactions();
-  const reportedOn = new Map<string, RuleTestExecution[]>(
-    transactions.map(({ transactionId }) => [transactionId, []]),
-  );
-  const reportedElsewhere: RuleTestExecution[] = [];
-
-  for (const execution of reported) {
-    const { location } = execution;
-    const onTransaction =
-      typeof location !== 'string' && location.elementType === 'edge'
-        ? reportedOn.get(location.elementId)
-        : undefined;
-
-    (onTransaction ?? reportedElsewhere).push(execution);
-  }
 
   return [
-    ...transactions.flatMap(
-      ({ transactionId, thymianReq, thymianRes }): RuleTestExecution[] => {
-        const executions = reportedOn.get(transactionId) ?? [];
-
-        return executions.length > 0
-          ? executions
-          : [
-              {
-                location: {
-                  elementType: 'edge',
-                  elementId: transactionId,
-                  label: thymianHttpTransactionToString(thymianReq, thymianRes),
-                },
-                status: isApplicable(transactionId)
-                  ? 'passed'
-                  : 'notApplicable',
-                findings: [],
-              },
-            ];
-      },
+    ...transactions.flatMap((transaction) =>
+      executionsOn(
+        transaction,
+        reported,
+        isApplicable(transaction.transactionId) ? 'passed' : 'notApplicable',
+      ),
     ),
-    ...reportedElsewhere,
+    ...executionsElsewhere(transactions, reported),
   ];
+}
+
+/**
+ * The executions the engine located on the transaction, in the order it
+ * reported them, or the one filled in for a transaction it reported nothing
+ * on, with the status given.
+ */
+export function executionsOn(
+  { transactionId, thymianReq, thymianRes }: ThymianHttpTransaction,
+  reported: RuleTestExecution[],
+  unreported: 'passed' | 'notApplicable',
+): RuleTestExecution[] {
+  const executions = reportedOn(transactionId, reported);
+
+  return executions.length > 0
+    ? executions
+    : [
+        {
+          location: {
+            elementType: 'edge',
+            elementId: transactionId,
+            label: thymianHttpTransactionToString(thymianReq, thymianRes),
+          },
+          status: unreported,
+          findings: [],
+        },
+      ];
+}
+
+/** The executions the engine located on the transaction. */
+export function reportedOn(
+  transactionId: string,
+  reported: RuleTestExecution[],
+): RuleTestExecution[] {
+  return reported.filter(
+    ({ location }) => transactionOf(location) === transactionId,
+  );
+}
+
+/**
+ * The executions the engine located on none of the transactions: on a node,
+ * on a free string, or on an edge that is not one of them.
+ */
+export function executionsElsewhere(
+  transactions: ThymianHttpTransaction[],
+  reported: RuleTestExecution[],
+): RuleTestExecution[] {
+  const ids = new Set(transactions.map(({ transactionId }) => transactionId));
+
+  return reported.filter(({ location }) => {
+    const transactionId = transactionOf(location);
+
+    return transactionId === undefined || !ids.has(transactionId);
+  });
+}
+
+function transactionOf(location: RuleViolationLocation): string | undefined {
+  return typeof location !== 'string' && location.elementType === 'edge'
+    ? location.elementId
+    : undefined;
 }
 
 /**
