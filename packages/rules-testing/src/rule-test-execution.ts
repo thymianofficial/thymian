@@ -1,6 +1,7 @@
 import {
   executionsFromRunRulesResult,
   type FindingRecord,
+  isRuleViolationGroupLocation,
   resolveViolationLocation,
   type Rule,
   type RuleSeverity,
@@ -41,6 +42,12 @@ export type RuleTestExecution = {
   severity?: RuleSeverity;
   /** Present when `skipped` and the rule gave a reason. */
   reason?: string;
+  /**
+   * Present when a grouped rule located the execution on a group as a whole
+   * and not on one of its members: the group key. Every member of the group
+   * then carries the execution, each on its own location.
+   */
+  group?: string;
   /**
    * What the rule attached to the execution, as the engine reports it in a
    * report: on a pass as much as on a violation. Empty when it attached
@@ -141,7 +148,8 @@ function transactionOf(location: RuleViolationLocation): string | undefined {
 /**
  * The executions core's report builder makes of what the rule returned, as it
  * does for `thymian lint` and `thymian analyze`, each on the location the rule
- * returned it for.
+ * returned it for. An execution on a group is listed once per member of the
+ * group, on the member, with the group key.
  */
 export function reportedExecutions(
   result: RunRulesResult,
@@ -157,13 +165,11 @@ export function reportedExecutions(
       ? executionsFromRunRulesResult(result, [rule], format, 'lint')
       : executionsFromRunRulesResult(result, [rule], format, 'analyze');
 
-  return executions.map(({ status, findings }, index): RuleTestExecution => {
+  return executions.flatMap(({ status, findings }, index) => {
     // The report builder emits one execution per entry, in entry order.
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const { location } = entries[index]!;
-
-    return {
-      location: withEngineLabel(location, format, rule),
+    const said = {
       status: status.kind,
       ...(status.kind === 'failed'
         ? { message: status.reason, severity: declaredSeverity }
@@ -173,6 +179,15 @@ export function reportedExecutions(
         : {}),
       findings,
     };
+
+    // What a rule says about a group, it says about every member of it.
+    return isRuleViolationGroupLocation(location)
+      ? location.members.map((member): RuleTestExecution => ({
+          location: withEngineLabel(member, format, rule),
+          ...said,
+          group: location.key,
+        }))
+      : [{ location: withEngineLabel(location, format, rule), ...said }];
   });
 }
 

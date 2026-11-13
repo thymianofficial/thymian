@@ -2,6 +2,7 @@ import {
   type CommonHttpRuleCriteria,
   type HttpFilterExpression,
   isRuleCriteria,
+  isRuleViolationGroupLocation,
   type RuleFnResult,
 } from '@thymian/core';
 
@@ -113,7 +114,9 @@ export function applicableTransactions(
         }),
       )
       .flatMap(({ location }) =>
-        typeof location === 'string' ? [] : [location.elementId],
+        typeof location === 'string' || isRuleViolationGroupLocation(location)
+          ? []
+          : [location.elementId],
       ),
   );
 }

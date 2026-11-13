@@ -77,6 +77,17 @@ declares, and return what the rule said about **every transaction** of the input
   it, so a failing comparison names the transaction although ids are hashes. An execution
   also carries the findings the report builder gives it, on a pass as on a violation.
   `notApplicable` and `passed` are filled in for transactions only.
+- **A group is a location that names its members.** A grouped rule
+  (`validateGroupedCommonHttpTransactions`) returns one location, and that choice is read as
+  its statement of what is at fault: a member, or the group, for which it returns the group
+  key. The rule contract stays as it is. The three contexts turn a result on the group key
+  into a result on a group location that carries the key and the locations of the members,
+  where they used to pass the bare key on. The harness lists such an execution once per
+  member, on the member, with the key as `group`; a member the rule returned nothing on is
+  `passed` when a sibling was blamed. The analyzer also hands a grouped rule the transaction
+  each recorded pair matches as its location, as it does for the ungrouped forms, so a
+  blamed member is a transaction of the format in every context. A report shows a group by
+  its key, as before: the report format has no group location.
 - **Rule tests replace the `Fixture`** as the way to show that a rule works in a context.
   The fixture modules of the existing rule sets, and the records that describe them, stay
   as they are until those rule sets are moved onto rule tests.
@@ -102,7 +113,9 @@ transaction, and the harness would only add `notApplicable`. Rejected:
   wrong transaction or reaches outside its scope.
 - A third-party rule author tests a rule with one package next to `@thymian/core-testing`,
   in any test framework.
-- The engines and the report format are unchanged by rule testing.
+- The report format is unchanged by rule testing, and so is what the engines report, with
+  two exceptions that also serve normal runs: the analyzer locates a result on the
+  transaction a recorded pair matches, and a result on a group names the group's members.
 
 **Negative:**
 
