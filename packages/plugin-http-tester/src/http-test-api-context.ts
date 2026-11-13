@@ -12,6 +12,7 @@ import {
   type HttpRuleCriteria,
   type HttpTestCaseResult,
   isRuleCriteria,
+  locateOnGroup,
   type RuleFnResult,
   type RuleViolationLocation,
   type TestContext,
@@ -50,13 +51,17 @@ function hasSource(
 }
 
 function isSameLocation(
-  a: RuleViolationLocation,
+  a: RuleFnResult['location'],
   b: RuleViolationLocation,
 ): boolean {
   if (typeof a === 'string' || typeof b === 'string') {
     return a === b;
   }
-  return a.elementType === b.elementType && a.elementId === b.elementId;
+  return (
+    a.elementType !== 'group' &&
+    a.elementType === b.elementType &&
+    a.elementId === b.elementId
+  );
 }
 
 type EdgeLocation = {
@@ -217,7 +222,11 @@ export class HttpTestApiContext<
         return;
       }
 
-      const results = violatedWhen(source.key, transactionsToValidate);
+      const results = locateOnGroup(
+        violatedWhen(source.key, transactionsToValidate),
+        source.key,
+        transactionsToValidate.map(([, , location]) => location),
+      );
       callViolations.push(...results);
       for (const result of results) {
         placements.push({ result, testCaseIndex, stepIndex: 0 });

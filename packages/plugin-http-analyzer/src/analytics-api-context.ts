@@ -20,6 +20,7 @@ import {
   type HttpRuleCriteria,
   httpTransactionToLabel,
   isRuleCriteria,
+  locateOnGroup,
   type Logger,
   matchesOrigin,
   not,
@@ -300,27 +301,29 @@ export class AnalyticsApiContext implements AnalyzeContext {
     );
 
     for (const [key, transactions] of groups) {
-      results.push(
-        ...violatedWhen(
-          key,
-          transactions.map((t) => {
-            const location = httpTransactionToLabel(
-              t.request.data,
-              t.response.data,
-            );
+      const members = transactions.map(
+        (t): [CommonHttpRequest, CommonHttpResponse, RuleViolationLocation] => {
+          const label = httpTransactionToLabel(t.request.data, t.response.data);
 
-            return [
-              httpRequestToCommonHttpRequest(t.request.data, {
-                label: location,
-                logger: this.logger,
-              }),
-              httpResponseToCommonHttpResponse(t.response.data, {
-                label: location,
-                logger: this.logger,
-              }),
-              location,
-            ];
-          }),
+          return [
+            httpRequestToCommonHttpRequest(t.request.data, {
+              label,
+              logger: this.logger,
+            }),
+            httpResponseToCommonHttpResponse(t.response.data, {
+              label,
+              logger: this.logger,
+            }),
+            this.locate(t.request.data, t.response.data, label),
+          ];
+        },
+      );
+
+      results.push(
+        ...locateOnGroup(
+          violatedWhen(key, members),
+          key,
+          members.map(([, , location]) => location),
         ),
       );
     }

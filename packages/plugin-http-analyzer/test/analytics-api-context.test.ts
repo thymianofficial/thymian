@@ -879,6 +879,94 @@ describe('AnalyticsApiContext', () => {
         ]);
       });
 
+      it('hands a grouped rule the Transaction location of each member', () => {
+        const format = createThymianFormat();
+        const [, , transactionId] = format.addHttpTransaction(
+          ...describedUser(),
+        );
+        const context = new AnalyticsApiContext({ repository, logger, format });
+
+        const result = context.validateGroupedCommonHttpTransactions({
+          appliesTo: statusCode(200),
+          groupBy: method(),
+          violatedWhen: (_key, members) =>
+            members.map(([, , location]) => ({
+              location,
+              violation: {},
+              findings: [],
+            })),
+        });
+
+        expect(result).toEqual([
+          {
+            location: { elementType: 'edge', elementId: transactionId, label },
+            violation: {},
+            findings: [],
+          },
+        ]);
+      });
+
+      it('locates a result on the group key on the group, naming each member Transaction once', () => {
+        const postRequest = { ...recordedRequest, method: 'post' };
+        const unmatchedRequest = { ...recordedRequest, path: '/posts' };
+        // A second recording of the pair `beforeEach` inserted, another
+        // Transaction, and a pair the format does not describe.
+        insertTransaction({
+          request: { data: recordedRequest, meta: {} },
+          response: { data: recordedResponse, meta: {} },
+        });
+        insertTransaction({
+          request: { data: postRequest, meta: {} },
+          response: { data: recordedResponse, meta: {} },
+        });
+        insertTransaction({
+          request: { data: unmatchedRequest, meta: {} },
+          response: { data: recordedResponse, meta: {} },
+        });
+
+        const format = createThymianFormat();
+        const [, , userRead] = format.addHttpTransaction(...describedUser());
+        const [, , userReplaced] = format.addHttpTransaction(
+          createHttpRequest({
+            method: 'POST',
+            host: 'api.example.com',
+            path: '/users/{id}',
+            mediaType: '',
+          }),
+          createHttpResponse({ statusCode: 200 }),
+          'test-source',
+        );
+        const context = new AnalyticsApiContext({ repository, logger, format });
+
+        const result = context.validateGroupedCommonHttpTransactions({
+          appliesTo: statusCode(200),
+          groupBy: statusCode(),
+          violatedWhen: (key) => [
+            { location: key, violation: { message: 'flagged' }, findings: [] },
+          ],
+        });
+
+        expect(result).toEqual([
+          {
+            location: {
+              elementType: 'group',
+              key: '200',
+              members: [
+                { elementType: 'edge', elementId: userRead, label },
+                {
+                  elementType: 'edge',
+                  elementId: userReplaced,
+                  label: httpTransactionToLabel(postRequest, recordedResponse),
+                },
+                httpTransactionToLabel(unmatchedRequest, recordedResponse),
+              ],
+            },
+            violation: { message: 'flagged' },
+            findings: [],
+          },
+        ]);
+      });
+
       it('keeps the string label for a recorded pair that matches no Transaction', () => {
         const format = createThymianFormat();
         format.addHttpTransaction(

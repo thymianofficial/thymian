@@ -293,6 +293,88 @@ describe('StaticApiContext', () => {
       );
     });
 
+    it('locates a result on the group key on the group, naming its member transactions', () => {
+      const format = createThymianFormat();
+      const [, , usersListed] = format.addHttpTransaction(
+        createHttpRequest({ method: 'get', path: '/users' }),
+        createHttpResponse({ statusCode: 200, headers: {} }),
+        'test-source',
+      );
+      const [, , postsListed] = format.addHttpTransaction(
+        createHttpRequest({ method: 'get', path: '/posts' }),
+        createHttpResponse({ statusCode: 200, headers: {} }),
+        'test-source',
+      );
+      format.addHttpTransaction(
+        createHttpRequest({ method: 'get', path: '/error' }),
+        createHttpResponse({ statusCode: 404, headers: {} }),
+        'test-source',
+      );
+
+      const context = new StaticApiContext(format, new NoopLogger());
+
+      const result = context.validateGroupedCommonHttpTransactions({
+        appliesTo: method('get'),
+        groupBy: statusCode(),
+        violatedWhen: (key) =>
+          key === '200'
+            ? [
+                {
+                  location: key,
+                  violation: { message: 'flagged' },
+                  findings: [],
+                },
+              ]
+            : [],
+      });
+
+      expect(result).toEqual([
+        {
+          location: {
+            elementType: 'group',
+            key: '200',
+            members: [
+              { elementType: 'edge', elementId: usersListed },
+              { elementType: 'edge', elementId: postsListed },
+            ],
+          },
+          violation: { message: 'flagged' },
+          findings: [],
+        },
+      ]);
+    });
+
+    it('keeps a result on one member of a group on that member', () => {
+      const format = createThymianFormat();
+      format.addHttpTransaction(
+        createHttpRequest({ method: 'get', path: '/users' }),
+        createHttpResponse({ statusCode: 200, headers: {} }),
+        'test-source',
+      );
+      const [, , postsListed] = format.addHttpTransaction(
+        createHttpRequest({ method: 'get', path: '/posts' }),
+        createHttpResponse({ statusCode: 200, headers: {} }),
+        'test-source',
+      );
+
+      const context = new StaticApiContext(format, new NoopLogger());
+
+      const result = context.validateGroupedCommonHttpTransactions({
+        appliesTo: method('get'),
+        groupBy: statusCode(),
+        violatedWhen: (_key, [, [, , location] = []]) =>
+          location ? [{ location, violation: {}, findings: [] }] : [],
+      });
+
+      expect(result).toEqual([
+        {
+          location: { elementType: 'edge', elementId: postsListed },
+          violation: {},
+          findings: [],
+        },
+      ]);
+    });
+
     it('should handle empty groups', () => {
       const format = createThymianFormat();
 

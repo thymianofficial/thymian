@@ -399,6 +399,52 @@ describe('HttpTestApiContext', () => {
         ]),
       );
     });
+
+    it('locates a result on the group key on the group, naming its member transactions', async () => {
+      const format = createThymianFormat();
+      const [, , usersListed] = format.addHttpTransaction(
+        createHttpRequest({ method: 'get', path: '/users' }),
+        createHttpResponse({ statusCode: 200, headers: {} }),
+        'test-source',
+      );
+      const [, , postsListed] = format.addHttpTransaction(
+        createHttpRequest({ method: 'get', path: '/posts' }),
+        createHttpResponse({ statusCode: 200, headers: {} }),
+        'test-source',
+      );
+
+      const context = new HttpTestApiContext(
+        'test-rule',
+        createMockHttpTestContext({ format }),
+      );
+
+      const result = await context.validateGroupedCommonHttpTransactions({
+        appliesTo: statusCode(200),
+        groupBy: method(),
+        violatedWhen: (key) => [
+          { location: key, violation: { message: 'flagged' }, findings: [] },
+        ],
+      });
+
+      expect(result).toEqual([
+        {
+          location: {
+            elementType: 'group',
+            key: 'GET',
+            members: [
+              { elementType: 'edge', elementId: usersListed },
+              { elementType: 'edge', elementId: postsListed },
+            ],
+          },
+          violation: { message: 'flagged' },
+          findings: [],
+        },
+      ]);
+      // The result fails the test case of its group.
+      expect(context.getRuleExecutionDiagnostics()?.[0]?.placements).toEqual([
+        { result: result[0], testCaseIndex: 0, stepIndex: 0 },
+      ]);
+    });
   });
 
   describe('validateHttpTransactions', () => {
