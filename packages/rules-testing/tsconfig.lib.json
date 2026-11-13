@@ -15,13 +15,16 @@
   "include": ["src/**/*.ts"],
   "references": [
     {
+      "path": "../plugin-http-tester/tsconfig.lib.json"
+    },
+    {
       "path": "../plugin-http-linter/tsconfig.lib.json"
     },
     {
-      "path": "../core/tsconfig.lib.json"
+      "path": "../core-testing/tsconfig.lib.json"
     },
     {
-      "path": "../core-testing/tsconfig.lib.json"
+      "path": "../core/tsconfig.lib.json"
     }
   ]
 }
