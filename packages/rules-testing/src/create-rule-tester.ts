@@ -27,7 +27,8 @@ export type RuleTesterConfiguration<
   /**
    * The rule's options, handed to the rule function as the `options` of the
    * rule's entry in a config are. Call `createRuleTester` once per configuration to
-   * test.
+   * test. `createRuleTester` throws when the rule's options schema does not accept
+   * them.
    */
   options?: Options;
 };

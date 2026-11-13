@@ -71,7 +71,7 @@ expect(await createRuleTester(createdResponsesHaveHeader, { options: { header: '
 expect(await createRuleTester(createdResponsesHaveHeader, { options: { header: 'etag' } }).runLint(format)).toMatchObject([{ location: { elementId: launchCreated }, status: 'failed' }]);
 ```
 
-The options are not checked against the rule's options schema; a config is.
+Options the rule's options schema does not accept make `createRuleTester` throw, as a config with them is rejected when it is loaded.
 
 ### What comes back
 

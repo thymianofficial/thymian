@@ -12,7 +12,7 @@ import { describe, expect, it } from 'vitest';
 
 import { createRuleTester } from '../src/index.js';
 
-describe('createRuleTester(rule, { options })', () => {
+describe('createRuleTester runs any rule', () => {
   describe('a rule that ships with severity off', () => {
     const needsLocation = (severity: RuleSeverity) =>
       httpRule('test/created-needs-location')
@@ -136,7 +136,7 @@ describe('createRuleTester(rule, { options })', () => {
       ]);
     });
 
-    it('gives another result for another configuration of the same rule', async () => {
+    it('gives other executions for another configuration of the same rule', async () => {
       const executions = await createRuleTester(requiresHeader, {
         options: { header: 'location' },
       }).runLint(format);
@@ -144,6 +144,16 @@ describe('createRuleTester(rule, { options })', () => {
       expect(executions).toMatchObject([
         { location: { elementId: launchCreated }, status: 'passed' },
       ]);
+    });
+
+    it("rejects options the rule's options schema does not accept, as a config is rejected", () => {
+      expect(() =>
+        createRuleTester(requiresHeader, {
+          options: { header: 201 } as unknown as { header: string },
+        }),
+      ).toThrow(
+        'Options for rule "test/created-requires-header" do not match the options schema of the rule.',
+      );
     });
 
     it('tells the rule function the context it runs in, beside its options', async () => {
@@ -206,7 +216,7 @@ describe('createRuleTester(rule, { options })', () => {
       createCreatedResponse(),
     );
 
-    it('yields a skipped entry carrying the reason, on the transaction it skipped', async () => {
+    it('yields a skipped execution carrying the reason, on the transaction it skipped', async () => {
       const executions = await createRuleTester(
         skips('the specification does not say'),
       ).runLint(format);
@@ -222,7 +232,7 @@ describe('createRuleTester(rule, { options })', () => {
       expect(executions).toHaveLength(2);
     });
 
-    it('yields a skipped entry without a reason when the rule gave none', async () => {
+    it('yields a skipped execution without a reason when the rule gave none', async () => {
       const executions = await createRuleTester(skips()).runLint(format);
 
       expect(executions[1]).toMatchObject({ status: 'skipped' });
@@ -275,7 +285,7 @@ describe('createRuleTester(rule, { options })', () => {
       createCreatedResponse(),
     );
 
-    it('come back on a passed entry and on a failed one, as the engine reports them', async () => {
+    it('come back on a passed execution and on a failed one, as the engine reports them', async () => {
       const executions = await createRuleTester(notes).runLint(format);
 
       expect(executions).toEqual([
@@ -312,7 +322,7 @@ describe('createRuleTester(rule, { options })', () => {
       ]);
     });
 
-    it('are an empty list on an entry the engine reported none for', async () => {
+    it('are an empty list on an execution the engine reported none for', async () => {
       const silent = httpRule('test/says-nothing')
         .severity('error')
         .type('static')
