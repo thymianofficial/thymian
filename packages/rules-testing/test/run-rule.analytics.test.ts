@@ -318,6 +318,42 @@ describe('runRule(rule).analytics(format)', () => {
       expect(executions).toHaveLength(3);
     });
 
+    it('keeps the order of the format for a transaction that has no recording of its own', async () => {
+      const format = createThymianFormat();
+      const createAstronaut = createPostRequest({ path: '/astronauts' });
+      const createdBare = addTransaction(
+        format,
+        createAstronaut,
+        createCreatedResponse(),
+      );
+      const createdWithLocation = addTransaction(
+        format,
+        createAstronaut,
+        createCreatedResponse({
+          headers: { location: createRequiredParameter() },
+        }),
+      );
+      const launchesListed = addTransaction(
+        format,
+        createGetRequest({ path: '/launches' }),
+        createOkResponse(),
+      );
+
+      const executions = await runRule(createdResponsesHaveLocation).analytics(
+        format,
+      );
+
+      expect(
+        executions
+          .filter(({ location }) => typeof location !== 'string')
+          .map(({ location }) => location),
+      ).toMatchObject([
+        { elementId: createdBare },
+        { elementId: createdWithLocation },
+        { elementId: launchesListed },
+      ]);
+    });
+
     it('cannot be recorded for a request that cannot be built, and says which', async () => {
       const format = createThymianFormat();
       addTransaction(
