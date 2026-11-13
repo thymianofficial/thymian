@@ -2,6 +2,7 @@ import type { Rule, ThymianFormat } from '@thymian/core';
 
 import type { RuleTestExecution } from './rule-test-execution.js';
 import { ruleUnderTest } from './rule-under-test.js';
+import { runAnalytics } from './run-analytics.js';
 import { runStatic } from './run-static.js';
 import { type Respond, runTest } from './run-test.js';
 
@@ -28,6 +29,16 @@ export type RunRule = {
     format: ThymianFormat,
     configuration?: RunTestConfiguration,
   ): Promise<RuleTestExecution[]>;
+  /**
+   * Runs the rule as `thymian analyze` does, against traffic held in memory,
+   * and returns the same list in the same order as `static`. The traffic is
+   * every transaction of the format recorded once: the request the format
+   * describes, answered as the format declares it.
+   *
+   * Throws when the rule does not declare `analytics`, and when the request
+   * of a transaction cannot be built from the format.
+   */
+  analytics(format: ThymianFormat): Promise<RuleTestExecution[]>;
 };
 
 /**
@@ -99,10 +110,17 @@ export function runRule<Options extends Record<PropertyKey, unknown>>(
       assertDeclares(anyRule, 'test');
       return runTest(underTest, format, respond);
     },
+    async analytics(format) {
+      assertDeclares(anyRule, 'analytics');
+      return runAnalytics(underTest, format);
+    },
   };
 }
 
-function assertDeclares(rule: Rule, context: 'static' | 'test'): void {
+function assertDeclares(
+  rule: Rule,
+  context: 'static' | 'test' | 'analytics',
+): void {
   if (!rule.meta.type.includes(context)) {
     throw new Error(
       `Rule "${rule.meta.name}" does not declare the "${context}" context. It declares: ${rule.meta.type.join(', ')}.`,
