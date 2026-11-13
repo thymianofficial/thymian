@@ -2,6 +2,7 @@ import type { Rule, ThymianFormat } from '@thymian/core';
 
 import type { RuleTestExecution } from './rule-test-execution.js';
 import { ruleUnderTest } from './rule-under-test.js';
+import { runAnalyze } from './run-analyze.js';
 import { runLint } from './run-lint.js';
 import { type Respond, runTest } from './run-test.js';
 
@@ -28,6 +29,16 @@ export type RuleTester = {
     format: ThymianFormat,
     configuration?: RunTestConfiguration,
   ): Promise<RuleTestExecution[]>;
+  /**
+   * Runs the rule as `thymian analyze` does, against traffic held in memory,
+   * and returns the same list in the same order as `static`. The traffic is
+   * every transaction of the format recorded once: the request the format
+   * describes, answered as the format declares it.
+   *
+   * Throws when the rule does not declare `analytics`, and when the request
+   * of a transaction cannot be built from the format.
+   */
+  runAnalyze(format: ThymianFormat): Promise<RuleTestExecution[]>;
 };
 
 /**
@@ -99,13 +110,17 @@ export function createRuleTester<Options extends Record<PropertyKey, unknown>>(
       assertDeclares(anyRule, 'runTest', 'test');
       return runTest(underTest, format, respond);
     },
+    async runAnalyze(format) {
+      assertDeclares(anyRule, 'runAnalyze', 'analytics');
+      return runAnalyze(underTest, format);
+    },
   };
 }
 
 function assertDeclares(
   rule: Rule,
   method: keyof RuleTester,
-  context: 'static' | 'test',
+  context: 'static' | 'test' | 'analytics',
 ): void {
   if (!rule.meta.type.includes(context)) {
     throw new Error(

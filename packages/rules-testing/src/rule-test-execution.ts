@@ -1,12 +1,16 @@
 import {
+  executionsFromRunRulesResult,
   type FindingRecord,
   resolveViolationLocation,
   type Rule,
   type RuleSeverity,
   type RuleViolationLocation,
+  type RunRulesResult,
   type ThymianFormat,
   thymianHttpTransactionToString,
 } from '@thymian/core';
+
+import type { RuleUnderTest } from './rule-under-test.js';
 
 /**
  * `notApplicable` exists only in a rule test: the engines and the report know
@@ -99,6 +103,44 @@ export function listExecutions(
     ),
     ...reportedElsewhere,
   ];
+}
+
+/**
+ * The executions core's report builder makes of what the rule returned, as it
+ * does for `thymian lint` and `thymian analyze`, each on the location the rule
+ * returned it for.
+ */
+export function reportedExecutions(
+  result: RunRulesResult,
+  { rule, declaredSeverity }: RuleUnderTest,
+  format: ThymianFormat,
+  runType: 'lint' | 'analyze',
+): RuleTestExecution[] {
+  const entries = result[rule.meta.name]?.ruleFnResult ?? [];
+
+  // One overload per run type, so the call is spelled out for each.
+  const executions =
+    runType === 'lint'
+      ? executionsFromRunRulesResult(result, [rule], format, 'lint')
+      : executionsFromRunRulesResult(result, [rule], format, 'analyze');
+
+  return executions.map(({ status, findings }, index): RuleTestExecution => {
+    // The report builder emits one execution per entry, in entry order.
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    const { location } = entries[index]!;
+
+    return {
+      location: withEngineLabel(location, format, rule),
+      status: status.kind,
+      ...(status.kind === 'failed'
+        ? { message: status.reason, severity: declaredSeverity }
+        : {}),
+      ...(status.kind === 'skipped' && status.reason !== undefined
+        ? { reason: status.reason }
+        : {}),
+      findings,
+    };
+  });
 }
 
 /**

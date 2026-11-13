@@ -24,8 +24,9 @@ const METHOD = {
 } as const;
 
 // The same format and the same expectation in every context: `test` answers
-// each request as the format declares it, so it agrees with `static`.
-describe.each(['static', 'test'] as const)(
+// each request as the format declares it, and `analytics` reads each
+// transaction recorded that way, so both agree with `static`.
+describe.each(['static', 'test', 'analytics'] as const)(
   'the demo rules in %s',
   (context) => {
     it('created-responses-have-location: flags the 201 without a Location header', async () => {
