@@ -224,7 +224,7 @@ ApiContext (base)
 - `format` — Access to the ThymianFormat graph
 - `report` — Emit structured reports
 - `reportViolation()` — Report a rule violation
-- `validateCommonHttpTransactions({ appliesTo, violatedWhen })` — Iterate the transactions a rule applies to and report those its violation condition finds. `validateGroupedCommonHttpTransactions` adds a `groupBy` expression and `validateHttpTransactions` takes the same two keys on the live contexts
+- `validateCommonHttpTransactions({ appliesTo, violatedWhen })` — Iterate the transactions a rule applies to and report those its violation condition finds. `validateGroupedCommonHttpTransactions` adds a `groupBy` expression and `validateHttpTransactions` takes the same two keys on the live contexts. A grouped rule that returns the group key as its location is reported on a group location (`RuleViolationGroupLocation`), which the context fills with the locations of the group's members; a report shows it by the key
 
 **Mode-specific capabilities:**
 

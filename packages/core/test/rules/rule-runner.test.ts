@@ -168,6 +168,23 @@ describe('resolveViolationLocation', () => {
     });
   });
 
+  it('shows a group by its key, as a custom location', () => {
+    const format = new ThymianFormat();
+    const result = resolveViolationLocation(
+      {
+        elementType: 'group',
+        key: 'https://localhost/test',
+        members: [{ elementType: 'edge', elementId: 'not-looked-up' }],
+      },
+      format,
+      'my-rule',
+    );
+    expect(result).toEqual({
+      heading: 'https://localhost/test',
+      location: { type: 'custom', value: 'https://localhost/test' },
+    });
+  });
+
   it('returns thymianFormat edge location for an http-transaction edge', () => {
     const format = new ThymianFormat();
     const [, , transactionId] = format.addHttpTransaction(

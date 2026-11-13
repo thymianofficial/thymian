@@ -146,6 +146,26 @@ expect(await runRule(createdResponsesHaveHeader, { options: { header: 'etag' } }
 
 Options the rule's options schema does not accept make `runRule` throw, as a config with them is rejected when it is loaded.
 
+### Grouped rules
+
+A rule that compares several transactions with each other (`validateGroupedCommonHttpTransactions`) is handed each group with its key and its members, and says who is at fault by the location it returns. Both readings come back per transaction, in all three contexts:
+
+- **It returns the location of one member:** that transaction is `failed`, and the other members of the group are `passed`.
+- **It returns the group key:** every member of the group is `failed`, and each of these executions carries the key as `group`.
+
+```typescript
+const launchRead = addTransaction(format, createGetRequest({ path: '/launches' }), createOkResponse({ headers: { etag: createRequiredParameter() } }));
+const launchReplaced = addTransaction(format, createPutRequest({ path: '/launches' }), createOkResponse());
+
+// A rule that groups by `url()` and returns the key of a group whose answers disagree about ETag
+expect(await runRule(resourcesSendEtagConsistently).static(format)).toMatchObject([
+  { location: { elementId: launchRead }, status: 'failed', group: expect.stringContaining('/launches') },
+  { location: { elementId: launchReplaced }, status: 'failed', group: expect.stringContaining('/launches') },
+]);
+```
+
+The key is what the context grouped by, spelled as that context spells it: grouped by `url()`, `static` and `test` give `https://localhost:443/launches` where `analytics` gives `https://localhost/launches`. In `test` the tester sends the requests of a group together, so a server that answers one member with another status than declared makes every member of the group `skipped`.
+
 ### What comes back
 
 A list of executions. Each one has:
@@ -157,6 +177,7 @@ A list of executions. Each one has:
 | `message`  | When `failed`: the violation's message, or the rule's summary or description when it gives none.                                                                   |
 | `severity` | When `failed`: the severity the rule declares.                                                                                                                     |
 | `reason`   | When `skipped`: the reason the rule gave.                                                                                                                          |
+| `group`    | When a grouped rule located the execution on a group and not on one member: the group key. See [Grouped rules](#grouped-rules).                                    |
 | `findings` | What the rule attached to the execution, as a report carries it. Always a list; empty when the rule attached nothing.                                              |
 
 The `label` is the readable name of the location, so a failing comparison says which transaction it is about although ids are hashes. A label the rule set itself is kept.

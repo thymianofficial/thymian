@@ -9,6 +9,7 @@ import {
   isRuleCriteria,
   type LintContext,
   type LintRuleCriteria,
+  locateOnGroup,
   type Logger,
   type RuleFinding,
   type RuleFnResult,
@@ -166,26 +167,34 @@ export class StaticApiContext implements LintContext {
       );
 
     const rawEntries: RuleFnResult[] = Object.entries(groups).flatMap(
-      ([key, group]) =>
-        violatedWhen(
+      ([key, group]) => {
+        const members = group.map(
+          ({
+            thymianReq,
+            thymianRes,
+            thymianReqId,
+            thymianResId,
+            transactionId,
+          }): [
+            CommonHttpRequest,
+            CommonHttpResponse,
+            RuleViolationLocation,
+          ] => [
+            thymianToCommonHttpRequest(thymianReq, thymianReqId),
+            thymianToCommonHttpResponse(thymianRes, thymianResId),
+            {
+              elementType: 'edge',
+              elementId: transactionId,
+            },
+          ],
+        );
+
+        return locateOnGroup(
+          violatedWhen(key, members),
           key,
-          group.map(
-            ({
-              thymianReq,
-              thymianRes,
-              thymianReqId,
-              thymianResId,
-              transactionId,
-            }) => [
-              thymianToCommonHttpRequest(thymianReq, thymianReqId),
-              thymianToCommonHttpResponse(thymianRes, thymianResId),
-              {
-                elementType: 'edge',
-                elementId: transactionId,
-              },
-            ],
-          ),
-        ),
+          members.map(([, , location]) => location),
+        );
+      },
     );
 
     return rawEntries;
