@@ -5,7 +5,7 @@ import { parseStsFieldValue } from './sts-field-value.js';
 // The one test below the engine seam: the parser is a pure function whose
 // contract is RFC 6797 §6.1's ABNF, and these are the corners of it — RFC
 // 2616's quoted-string and control characters, implied linear whitespace,
-// empty directives — that a fixture cannot reach cheaply.
+// empty directives — that a rule test cannot reach cheaply.
 describe('parseStsFieldValue', () => {
   it.each([
     [
