@@ -207,6 +207,12 @@ function renderLintAnalyzeRow(
   return `| ${severity} | ${status} | ${ruleCell} | ${message} |`;
 }
 
+/** One shown finding of a lint/analyze execution: its kind word and text. */
+interface FindingRow {
+  kind: string;
+  text: string;
+}
+
 /**
  * The collapsed findings block of one execution, placed beneath its group's
  * table in row order. The summary names the row by the identity columns the
@@ -217,7 +223,7 @@ function renderFindingsDetails(
   sortReportsBy: SortReportsBy,
   ruleId: string | undefined,
   location: string,
-  findings: { kind: string; text: string }[],
+  findings: FindingRow[],
 ): string[] {
   const summaryParts: string[] = [];
   if (sortReportsBy !== 'rule') {
@@ -389,7 +395,7 @@ function buildLintAnalyzeSection(
 
     // Which findings are shown is unchanged: informational and
     // assertion-failure; assertion-success stays omitted.
-    const findings: { kind: string; text: string }[] = [];
+    const findings: FindingRow[] = [];
     for (const finding of execution.findings) {
       if (finding.kind === 'informational') {
         findings.push({
