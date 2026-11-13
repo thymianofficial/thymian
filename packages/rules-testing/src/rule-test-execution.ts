@@ -169,7 +169,7 @@ export function reportedExecutions(
     // The report builder emits one execution per entry, in entry order.
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const { location } = entries[index]!;
-    const said = {
+    const outcome = {
       status: status.kind,
       ...(status.kind === 'failed'
         ? { message: status.reason, severity: declaredSeverity }
@@ -181,13 +181,21 @@ export function reportedExecutions(
     };
 
     // What a rule says about a group, it says about every member of it.
-    return isRuleViolationGroupLocation(location)
+    // A group without members has only its key to be listed on.
+    return isRuleViolationGroupLocation(location) && location.members.length > 0
       ? location.members.map((member): RuleTestExecution => ({
           location: withEngineLabel(member, format, rule),
-          ...said,
+          ...outcome,
           group: location.key,
         }))
-      : [{ location: withEngineLabel(location, format, rule), ...said }];
+      : [
+          {
+            location: isRuleViolationGroupLocation(location)
+              ? location.key
+              : withEngineLabel(location, format, rule),
+            ...outcome,
+          },
+        ];
   });
 }
 
