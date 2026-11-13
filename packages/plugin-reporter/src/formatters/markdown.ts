@@ -162,43 +162,88 @@ function groupHeadingText(
 }
 
 /**
- * Column layout for a lint/analyze table. `rule`/`severity` swap in a Location
- * column — the identity the group heading no longer carries — and drop the
- * column now redundant with the heading (Rule / Severity respectively).
+ * Column layout for a lint/analyze execution table. `rule`/`severity` swap in
+ * a Location column — the identity the group heading no longer carries — and
+ * drop the columns now redundant with the heading. Severity holds severities
+ * only; Status holds the execution status and appears wherever one table can
+ * mix statuses (`severity` groups hold a single status each: the failed
+ * executions of one severity, or the skipped ones).
  */
 function lintAnalyzeTableHeader(sortReportsBy: SortReportsBy): string[] {
-  // Drop the column the group heading already carries: `rule` drops Severity
-  // and Rule (both implied by the rule heading); `severity` drops Severity.
   const columns =
     sortReportsBy === 'rule'
-      ? ['Location', 'Message']
+      ? ['Status', 'Location', 'Message']
       : sortReportsBy === 'severity'
         ? ['Rule', 'Location', 'Message']
-        : ['Severity', 'Rule', 'Message'];
+        : ['Severity', 'Status', 'Rule', 'Message'];
   return [
     `| ${columns.join(' | ')} |`,
     `| ${columns.map(() => '---').join(' | ')} |`,
   ];
 }
 
-/** Builds one lint/analyze table row with the column layout for the mode. */
+/** One lint/analyze execution's cells, already escaped for a table row. */
+interface LintAnalyzeCells {
+  /** Severity word of a failed execution; empty for skipped/passed. */
+  severity: string;
+  status: Execution['status']['kind'];
+  ruleCell: string;
+  locationCell: string;
+  message: string;
+}
+
+/** Builds one lint/analyze execution row with the column layout for the mode. */
 function renderLintAnalyzeRow(
   sortReportsBy: SortReportsBy,
-  cells: {
-    statusLabel: string;
-    ruleCell: string;
-    locationCell: string;
-    message: string;
-  },
+  cells: LintAnalyzeCells,
 ): string {
-  const { statusLabel, ruleCell, locationCell, message } = cells;
+  const { severity, status, ruleCell, locationCell, message } = cells;
   if (sortReportsBy === 'rule') {
-    return `| ${locationCell} | ${message} |`;
+    return `| ${status} | ${locationCell} | ${message} |`;
   }
   if (sortReportsBy === 'severity') {
     return `| ${ruleCell} | ${locationCell} | ${message} |`;
   }
-  return `| ${statusLabel} | ${ruleCell} | ${message} |`;
+  return `| ${severity} | ${status} | ${ruleCell} | ${message} |`;
+}
+
+/**
+ * The collapsed findings block of one execution, placed beneath its group's
+ * table in row order. The summary names the row by the identity columns the
+ * group heading does not carry — rule under `endpoint`, location under
+ * `rule`, both under `severity` — so the block reads as that row's.
+ */
+function renderFindingsDetails(
+  sortReportsBy: SortReportsBy,
+  ruleId: string | undefined,
+  location: string,
+  findings: { kind: string; text: string }[],
+): string[] {
+  const summaryParts: string[] = [];
+  if (sortReportsBy !== 'rule') {
+    summaryParts.push(
+      `<code>${escapeHtml(ruleId ?? UNNAMED_CHECK_LABEL)}</code>`,
+    );
+  }
+  if (sortReportsBy !== 'endpoint') {
+    summaryParts.push(escapeHtml(location));
+  }
+  summaryParts.push(
+    `${findings.length} ${pluralize(findings.length, 'finding')}`,
+  );
+
+  return [
+    `<details><summary>${summaryParts.join(' · ')}</summary>`,
+    '',
+    '| Kind | Finding |',
+    '| --- | --- |',
+    ...findings.map(
+      ({ kind, text }) => `| ${escapeCell(kind)} | ${escapeCell(text)} |`,
+    ),
+    '',
+    '</details>',
+    '',
+  ];
 }
 
 function findingKindWord(kind: string): string {
@@ -307,9 +352,10 @@ function buildOverviewRow(run: ToolRun): string {
 }
 
 /**
- * Renders lint/analyze run bodies as grouped tables. The column layout and
- * group heading vary by `--sort-reports-by`; `endpoint` (default) keeps the
- * historical location-grouped `Severity | Rule | Message` layout.
+ * Renders lint/analyze run bodies as grouped tables: one row per execution,
+ * then one collapsed `<details>` block per execution that has findings,
+ * holding its own `Kind | Finding` table. The column layout and group heading
+ * vary by `--sort-reports-by`; `endpoint` (default) groups by location.
  */
 function buildLintAnalyzeSection(
   run: ToolRun,
@@ -322,7 +368,10 @@ function buildLintAnalyzeSection(
   lines.push('');
 
   const ruleIndex = buildRuleIndex(run.rules);
-  const groups = new Map<string, { rows: string[]; executions: Execution[] }>();
+  const groups = new Map<
+    string,
+    { rows: string[]; details: string[]; executions: Execution[] }
+  >();
 
   for (const execution of walkExecutions(run.executions)) {
     if (execution.kind !== 'lint' && execution.kind !== 'analyze') {
@@ -333,9 +382,32 @@ function buildLintAnalyzeSection(
     // group key (its severity is undefined → would fall into the `error`
     // bucket) and is not a violation, so exclude it and its informational
     // findings — matching the CLI grouped renderer, which skips passed
-    // executions. `endpoint` groups by location and keeps them, so its output
-    // is unchanged.
+    // executions. `endpoint` groups by location and keeps them.
     if (sortReportsBy !== 'endpoint' && execution.status.kind === 'passed') {
+      continue;
+    }
+
+    // Which findings are shown is unchanged: informational and
+    // assertion-failure; assertion-success stays omitted.
+    const findings: { kind: string; text: string }[] = [];
+    for (const finding of execution.findings) {
+      if (finding.kind === 'informational') {
+        findings.push({
+          kind: findingKindWord(finding.kind),
+          text: finding.message?.text ?? finding.title,
+        });
+      } else if (finding.kind === 'assertion-failure') {
+        const suffix = assertionFailureSuffix(finding);
+        const base = finding.message?.text ?? finding.title;
+        findings.push({
+          kind: findingKindWord(finding.kind),
+          text: suffix ? `${base} ${suffix}` : base,
+        });
+      }
+    }
+
+    // A passed execution earns a row only through a finding worth showing.
+    if (execution.status.kind === 'passed' && findings.length === 0) {
       continue;
     }
 
@@ -349,53 +421,57 @@ function buildLintAnalyzeSection(
     );
     let group = groups.get(groupKey);
     if (!group) {
-      group = { rows: [], executions: [] };
+      group = { rows: [], details: [], executions: [] };
       groups.set(groupKey, group);
     }
     group.executions.push(execution);
 
     const rule = execution.ruleId ? ruleIndex.get(execution.ruleId) : undefined;
-    // HTML anchor (via renderRuleCell), then escapeCell so a `|` in the id/uri
-    // can't break the surrounding markdown table row.
-    const ruleCell = escapeCell(
-      renderRuleCell(execution.ruleId, rule?.helpUri),
-    );
-    // Location is the group heading under `endpoint`, but a table column under
-    // `rule`/`severity` so it is not lost.
-    const locationCell = escapeCell(
-      resolveLocation(execution.location, run.thymianFormatVersion),
+    const location = resolveLocation(
+      execution.location,
+      run.thymianFormatVersion,
     );
 
-    const row = (statusLabel: string, message: string): string =>
-      renderLintAnalyzeRow(sortReportsBy, {
-        statusLabel,
-        ruleCell,
-        locationCell,
-        message: escapeCell(message),
-      });
-
+    let severity = '';
+    let message: string;
     if (execution.status.kind === 'failed') {
-      const severity =
-        resolveExecutionSeverity(execution, ruleIndex, logger) ?? 'error';
-      const message =
+      severity = severityWord(
+        resolveExecutionSeverity(execution, ruleIndex, logger) ?? 'error',
+      );
+      message =
         execution.status.reason ??
         rule?.summary?.text ??
         rule?.description?.text ??
         '';
-      group.rows.push(row(severityWord(severity), message));
     } else if (execution.status.kind === 'skipped') {
-      const message = execution.status.reason ?? rule?.summary?.text ?? '';
-      group.rows.push(row('skipped', message));
+      message = execution.status.reason ?? rule?.summary?.text ?? '';
+    } else {
+      message = rule?.summary?.text ?? '';
     }
 
-    for (const finding of execution.findings) {
-      if (finding.kind === 'informational') {
-        group.rows.push(row('info', finding.message?.text ?? finding.title));
-      } else if (finding.kind === 'assertion-failure') {
-        const suffix = assertionFailureSuffix(finding);
-        const base = finding.message?.text ?? finding.title;
-        group.rows.push(row('failed', suffix ? `${base} ${suffix}` : base));
-      }
+    group.rows.push(
+      renderLintAnalyzeRow(sortReportsBy, {
+        severity,
+        status: execution.status.kind,
+        // HTML anchor (via renderRuleCell), then escapeCell so a `|` in the
+        // id/uri can't break the surrounding markdown table row.
+        ruleCell: escapeCell(renderRuleCell(execution.ruleId, rule?.helpUri)),
+        // Location is the group heading under `endpoint`, but a table column
+        // under `rule`/`severity` so it is not lost.
+        locationCell: escapeCell(location),
+        message: escapeCell(message),
+      }),
+    );
+
+    if (findings.length > 0) {
+      group.details.push(
+        ...renderFindingsDetails(
+          sortReportsBy,
+          execution.ruleId,
+          location,
+          findings,
+        ),
+      );
     }
   }
 
@@ -417,6 +493,7 @@ function buildLintAnalyzeSection(
     lines.push(...lintAnalyzeTableHeader(sortReportsBy));
     lines.push(...group.rows);
     lines.push('');
+    lines.push(...group.details);
   }
 
   return lines;
