@@ -7,7 +7,7 @@ This chapter documents the significant architectural decisions made for Thymian.
 ## ADR Index
 
 | ADR                                                                            | Title                                                                     | Status   | Date       | Related Quality Requirements                                                                                           |
-|--------------------------------------------------------------------------------| ------------------------------------------------------------------------- | -------- | ---------- | ---------------------------------------------------------------------------------------------------------------------- |
+| ------------------------------------------------------------------------------ | ------------------------------------------------------------------------- | -------- | ---------- | ---------------------------------------------------------------------------------------------------------------------- |
 | [ADR-0001](adr/0001-core-features-as-plugins.md)                               | Core features are plugins                                                 | Accepted | 2024-11-07 | [10.2.2](10-quality-requirements.md#102-quality-scenarios), [10.2.3](10-quality-requirements.md#102-quality-scenarios) |
 | [ADR-0002](adr/0002-communication-as-plugin.md)                                | Communication as a plugin                                                 | Proposed | 2024-11-07 | [10.2.4](10-quality-requirements.md#102-quality-scenarios)                                                             |
 | [ADR-0003](adr/0003-plugins-allow-streaming.md)                                | Plugins should allow for streaming                                        | Proposed | 2024-11-07 | [10.2.1](10-quality-requirements.md#102-quality-scenarios), [10.2.2](10-quality-requirements.md#102-quality-scenarios) |
@@ -33,6 +33,7 @@ This chapter documents the significant architectural decisions made for Thymian.
 | [ADR-0023](adr/0023-selector-is-the-transaction-label.md)                      | The Selector is the transaction label, application-wide                   | Accepted | 2026-09-04 | [10.2.1](10-quality-requirements.md#102-quality-scenarios)                                                             |
 | [ADR-0024](adr/0024-a-per-transaction-problem-must-not-end-the-run.md)         | A per-transaction problem must not end the run                            | Accepted | 2026-09-04 | [10.2.1](10-quality-requirements.md#102-quality-scenarios)                                                             |
 | [ADR-0025](adr/0025-applicability-and-violation-condition.md)                  | Rule validation calls name applicability and violation condition          | Accepted | 2026-09-24 | —                                                                                                                      |
+| [ADR-0026](adr/0026-rules-are-tested-through-each-contexts-real-engine.md)     | Rules are tested through each context's real engine                       | Accepted | 2026-11-13 | [10.1](10-quality-requirements.md#101-quality-requirements-overview): Reliability                                      |
 
 ## Creating New ADRs
 

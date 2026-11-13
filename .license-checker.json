@@ -28,6 +28,7 @@
     "@thymian/rules-rfc-6797",
     "@thymian/rules-rfc-6265bis",
     "@thymian/plugin-har",
-    "@thymian/plugin-spectral"
+    "@thymian/plugin-spectral",
+    "@thymian/rules-testing"
   ]
 }
