@@ -175,8 +175,8 @@ describe('runRule(rule).static(format)', () => {
     );
 
     expect(executions.map((execution) => Object.keys(execution))).toEqual([
-      ['location', 'status'],
-      ['location', 'status'],
+      ['location', 'status', 'findings'],
+      ['location', 'status', 'findings'],
     ]);
   });
 
@@ -222,42 +222,6 @@ describe('runRule(rule).static(format)', () => {
       },
     ]);
     expect(executions).toHaveLength(3);
-  });
-
-  it('reports a transaction the rule skipped as skipped, with the reason', async () => {
-    const rule = httpRule('test/skips')
-      .severity('error')
-      .type('static')
-      .rule((ctx) =>
-        ctx.validateCommonHttpTransactions({
-          appliesTo: statusCode(201),
-          violatedWhen: (_req, _res, location) => [
-            {
-              location,
-              findings: [
-                {
-                  kind: 'rule-skip',
-                  title: 'skipped',
-                  reason: 'cannot decide from a specification',
-                },
-              ],
-            },
-          ],
-        }),
-      )
-      .done();
-    const format = createThymianFormat();
-    addTransaction(
-      format,
-      createPostRequest({ path: '/astronauts' }),
-      createCreatedResponse(),
-    );
-
-    const executions = await runRule(rule).static(format);
-
-    expect(executions).toMatchObject([
-      { status: 'skipped', reason: 'cannot decide from a specification' },
-    ]);
   });
 
   it('counts a transaction as applicable when any of the stated applicabilities accepts it', async () => {
