@@ -8,4 +8,4 @@ export type {
   RuleTestExecution,
   RuleTestExecutionStatus,
 } from './rule-test-execution.js';
-export type { Respond, RespondTo } from './run-test.js';
+export type { Respond, RespondInput } from './run-test.js';

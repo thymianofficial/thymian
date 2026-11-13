@@ -26,7 +26,7 @@ export type RuleTester = {
    */
   runTest(
     format: ThymianFormat,
-    server?: RunTestConfiguration,
+    configuration?: RunTestConfiguration,
   ): Promise<RuleTestExecution[]>;
 };
 
