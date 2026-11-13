@@ -16,6 +16,7 @@ import {
   listExecutions,
   type RuleTestExecution,
 } from './rule-test-execution.js';
+import type { RuleUnderTest } from './rule-under-test.js';
 import {
   observeApplicability,
   type StatedApplicability,
@@ -29,7 +30,7 @@ const logger = new NoopLogger();
  * executions, as they do for `thymian lint`.
  */
 export async function runStatic(
-  rule: Rule,
+  { rule, rulesConfig, declaredSeverity }: RuleUnderTest,
   format: ThymianFormat,
 ): Promise<RuleTestExecution[]> {
   let stated: () => StatedApplicability = () => undefined;
@@ -47,7 +48,7 @@ export async function runStatic(
     },
   };
 
-  const result = await runRules(logger, [rule], format, {}, adapter);
+  const result = await runRules(logger, [rule], format, rulesConfig, adapter);
   const entries = result[rule.meta.name]?.ruleFnResult ?? [];
   const executions = executionsFromRunRulesResult(
     result,
@@ -56,22 +57,25 @@ export async function runStatic(
     'lint',
   );
 
-  const reported = executions.map(({ status }, index): RuleTestExecution => {
-    // The report builder emits one execution per entry, in entry order.
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const { location } = entries[index]!;
+  const reported = executions.map(
+    ({ status, findings }, index): RuleTestExecution => {
+      // The report builder emits one execution per entry, in entry order.
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      const { location } = entries[index]!;
 
-    return {
-      location: withEngineLabel(location, format, rule),
-      status: status.kind,
-      ...(status.kind === 'failed'
-        ? { message: status.reason, severity: rule.meta.severity }
-        : {}),
-      ...(status.kind === 'skipped' && status.reason !== undefined
-        ? { reason: status.reason }
-        : {}),
-    };
-  });
+      return {
+        location: withEngineLabel(location, format, rule),
+        status: status.kind,
+        ...(status.kind === 'failed'
+          ? { message: status.reason, severity: declaredSeverity }
+          : {}),
+        ...(status.kind === 'skipped' && status.reason !== undefined
+          ? { reason: status.reason }
+          : {}),
+        findings,
+      };
+    },
+  );
 
   const applicable = applicableTransactions(stated(), format);
 

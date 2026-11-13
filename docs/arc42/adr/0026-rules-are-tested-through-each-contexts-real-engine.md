@@ -45,6 +45,11 @@ declares, and return what the rule said about **every transaction** of the input
 - **The context's own engine evaluates the rule.** In `static` that is the linter's context,
   driven by core's rule runner and report builder as `thymian lint` drives it. The harness
   does not reimplement what a context does with a rule.
+- **Any rule runs, as it ships.** The rule runner leaves a rule with severity `off` out, so
+  the harness hands it to the engine enabled, on a copy, and reports the severity the rule
+  declares. `runRule(rule, { options })` passes the rule's options through the rules
+  configuration, checked against the rule's options schema first, which is the way the
+  options of a config reach a rule.
 - **Four statuses.** `failed`, `passed` and `skipped` as the engines know them, and
   `notApplicable` for a transaction outside the rule's `Applicability`. `notApplicable`
   exists only in what `runRule` returns; the engines and the report format keep three.
@@ -57,8 +62,9 @@ declares, and return what the rule said about **every transaction** of the input
 - **Locations are the engine's.** An execution carries the location the engine reported: a
   transaction, a node, or a free string. The one addition is the readable label: where a
   node or transaction location has none, the harness fills in the label a report prints for
-  it, so a failing comparison names the transaction although ids are hashes. `notApplicable`
-  and `passed` are filled in for transactions only.
+  it, so a failing comparison names the transaction although ids are hashes. An execution
+  also carries the findings the report builder gives it, on a pass as on a violation.
+  `notApplicable` and `passed` are filled in for transactions only.
 - **Rule tests replace the `Fixture`** as the way to show that a rule works in a context.
   The fixture modules of the existing rule sets, and the records that describe them, stay
   as they are until those rule sets are moved onto rule tests.

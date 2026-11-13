@@ -57,6 +57,22 @@ expect(await runRule(createdResponsesHaveLocation).static(format)).toMatchObject
 
 `runRule(rule)` gives one function per validation context, named as in the rule's `.type(...)`. `static` is the first; it evaluates the rule with the context `thymian lint` uses. Calling a context the rule does not declare throws.
 
+### Any rule runs
+
+**A rule that ships with severity `off`** runs like any other, so a rule that is only switched on by a config or a profile is testable as it ships. A `failed` execution carries the severity the rule declares, here `off`.
+
+**A rule with options** gets them from `runRule(rule, { options })`, handed to the rule function as the `options` of the rule's entry in a config are. One call is one configuration:
+
+```typescript
+const format = createThymianFormat();
+const launchCreated = addTransaction(format, createPostRequest({ path: '/launches' }), createCreatedResponse({ headers: { location: createRequiredParameter() } }));
+
+expect(await runRule(createdResponsesHaveHeader, { options: { header: 'location' } }).static(format)).toMatchObject([{ location: { elementId: launchCreated }, status: 'passed' }]);
+expect(await runRule(createdResponsesHaveHeader, { options: { header: 'etag' } }).static(format)).toMatchObject([{ location: { elementId: launchCreated }, status: 'failed' }]);
+```
+
+Options the rule's options schema does not accept make `runRule` throw, as a config with them is rejected when it is loaded.
+
 ### What comes back
 
 A list of executions. Each one has:
@@ -68,6 +84,7 @@ A list of executions. Each one has:
 | `message`  | When `failed`: the violation's message, or the rule's summary or description when it gives none.                                                                   |
 | `severity` | When `failed`: the severity the rule declares.                                                                                                                     |
 | `reason`   | When `skipped`: the reason the rule gave.                                                                                                                          |
+| `findings` | What the rule attached to the execution, as a report carries it. Always a list; empty when the rule attached nothing.                                              |
 
 The `label` is the readable name of the location, so a failing comparison says which transaction it is about although ids are hashes. A label the rule set itself is kept.
 
@@ -76,6 +93,8 @@ The `label` is the readable name of the location, so a failing comparison says w
 **Where `passed` and `notApplicable` come from.** The linter reports only what a rule returns, which for most rules is its violations. `runRule` works out the rest from the `appliesTo` the rule states in its rule-context calls: a transaction inside it that the engine reported nothing on is `passed`, one outside it is `notApplicable`. Several calls count together; a transaction is applicable when any of them accepts it.
 
 A rule whose applicability cannot be read from outside, because it decides in a plain callback (`validateHttpTransactions` in `static`), passes only a violation condition, or makes no rule-context call at all, gets `passed` for every transaction it did not flag.
+
+**Skips and findings.** A rule that returns a `rule-skip` finding for a location yields a `skipped` execution there, with the `reason` it gave. Any other finding comes back in `findings`, on a `passed` execution as much as on a `failed` one, in the shape of a report finding: `{ id, kind, title, message: { text } }`. The `id` is generated per run, so compare findings with `toMatchObject` or leave it out.
 
 `notApplicable` is filled in for transactions only. A node or a free string appears only when the engine reports an execution on it.
 
