@@ -114,7 +114,7 @@ describe('proxy-must-forward-unrecognized-header-fields', () => {
   it('excepts Connection-listed and hop-by-hop fields, flagging only genuine drops', () => {
     const trace: CapturedTrace = [
       hop('proxy', { connection: 'x-hop', 'x-hop': 'v', 'x-real': 'v' }),
-      hop('origin server', {}),
+      hop('origin server', { host: 'example.com' }),
     ];
 
     const results = runOnTrace(forwardRule, trace);
@@ -130,6 +130,20 @@ describe('proxy-must-forward-unrecognized-header-fields', () => {
     const trace: CapturedTrace = [
       hop('proxy', { 'x-custom': 'v' }),
       hop('origin server', undefined),
+    ];
+
+    expect(runOnTrace(forwardRule, trace)).toHaveLength(0);
+  });
+
+  // The analyzer reads a leg recorded without headers back as an empty object,
+  // not as undefined; it stores no header whose value is undefined.
+  it.each([
+    ['an empty header object', {}],
+    ['only undefined header values', { accept: undefined }],
+  ])('does not flag when the forwarded leg has %s', (_, forwardedHeaders) => {
+    const trace: CapturedTrace = [
+      hop('proxy', { 'x-custom': 'v' }),
+      hop('origin server', forwardedHeaders),
     ];
 
     expect(runOnTrace(forwardRule, trace)).toHaveLength(0);

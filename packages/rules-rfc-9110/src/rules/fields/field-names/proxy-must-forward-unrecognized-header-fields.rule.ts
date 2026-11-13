@@ -21,6 +21,13 @@ const connectionOptionNames = (
     .map((entry) => entry.trim().toLowerCase())
     .filter((entry) => entry.length > 0);
 
+// A field counts as present when it has a value, as `getHeader` reads it.
+const hasFields = (
+  headers: Record<string, string | string[] | undefined> | undefined,
+): headers is Record<string, string | string[] | undefined> =>
+  headers !== undefined &&
+  Object.values(headers).some((value) => value !== undefined);
+
 // eslint-disable-next-line thymian-internal/require-rule-tags -- no concern-tag member fits this rule's topic
 export default httpRule('rfc9110/proxy-must-forward-unrecognized-header-fields')
   .severity('error')
@@ -48,10 +55,14 @@ export default httpRule('rfc9110/proxy-must-forward-unrecognized-header-fields')
         }
         const receivedHeaders = received.request.data.headers;
         const forwardedHeaders = forwarded.request.data.headers;
-        // Incomplete capture: without both legs' headers we cannot distinguish a
-        // dropped field from an unrecorded one, so skip rather than emit false
-        // positives for every received field.
-        if (!receivedHeaders || !forwardedHeaders) {
+        // A leg with no header field at all is treated as captured without
+        // headers, not as a request that carried none: the analyzer reads a leg
+        // recorded without headers back as an empty object, never as
+        // undefined, and a real forwarded request without a single field is
+        // implausible (HTTP/1.1 requires Host). Without both
+        // legs' fields a dropped field cannot be told from an unrecorded one,
+        // so skip rather than report every received field.
+        if (!hasFields(receivedHeaders) || !hasFields(forwardedHeaders)) {
           continue;
         }
         const excepted = new Set([
