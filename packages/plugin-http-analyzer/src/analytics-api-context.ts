@@ -168,6 +168,30 @@ export class AnalyticsApiContext implements AnalyzeContext {
         );
   }
 
+  // Locates a recorded pair on the format Transaction it matches. A pair that
+  // matches none, or more than one, keeps its label as the location, and so
+  // does a pair the format cannot be asked about (a duplicated Content-Type,
+  // an origin that is no URL): where a result is shown must not end the run.
+  private locate(
+    request: HttpRequest,
+    response: HttpResponse,
+    label: string,
+  ): RuleViolationLocation {
+    let transactionId: string | undefined;
+
+    try {
+      transactionId = this.format.matchTransaction(request, response)?.[0];
+    } catch (error) {
+      this.logger.debug(
+        `Cannot match "${label}" to a transaction, locating it by its label: ${String(error)}`,
+      );
+    }
+
+    return transactionId
+      ? { elementType: 'edge', elementId: transactionId, label }
+      : label;
+  }
+
   validateCommonHttpTransactions(
     criteria: CommonHttpRuleCriteria,
   ): RuleFnResult[];
@@ -219,18 +243,18 @@ export class AnalyticsApiContext implements AnalyzeContext {
       finalFilter,
       this.roles,
     )) {
-      const location = httpTransactionToLabel(request.data, response.data);
+      const label = httpTransactionToLabel(request.data, response.data);
       results.push(
         ...validateFn(
           httpRequestToCommonHttpRequest(request.data, {
-            label: location,
+            label,
             logger: this.logger,
           }),
           httpResponseToCommonHttpResponse(response.data, {
-            label: location,
+            label,
             logger: this.logger,
           }),
-          location,
+          this.locate(request.data, response.data, label),
         ),
       );
     }

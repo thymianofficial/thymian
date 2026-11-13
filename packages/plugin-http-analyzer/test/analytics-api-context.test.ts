@@ -10,6 +10,7 @@ import {
   responseHeader,
   statusCode,
   statusCodeRange,
+  ThymianFormat,
 } from '@thymian/core';
 import {
   createHttpRequest,
@@ -796,6 +797,198 @@ describe('AnalyticsApiContext', () => {
           }),
         ]),
       );
+    });
+    describe('result location', () => {
+      const recordedRequest = {
+        method: 'get',
+        origin: 'https://api.example.com',
+        path: '/users/42',
+        headers: {},
+      };
+      const recordedResponse = {
+        statusCode: 200,
+        headers: { 'content-type': 'application/json' },
+        trailers: {},
+        duration: 100,
+      };
+      const label = httpTransactionToLabel(recordedRequest, recordedResponse);
+
+      function describedUser(mediaType = 'application/json') {
+        return [
+          createHttpRequest({
+            method: 'GET',
+            host: 'api.example.com',
+            path: '/users/{id}',
+            mediaType: '',
+          }),
+          createHttpResponse({ statusCode: 200, mediaType }),
+          'test-source',
+        ] as const;
+      }
+
+      beforeEach(() => {
+        insertTransaction({
+          request: { data: recordedRequest, meta: {} },
+          response: { data: recordedResponse, meta: {} },
+        });
+      });
+
+      it('locates a result on the format Transaction the recorded pair matches', () => {
+        const format = createThymianFormat();
+        const [, , transactionId] = format.addHttpTransaction(
+          ...describedUser(),
+        );
+        const context = new AnalyticsApiContext({ repository, logger, format });
+
+        expect(
+          context.validateCommonHttpTransactions(statusCode(200)),
+        ).toMatchObject([
+          {
+            location: {
+              elementType: 'edge',
+              elementId: transactionId,
+              label,
+            },
+          },
+        ]);
+      });
+
+      it('hands the Transaction location to a validation function', () => {
+        const format = createThymianFormat();
+        const [, , transactionId] = format.addHttpTransaction(
+          ...describedUser(),
+        );
+        const context = new AnalyticsApiContext({ repository, logger, format });
+
+        const result = context.validateCommonHttpTransactions({
+          appliesTo: statusCode(200),
+          violatedWhen: (_req, _res, location) => [
+            { location, violation: { message: 'flagged' }, findings: [] },
+          ],
+        });
+
+        expect(result).toMatchObject([
+          {
+            location: {
+              elementType: 'edge',
+              elementId: transactionId,
+              label,
+            },
+            violation: { message: 'flagged' },
+          },
+        ]);
+      });
+
+      it('keeps the string label for a recorded pair that matches no Transaction', () => {
+        const format = createThymianFormat();
+        format.addHttpTransaction(
+          createHttpRequest({
+            method: 'GET',
+            host: 'api.example.com',
+            path: '/orders',
+            mediaType: '',
+          }),
+          createHttpResponse({ statusCode: 200 }),
+          'test-source',
+        );
+        const context = new AnalyticsApiContext({ repository, logger, format });
+
+        expect(
+          context.validateCommonHttpTransactions(statusCode(200)),
+        ).toMatchObject([{ location: label }]);
+      });
+
+      it('keeps the string label for a recorded pair that matches ambiguously', () => {
+        const format = createThymianFormat();
+        format.addHttpTransaction(...describedUser());
+        format.addHttpTransaction(...describedUser(''));
+        const context = new AnalyticsApiContext({ repository, logger, format });
+
+        expect(format.matchTransaction(recordedRequest, recordedResponse)).toBe(
+          undefined,
+        );
+        expect(
+          context.validateCommonHttpTransactions(statusCode(200)),
+        ).toMatchObject([{ location: label }]);
+      });
+
+      it('keeps the string label for a recorded pair with a duplicated Content-Type', () => {
+        const request = {
+          ...recordedRequest,
+          path: '/users/7',
+          headers: { 'content-type': ['text/plain', 'application/json'] },
+        };
+        insertTransaction({
+          request: { data: request, meta: {} },
+          response: { data: recordedResponse, meta: {} },
+        });
+        const format = createThymianFormat();
+        format.addHttpTransaction(...describedUser());
+        const context = new AnalyticsApiContext({ repository, logger, format });
+
+        expect(
+          context.validateCommonHttpTransactions(path('/users/7')),
+        ).toMatchObject([
+          { location: httpTransactionToLabel(request, recordedResponse) },
+        ]);
+      });
+
+      it('keeps the string label when a described path cannot be matched against', () => {
+        const format = createThymianFormat();
+        format.addHttpTransaction(
+          createHttpRequest({
+            method: 'GET',
+            host: 'api.example.com',
+            path: '/time/12:30',
+            mediaType: '',
+          }),
+          createHttpResponse({ statusCode: 200 }),
+          'test-source',
+        );
+        const context = new AnalyticsApiContext({ repository, logger, format });
+
+        expect(() =>
+          format.matchTransaction(recordedRequest, recordedResponse),
+        ).toThrow();
+        expect(
+          context.validateCommonHttpTransactions(statusCode(200)),
+        ).toMatchObject([{ location: label }]);
+      });
+
+      it('keeps the string label for a recorded origin that is no URL, without a format', () => {
+        const request = {
+          ...recordedRequest,
+          origin: 'https://api.example.com/%E0%A4%A',
+        };
+        insertTransaction({
+          request: { data: request, meta: {} },
+          response: { data: recordedResponse, meta: {} },
+        });
+        const context = new AnalyticsApiContext({
+          repository,
+          logger,
+          format: new ThymianFormat(),
+        });
+
+        expect(
+          context.validateCommonHttpTransactions(statusCode(200)),
+        ).toMatchObject([
+          { location: label },
+          { location: httpTransactionToLabel(request, recordedResponse) },
+        ]);
+      });
+
+      it('keeps the string label when the format describes nothing', () => {
+        const context = new AnalyticsApiContext({
+          repository,
+          logger,
+          format: new ThymianFormat(),
+        });
+
+        expect(
+          context.validateCommonHttpTransactions(statusCode(200)),
+        ).toMatchObject([{ location: label }]);
+      });
     });
   });
 
