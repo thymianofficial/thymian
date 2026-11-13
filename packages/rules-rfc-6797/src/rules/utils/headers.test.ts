@@ -1,7 +1,10 @@
-import { createHttpResponse } from '@thymian/core-testing';
+import {
+  createHttpResponse,
+  createRequiredParameter,
+  createStringSchema,
+} from '@thymian/core-testing';
 import { describe, expect, it } from 'vitest';
 
-import { header } from '../../test/builders.js';
 import {
   carriesHeader,
   declaresHeader,
@@ -30,7 +33,13 @@ describe.each(
   });
 
   it('is declared, with the value the description pins', () => {
-    const res = createHttpResponse({ headers: header(carried, VALUE) });
+    const res = createHttpResponse({
+      headers: {
+        [carried]: createRequiredParameter({
+          schema: createStringSchema({ const: VALUE }),
+        }),
+      },
+    });
 
     expect(declaresHeader(res, asked)).toBe(true);
     expect(pinnedHeaderValues(res, asked)).toEqual([VALUE]);

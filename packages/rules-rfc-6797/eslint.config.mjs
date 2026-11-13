@@ -8,11 +8,7 @@ export default [
       '@nx/dependency-checks': [
         'error',
         {
-          ignoredFiles: [
-            '{projectRoot}/eslint.config.{js,cjs,mjs}',
-            '{projectRoot}/src/**/*.fixtures.ts',
-            '{projectRoot}/src/test/**',
-          ],
+          ignoredFiles: ['{projectRoot}/eslint.config.{js,cjs,mjs}'],
           ignoredDependencies: ['vitest', '@thymian/test-utils'],
         },
       ],
