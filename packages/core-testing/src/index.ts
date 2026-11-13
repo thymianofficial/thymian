@@ -106,6 +106,7 @@ export {
 
 export {
   exampleRequestSampler,
+  exampleRequestTemplate,
   generateExampleParameters,
   identityHookRunner,
 } from './http-testing-utils.js';

@@ -7,6 +7,7 @@ import {
   type RuleViolationLocation,
   type RunRulesResult,
   type ThymianFormat,
+  type ThymianHttpTransaction,
   thymianHttpTransactionToString,
 } from '@thymian/core';
 
@@ -57,58 +58,91 @@ export type RuleTestExecution = {
  * A transaction the engine reported nothing on is `passed` when the rule
  * applies to it and `notApplicable` when it does not. The engines report only
  * what a rule returns, so this is the one place that knows the difference.
- *
- * `transactionOf` says which transaction an execution's location is about, if
- * any; by default only a transaction location is. An execution keeps its
- * location wherever it is listed.
  */
 export function listExecutions(
   format: ThymianFormat,
   reported: RuleTestExecution[],
   isApplicable: (transactionId: string) => boolean,
-  transactionOf: (
-    location: RuleViolationLocation,
-  ) => string | undefined = transactionOfEdge,
 ): RuleTestExecution[] {
   const transactions = format.getThymianHttpTransactions();
-  const reportedOn = new Map<string, RuleTestExecution[]>(
-    transactions.map(({ transactionId }) => [transactionId, []]),
-  );
-  const reportedElsewhere: RuleTestExecution[] = [];
-
-  for (const execution of reported) {
-    const transactionId = transactionOf(execution.location);
-    const onTransaction =
-      transactionId === undefined ? undefined : reportedOn.get(transactionId);
-
-    (onTransaction ?? reportedElsewhere).push(execution);
-  }
 
   return [
-    ...transactions.flatMap(
-      ({ transactionId, thymianReq, thymianRes }): RuleTestExecution[] => {
-        const executions = reportedOn.get(transactionId) ?? [];
-
-        return executions.length > 0
-          ? executions
-          : [
-              {
-                location: {
-                  elementType: 'edge',
-                  elementId: transactionId,
-                  label: thymianHttpTransactionToString(thymianReq, thymianRes),
-                },
-                status: isApplicable(transactionId)
-                  ? 'passed'
-                  : 'notApplicable',
-                findings: [],
-              },
-            ];
-      },
+    ...transactions.flatMap((transaction) =>
+      executionsOn(
+        transaction,
+        reported,
+        isApplicable(transaction.transactionId) ? 'passed' : 'notApplicable',
+      ),
     ),
-    ...reportedElsewhere,
+    ...executionsElsewhere(transactions, reported),
   ];
 }
+
+/**
+ * The executions the engine located on the transaction, in the order it
+ * reported them, or the one filled in for a transaction it reported nothing
+ * on, with the status given.
+ */
+export function executionsOn(
+  { transactionId, thymianReq, thymianRes }: ThymianHttpTransaction,
+  reported: RuleTestExecution[],
+  unreported: 'passed' | 'notApplicable',
+  transactionOf: TransactionOf = transactionOfEdge,
+): RuleTestExecution[] {
+  const executions = reportedOn(transactionId, reported, transactionOf);
+
+  return executions.length > 0
+    ? executions
+    : [
+        {
+          location: {
+            elementType: 'edge',
+            elementId: transactionId,
+            label: thymianHttpTransactionToString(thymianReq, thymianRes),
+          },
+          status: unreported,
+          findings: [],
+        },
+      ];
+}
+
+/** The executions the engine located on the transaction. */
+export function reportedOn(
+  transactionId: string,
+  reported: RuleTestExecution[],
+  transactionOf: TransactionOf = transactionOfEdge,
+): RuleTestExecution[] {
+  return reported.filter(
+    ({ location }) => transactionOf(location) === transactionId,
+  );
+}
+
+/**
+ * The executions the engine located on none of the transactions: on a node,
+ * on a free string, or on an edge that is not one of them.
+ */
+export function executionsElsewhere(
+  transactions: ThymianHttpTransaction[],
+  reported: RuleTestExecution[],
+  transactionOf: TransactionOf = transactionOfEdge,
+): RuleTestExecution[] {
+  const ids = new Set(transactions.map(({ transactionId }) => transactionId));
+
+  return reported.filter(({ location }) => {
+    const transactionId = transactionOf(location);
+
+    return transactionId === undefined || !ids.has(transactionId);
+  });
+}
+
+/**
+ * Which transaction an execution's location is about, if any; by default only
+ * a transaction location is. An execution keeps its location wherever it is
+ * listed.
+ */
+export type TransactionOf = (
+  location: RuleViolationLocation,
+) => string | undefined;
 
 /**
  * The transaction a location names: an `edge`'s `elementId`.
