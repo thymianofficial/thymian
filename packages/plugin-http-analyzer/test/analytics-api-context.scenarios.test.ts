@@ -58,11 +58,12 @@ describeRuleContextScenarios({
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         const { request, response } = transactions[index]!.actual;
         const label = httpTransactionToLabel(request, response);
-        // Only validateHttpTransactions anchors a recorded pair to the
-        // described transaction it matches; otherwise the label locates it.
+        // Both ungrouped forms anchor a recorded pair to the described
+        // transaction it matches; otherwise the label locates it.
         const transactionId = format.matchTransaction(request, response)?.[0];
 
-        return contextMethod === 'validateHttpTransactions' && transactionId
+        return contextMethod !== 'validateGroupedCommonHttpTransactions' &&
+          transactionId
           ? expect.objectContaining({
               elementType: 'edge',
               elementId: transactionId,
