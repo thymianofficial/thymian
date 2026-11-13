@@ -3,6 +3,7 @@ import type { Rule, ThymianFormat } from '@thymian/core';
 import type { RuleTestExecution } from './rule-test-execution.js';
 import { ruleUnderTest } from './rule-under-test.js';
 import { runStatic } from './run-static.js';
+import { type Respond, runTest } from './run-test.js';
 
 /**
  * One function per validation context, named as in the rule's `.type(...)`.
@@ -16,6 +17,33 @@ export type RunRule = {
    * Throws when the rule does not declare `static`.
    */
   static(format: ThymianFormat): Promise<RuleTestExecution[]>;
+  /**
+   * Runs the rule as `thymian test` does, without a network, and returns the
+   * same list in the same order as `static`. Every request the tester builds
+   * is answered in-process: as the format declares it, or by `respond`.
+   *
+   * Throws when the rule does not declare `test`.
+   */
+  test(
+    format: ThymianFormat,
+    server?: RunTestConfiguration,
+  ): Promise<RuleTestExecution[]>;
+};
+
+/**
+ * The server a rule is tested against in `test`.
+ */
+export type RunTestConfiguration = {
+  /**
+   * Decides what the server answers to a request. It is given the id of the
+   * transaction the request is aimed at, the conforming response of that
+   * transaction and the request that was sent. Without it the server answers
+   * every request with the conforming response.
+   *
+   * An answer with another status than the transaction declares makes the
+   * transaction `skipped`: the tester does not ask the rule about it.
+   */
+  respond?: Respond;
 };
 
 /**
@@ -67,10 +95,14 @@ export function runRule<Options extends Record<PropertyKey, unknown>>(
       assertDeclares(anyRule, 'static');
       return runStatic(underTest, format);
     },
+    async test(format, { respond } = {}) {
+      assertDeclares(anyRule, 'test');
+      return runTest(underTest, format, respond);
+    },
   };
 }
 
-function assertDeclares(rule: Rule, context: 'static'): void {
+function assertDeclares(rule: Rule, context: 'static' | 'test'): void {
   if (!rule.meta.type.includes(context)) {
     throw new Error(
       `Rule "${rule.meta.name}" does not declare the "${context}" context. It declares: ${rule.meta.type.join(', ')}.`,

@@ -1,5 +1,7 @@
 import {
   type FindingRecord,
+  resolveViolationLocation,
+  type Rule,
   type RuleSeverity,
   type RuleViolationLocation,
   type ThymianFormat,
@@ -97,4 +99,26 @@ export function listExecutions(
     ),
     ...reportedElsewhere,
   ];
+}
+
+/**
+ * A location with the label the engine prints for it in a report, unless it
+ * is a free string or the rule labelled it itself.
+ */
+export function withEngineLabel(
+  location: RuleViolationLocation,
+  format: ThymianFormat,
+  rule: Rule,
+): RuleViolationLocation {
+  if (typeof location === 'string' || location.label !== undefined) {
+    return location;
+  }
+
+  const { heading } = resolveViolationLocation(
+    location,
+    format,
+    rule.meta.name,
+  );
+
+  return heading === '' ? location : { ...location, label: heading };
 }
