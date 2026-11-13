@@ -1,6 +1,7 @@
-// The code samples of the rule-author guide
+// The code examples of the rule-author guide
 // (astro-docs/src/content/docs/guides/HTTP rules/testing-rules.md) are taken
-// from this file. Change a sample here first, and the guide with it.
+// from this file and from the two rules in ./rules. Change an example here
+// first, and the guide with it.
 import { httpRule, not, responseHeader, statusCode, url } from '@thymian/core';
 import {
   addTransaction,
