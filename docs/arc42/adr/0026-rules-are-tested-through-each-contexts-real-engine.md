@@ -46,8 +46,12 @@ declares, and return what the rule said about **every transaction** of the input
   driven by core's rule runner and report builder as `thymian lint` drives it. In `test` it
   is the tester's context and the tester's report builder; the requests the tester builds
   are answered in-process, by default with the response the format declares, so no sampler
-  plugin, dispatcher, port or network is involved. The harness does not reimplement what a
-  context does with a rule.
+  plugin, dispatcher, port or network is involved. In `analytics` it is the analyzer's
+  context over the analyzer's own store, held in memory, driven by core's rule runner and
+  report builder as `thymian analyze` drives it; the traffic is every transaction of the
+  format recorded once, the request the tester would send answered with the response the
+  format declares, so no traffic plugin and no file is involved. The harness does not
+  reimplement what a context does with a rule.
 - **Any rule runs, as it ships.** The rule runner leaves a rule with severity `off` out, so
   the harness hands it to the engine enabled, on a copy, and reports the severity the rule
   declares. `runRule(rule, { options })` passes the rule's options through the rules
@@ -58,10 +62,11 @@ declares, and return what the rule said about **every transaction** of the input
   exists only in what `runRule` returns; the engines and the report format keep three.
 - **The harness works out `passed` and `notApplicable` itself,** because the linter and the
   analyzer report only violations. It reads the `appliesTo` the rule states in its
-  rule-context calls and asks it of the format, through the context, in a call of its own. A
-  transaction it accepts that the engine reported nothing on is `passed`; one it rejects is
-  `notApplicable`. A rule whose applicability cannot be read from outside, because it
-  decides in a plain callback, gets `passed` for every transaction it did not flag.
+  rule-context calls and asks it through the context, in a call of its own: of the format in
+  `static`, of the recorded pair in `analytics`. A transaction it accepts that the engine
+  reported nothing on is `passed`; one it rejects is `notApplicable`. A rule whose
+  applicability cannot be read from outside, because it decides in a plain callback or
+  reads whole traces, gets `passed` for every transaction it did not flag.
   The tester does report `passed` and `skipped`, so in `test` the harness takes its
   executions as reported and adds only `notApplicable`, for every transaction the tester
   reported nothing on, whatever form the rule's applicability has.
@@ -102,14 +107,19 @@ transaction, and the harness would only add `notApplicable`. Rejected:
 
 - The harness evaluates `appliesTo` in a call of its own, beside the engine's evaluation of
   the rule, so the `passed`/`notApplicable` split is the harness's reading and not the
-  engine's. In `static` both calls go through the linter's filter, so a fault in that filter
-  moves both sides alike and a rule test does not expose it. Accepted: a rule test tests the
+  engine's. In `static` both calls go through the linter's filter, and in `analytics` through
+  the analyzer's, so a fault in that filter moves both sides alike and a rule test does not
+  expose it. Accepted: a rule test tests the
   rule, and the engines' filters have tests of their own.
 - For a rule that decides applicability in a plain callback, `passed` cannot be told from
   `notApplicable`. Stating `appliesTo` as a filter expression is what makes a rule's scope
   testable.
 - The harness observes the rule-context calls a rule makes. A new rule-context method that
-  takes an applicability has to be made known to it.
+  takes an applicability has to be made known to it, per context: `validateHttpTransactions`
+  takes a plain callback in `static` and a filter expression in `analytics`.
+- The traffic of a rule test in `analytics` is recorded as a user agent talking to an origin
+  server, the roles traffic read from a HAR file gets by default. A rule that speaks only
+  about an intermediary is not asked about it.
 
 **Neutral:**
 
@@ -133,6 +143,7 @@ transaction, and the harness would only add `notApplicable`. Rejected:
 
 ## Status History
 
-| Date       | Status   | Notes         |
-| ---------- | -------- | ------------- |
-| 2026-11-13 | Accepted | Initial draft |
+| Date       | Status   | Notes                                               |
+| ---------- | -------- | --------------------------------------------------- |
+| 2026-11-13 | Accepted | Initial draft                                       |
+| 2026-11-13 | Accepted | `analytics` added: traffic recorded from the format |

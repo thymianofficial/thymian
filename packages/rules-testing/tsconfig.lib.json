@@ -21,6 +21,9 @@
       "path": "../plugin-http-linter/tsconfig.lib.json"
     },
     {
+      "path": "../plugin-http-analyzer/tsconfig.lib.json"
+    },
+    {
       "path": "../core-testing/tsconfig.lib.json"
     },
     {

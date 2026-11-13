@@ -57,9 +57,10 @@ const expected = [
 
 expect(await run.static(format)).toMatchObject(expected);
 expect(await run.test(format)).toMatchObject(expected);
+expect(await run.analytics(format)).toMatchObject(expected);
 ```
 
-`runRule(rule)` gives one function per validation context, named as in the rule's `.type(...)`: `static` evaluates the rule with the context `thymian lint` uses, `test` with the one `thymian test` uses. Each returns a list of the same shape in the same order. Calling a context the rule does not declare throws.
+`runRule(rule)` gives one function per validation context, named as in the rule's `.type(...)`: `static` evaluates the rule with the context `thymian lint` uses, `test` with the one `thymian test` uses, `analytics` with the one `thymian analyze` uses. Each returns a list of the same shape in the same order. Calling a context the rule does not declare throws.
 
 ### The server in `test`
 
@@ -81,6 +82,18 @@ Two things make a transaction `skipped` in `test`, each with a `reason`, because
 
 - **The server answers another status than the transaction declares.** `thymian test` skips such a transaction too.
 - **The request cannot be built**, for example for a path parameter without an example: give its schema one, `createRequiredParameter({ schema: createStringSchema({ examples: ['apollo-11'] }) })`.
+
+### The traffic in `analytics`
+
+`analytics` reads no file and no recording of yours: the analyzer is handed traffic held in memory, with the format present, as `thymian analyze` hands it a HAR file together with the specification.
+
+**The traffic is every transaction of the format recorded once, conforming:** the request the tester would send for it, with the examples the format carries and the media type the format declares for it as `content-type`, answered with the conforming response described above. So a format gives the same result in `analytics` as in `static` and `test`.
+
+Each pair is recorded the way traffic read from a HAR file is by default, as a user agent talking to an origin server, so a rule that speaks about one participant (`.appliesTo('server')`) is asked about it.
+
+The analyzer locates a result on the transaction of the format the recorded pair matches, so you name a transaction by the same id as in the other contexts. A result the rule locates itself, as a rule that reads captured transactions or whole traces does with the label it is given, keeps that location and comes last.
+
+A request that cannot be built, for example for a path parameter without an example, makes `analytics` throw and name the transaction: there is nothing to record for it. Give the parameter's schema an example, as for `test`.
 
 ### Any rule runs
 
@@ -115,9 +128,12 @@ The `label` is the readable name of the location, so a failing comparison says w
 
 **Order.** Every transaction of the format, in the order it was added. A transaction the engine reported several executions on appears once per execution, in the order the engine reported them. Executions on any other location come last.
 
-**Where `passed` and `notApplicable` come from.** In `test` the tester reports an execution for every transaction it sent a request for, `passed` and `skipped` included; `runRule` takes them as reported and adds only `notApplicable`, for a transaction no request was sent for. The linter reports only what a rule returns, which for most rules is its violations. In `static`, `runRule` works out the rest from the `appliesTo` the rule states in its rule-context calls: a transaction inside it that the engine reported nothing on is `passed`, one outside it is `notApplicable`. Several calls count together; a transaction is applicable when any of them accepts it.
+**Where `passed` and `notApplicable` come from.** In `test` the tester reports an execution for every transaction it sent a request for, `passed` and `skipped` included; `runRule` takes them as reported and adds only `notApplicable`, for a transaction no request was sent for. The linter and the analyzer report only what a rule returns, which for most rules is its violations. In `static` and `analytics`, `runRule` works out the rest from the `appliesTo` the rule states in its rule-context calls: a transaction inside it that the engine reported nothing on is `passed`, one outside it is `notApplicable`. Several calls count together; a transaction is applicable when any of them accepts it. `static` asks the `appliesTo` of the format, `analytics` of the recorded pair.
 
-In `static`, a rule whose applicability cannot be read from outside, because it decides in a plain callback (`validateHttpTransactions` in `static`), passes only a violation condition, or makes no rule-context call at all, gets `passed` for every transaction it did not flag.
+A rule whose applicability cannot be read from outside gets `passed` for every transaction it did not flag. That is a rule that passes only a violation condition or makes no rule-context call at all, and:
+
+- in `static`, a rule that decides in a plain callback (`validateHttpTransactions`);
+- in `analytics`, a rule that reads whole traces (`validateCapturedHttpTraces`). `validateHttpTransactions` takes a filter expression there, which `runRule` reads like any other.
 
 **Skips and findings.** A rule that returns a `rule-skip` finding for a location yields a `skipped` execution there, with the `reason` it gave. Any other finding comes back in `findings`, on a `passed` execution as much as on a `failed` one, in the shape of a report finding: `{ id, kind, title, message: { text } }`. The `id` is generated per run, so compare findings with `toMatchObject` or leave it out.
 
