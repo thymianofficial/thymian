@@ -2,15 +2,20 @@ import {
   createHttpTestContext,
   type HttpRequest,
   type HttpResponse,
+  type HttpTestCase,
   type HttpTestContext,
   type HttpTestHooks,
+  isGroupedHttpTestCaseStep,
+  isRuleViolationGroupLocation,
   NoopLogger,
   resolveViolationLocation,
+  type RuleFnResult,
   type RuleRunnerAdapter,
   type RuleViolationLocation,
   runRules,
   type TestCaseExecution,
   type ThymianFormat,
+  type ThymianHttpTransaction,
 } from '@thymian/core';
 import {
   exampleRequestSampler,
@@ -24,7 +29,10 @@ import {
 
 import { conformingResponse } from './conforming-response.js';
 import {
+  executionsElsewhere,
+  executionsOn,
   listExecutions,
+  reportedExecutions,
   type RuleTestExecution,
   withEngineLabel,
 } from './rule-test-execution.js';
@@ -57,10 +65,11 @@ export type Respond = (
  * report builder turns what it returns into executions, as for `thymian test`.
  */
 export async function runTest(
-  { rule, rulesConfig, declaredSeverity }: RuleUnderTest,
+  underTest: RuleUnderTest,
   format: ThymianFormat,
   respond: Respond = ({ conforming }) => conforming,
 ): Promise<RuleTestExecution[]> {
+  const { rule, rulesConfig, declaredSeverity } = underTest;
   const context = createHttpTestContext({
     format,
     logger,
@@ -93,6 +102,10 @@ export async function runTest(
   // rule returned under that heading.
   const returnedLocations = new Map<string, RuleViolationLocation>();
   for (const { location } of result[rule.meta.name]?.ruleFnResult ?? []) {
+    // A group is located on its members, further down.
+    if (isRuleViolationGroupLocation(location)) {
+      continue;
+    }
     const { heading } = resolveViolationLocation(
       location,
       format,
@@ -103,8 +116,7 @@ export async function runTest(
     }
   }
 
-  const executions = run?.runType === 'test' ? (run.executions ?? []) : [];
-  const reported = executions.map((execution): RuleTestExecution => {
+  const onItsLocation = (execution: TestCaseExecution): RuleTestExecution => {
     const { status, steps } = execution;
 
     return {
@@ -135,11 +147,104 @@ export async function runTest(
         .flatMap(({ findings }) => findings)
         .filter(({ kind }) => kind !== 'rule-violation'),
     };
+  };
+
+  const executions = run?.runType === 'test' ? (run.executions ?? []) : [];
+  // The tester reports one execution per test case, in the order it ran them.
+  const groups = (result[rule.meta.name]?.diagnostics ?? []).flatMap(
+    ({ testResult, placements }) =>
+      testResult.cases.map((testCase, testCaseIndex) =>
+        groupOf(
+          testCase,
+          placements
+            .filter((placement) => placement.testCaseIndex === testCaseIndex)
+            .map((placement) => placement.result),
+        ),
+      ),
+  );
+
+  const reported = executions.flatMap((execution, index) => {
+    const group = groups[index];
+
+    return group === undefined
+      ? [onItsLocation(execution)]
+      : executionsOnMembers(group, execution, underTest, format);
   });
 
   // The tester reports an execution for every transaction it sent a request
   // for, so one it reported nothing on is one the rule did not apply to.
   return listExecutions(format, reported, () => false);
+}
+
+/**
+ * The group a test case ran: the transactions the tester sent a request for
+ * together, and what the rule returned about them.
+ */
+type TestedGroup = {
+  members: ThymianHttpTransaction[];
+  returned: RuleFnResult[];
+};
+
+/** The group of a test case of a grouped rule; none for any other case. */
+function groupOf(
+  { steps }: HttpTestCase,
+  returned: RuleFnResult[],
+): TestedGroup | undefined {
+  const [step] = steps;
+
+  if (step === undefined || !isGroupedHttpTestCaseStep(step)) {
+    return undefined;
+  }
+
+  return {
+    members: step.transactions.flatMap(({ source }) =>
+      source === undefined ? [] : [source],
+    ),
+    returned,
+  };
+}
+
+/**
+ * The tester reports a group as one execution, on the group key: failed when
+ * the rule returned a violation on any of it. Who is at fault is in what the
+ * rule returned, read as core's report builder reads it in `static`: a member
+ * it located a violation on, or the group, which is every member. A member the
+ * rule returned nothing on has the status of the execution, and where that is
+ * the failure of another member, it passed.
+ */
+function executionsOnMembers(
+  { members, returned }: TestedGroup,
+  { status }: TestCaseExecution,
+  underTest: RuleUnderTest,
+  format: ThymianFormat,
+): RuleTestExecution[] {
+  const said = reportedExecutions(
+    {
+      [underTest.rule.meta.name]: {
+        diagnostics: undefined,
+        ruleFnResult: returned,
+      },
+    },
+    underTest,
+    format,
+    'lint',
+  );
+  const skipped: Partial<RuleTestExecution> =
+    status.kind === 'skipped'
+      ? {
+          status: 'skipped',
+          ...(status.reason !== undefined ? { reason: status.reason } : {}),
+        }
+      : {};
+
+  return [
+    ...members.flatMap((member) =>
+      executionsOn(member, said, 'passed').map((execution) =>
+        said.includes(execution) ? execution : { ...execution, ...skipped },
+      ),
+    ),
+    ...executionsElsewhere(members, said),
+  ];
 }
 
 /**
