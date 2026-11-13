@@ -165,16 +165,22 @@ describe('MarkdownFormatter rendering', () => {
     const ruleLink =
       '<a href="https://example.com/rules/host"><code>rfc9110/host</code></a>';
     expect(output).toContain('### GET /pets');
-    expect(output).toContain(`| error | ${ruleLink} | Missing Host header |`);
+    expect(output).toContain(
+      `| error | failed | ${ruleLink} | Missing Host header |`,
+    );
     expect(output).toContain('### GET /dogs');
     expect(output).toContain(
-      `| skipped | ${ruleLink} | rule disabled in config |`,
+      `|  | skipped | ${ruleLink} | rule disabled in config |`,
     );
     expect(output).toContain('### POST /pets fails · _✖ failed_');
     expect(output).toContain('— expected: 200, actual: 500');
     expect(output).not.toContain('GET /pets returns 200');
-    // GET /cats' informational finding has no `message`; the Message cell
-    // must fall back to the finding's (always-present) title.
-    expect(output).toContain(`| info | ${ruleLink} | noted |`);
+    // GET /cats passed but carries an informational finding: it gets its own
+    // row, and the finding — which has no `message` — falls back to its
+    // (always-present) title in the collapsed block beneath the table.
+    expect(output).toContain(
+      `|  | passed | ${ruleLink} | Requests must carry a Host header |`,
+    );
+    expect(output).toContain('| info | noted |');
   });
 });
