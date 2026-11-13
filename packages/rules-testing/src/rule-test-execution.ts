@@ -63,6 +63,7 @@ export function listExecutions(
   format: ThymianFormat,
   reported: RuleTestExecution[],
   isApplicable: (transactionId: string) => boolean,
+  transactionOf: TransactionOf = transactionOfEdge,
 ): RuleTestExecution[] {
   const transactions = format.getThymianHttpTransactions();
 
@@ -72,9 +73,10 @@ export function listExecutions(
         transaction,
         reported,
         isApplicable(transaction.transactionId) ? 'passed' : 'notApplicable',
+        transactionOf,
       ),
     ),
-    ...executionsElsewhere(transactions, reported),
+    ...executionsElsewhere(transactions, reported, transactionOf),
   ];
 }
 

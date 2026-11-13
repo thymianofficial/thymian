@@ -14,6 +14,7 @@ import { recorded, type RecordedPair } from './recorded.js';
 import {
   executionsElsewhere,
   executionsOn,
+  listExecutions,
   reportedExecutions,
   reportedOn,
   type RuleTestExecution,
@@ -68,11 +69,12 @@ type Analysis = {
 export async function runAnalyze(
   underTest: RuleUnderTest,
   format: ThymianFormat,
-  traffic: RecordedPair[] = format
-    .getThymianHttpTransactions()
-    .map(({ transactionId }) => recorded(format, transactionId)),
+  handedIn?: RecordedPair[],
 ): Promise<RuleTestExecution[]> {
   const transactions = format.getThymianHttpTransactions();
+  const traffic =
+    handedIn ??
+    transactions.map(({ transactionId }) => recorded(format, transactionId));
   // Per recording, in traffic order: the id of the transaction it matches.
   const matched = traffic.map((pair) => matchedTransaction(format, pair));
   // The analyzer locates what a rule returns about a recorded pair on the
@@ -89,6 +91,19 @@ export async function runAnalyze(
       : transactionOfEdge(location);
 
   const whole = await analyze(underTest, format, traffic);
+
+  // The format recorded once is listed as the format is, as in `static`. A
+  // transaction whose recording the format cannot tell from another's has no
+  // recording of its own, and the rule was not asked about it there.
+  if (handedIn === undefined) {
+    return listExecutions(
+      format,
+      whole.reported,
+      (transactionId) =>
+        matched.includes(transactionId) && whole.isApplicable(transactionId),
+      transactionOf,
+    );
+  }
 
   // The analyzer locates an execution on the transaction, not on the
   // recording. Which recording of a transaction recorded several times an
