@@ -133,9 +133,10 @@ export type RuleViolation = { message?: string };
  * `location` is always present (a finding/violation must be locatable, and a
  * pass still needs a location for grouping). A rule names a
  * {@link RuleViolationLocation}; a {@link RuleViolationGroupLocation} is what a
- * validation context makes of the group key a grouped rule returned. `violation` being present signals
- * a violation; its absence signals a pass. `findings` may be populated on both
- * pass and violation (it may also be empty).
+ * validation context makes of the group key a grouped rule returned.
+ * `violation` being present signals a violation; its absence signals a pass.
+ * `findings` may be populated on both pass and violation (it may also be
+ * empty).
  *
  * Valid combinations:
  * - `violation` set, `findings` empty   → pure violation

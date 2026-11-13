@@ -195,4 +195,5 @@ transaction, and the harness would only add `notApplicable`. Rejected:
 | 2026-11-13 | Accepted | Initial draft                                                                           |
 | 2026-11-13 | Accepted | `analytics` added: traffic recorded from the format                                     |
 | 2026-11-13 | Accepted | `analytics` takes handed-in traffic                                                     |
+| 2026-11-13 | Accepted | A group is a location that names its members                                            |
 | 2026-11-20 | Accepted | analytics: an execution on a recorded pair's label is listed in its transaction's place |
