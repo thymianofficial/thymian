@@ -18,7 +18,8 @@ const callbackMethods = new Set<PropertyKey>(['validateHttpTransactions']);
 /**
  * What a rule stated about its Applicability while it ran: the `appliesTo`
  * expression of every rule-context call it made, or `undefined` when at least
- * one call decided applicability in a callback, or the rule made no call.
+ * one call stated none (it decided in a callback, or gave a lone positional
+ * expression, which is its violation condition), or the rule made no call.
  */
 export type StatedApplicability = HttpFilterExpression[] | undefined;
 
@@ -30,7 +31,7 @@ export function observeApplicability<Context extends object>(
   context: Context,
 ): { context: Context; stated(): StatedApplicability } {
   const expressions: HttpFilterExpression[] = [];
-  let decidedInCallback = false;
+  let unstated = false;
 
   const observed = new Proxy(context, {
     get(target, property) {
@@ -45,9 +46,18 @@ export function observeApplicability<Context extends object>(
           const [first] = args as [
             HttpFilterExpression | { appliesTo: HttpFilterExpression },
           ];
-          expressions.push(isRuleCriteria(first) ? first.appliesTo : first);
+          if (isRuleCriteria(first)) {
+            expressions.push(first.appliesTo);
+          } else if (args.length > 1) {
+            expressions.push(first);
+          } else {
+            // A lone positional expression is the violation condition, not
+            // an applicability: every transaction it does not match is one
+            // the rule accepted.
+            unstated = true;
+          }
         } else if (callbackMethods.has(property)) {
-          decidedInCallback = true;
+          unstated = true;
         }
 
         return value.apply(target, args);
@@ -58,6 +68,6 @@ export function observeApplicability<Context extends object>(
   return {
     context: observed,
     stated: () =>
-      decidedInCallback || expressions.length === 0 ? undefined : expressions,
+      unstated || expressions.length === 0 ? undefined : expressions,
   };
 }
