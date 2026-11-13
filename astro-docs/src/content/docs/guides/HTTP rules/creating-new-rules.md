@@ -204,6 +204,8 @@ Use the grouped variant when a violation depends on several transactions togethe
 )
 ```
 
+The location you return says what is at fault. Return the location of one member, as above, when that transaction is wrong. Return the group key, the first argument of `violatedWhen`, when the group as a whole is: Thymian then knows which transactions the violation is about, and a report shows it under the key.
+
 ## Common Filter Expressions
 
 Filter expressions from `@thymian/core` let you declaratively match HTTP transactions:

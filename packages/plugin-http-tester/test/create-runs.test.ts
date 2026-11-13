@@ -702,6 +702,43 @@ describe('createRuns', () => {
       });
     });
 
+    it('reports a result located on a group as its failed test case, on the group key', () => {
+      const result: RuleFnResult = {
+        location: {
+          elementType: 'group',
+          key: 'my-group',
+          members: [{ elementType: 'edge', elementId: 'tx-1' }],
+        },
+        violation: { message: 'flagged' },
+        findings: [],
+      };
+      const diagnostics: HttpTesterRuleDiagnostics = [
+        {
+          testResult: {
+            name: 'test',
+            cases: [makePassedCase('case', [makeGroupedStep('my-group')])],
+          } as never,
+          placements: [{ result, testCaseIndex: 0, stepIndex: 0 }],
+        },
+      ];
+
+      const [run] = createRuns(
+        PLUGIN,
+        ruleResults([result], diagnostics),
+        [rule],
+        FORMAT,
+        makeLogger(),
+      );
+
+      expect(testCases(run?.executions)).toMatchObject([
+        {
+          status: { kind: 'failed', reason: 'flagged' },
+          steps: [{ location: { type: 'custom', value: 'my-group' } }],
+        },
+      ]);
+      expect(testCases(run?.executions)).toHaveLength(1);
+    });
+
     it('uses JSON-stringified location for a custom step with object source', () => {
       expect(
         stepLocationFor(makeCustomStep({ method: 'GET', path: '/test' })),
