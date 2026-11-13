@@ -1,8 +1,6 @@
 import {
   type CapturedTransaction,
-  type HttpFilterExpression,
   NoopLogger,
-  type RuleFnResult,
   type RuleRunnerAdapter,
   runRules,
   serializeRequest,
@@ -25,6 +23,7 @@ import {
 import type { RuleUnderTest } from './rule-under-test.js';
 import {
   type ApplicabilityCalls,
+  applicableTransactions,
   observeApplicability,
   type StatedApplicability,
 } from './stated-applicability.js';
@@ -42,7 +41,7 @@ const applicabilityCalls: ApplicabilityCalls = {
     'validateHttpTransactions',
     'validateCapturedHttpTransactions',
   ]),
-  silent: new Set(['validateCapturedHttpTraces']),
+  notStating: new Set(['validateCapturedHttpTraces']),
 };
 
 /**
@@ -61,9 +60,10 @@ export async function runAnalytics(
   const traffic = await conformingTraffic(format);
 
   const repository = new SqliteHttpTransactionRepository(':memory:', logger);
-  await repository.init();
 
   try {
+    await repository.init();
+
     for (const pair of traffic) {
       repository.insertHttpTransaction(pair);
     }
@@ -168,33 +168,4 @@ async function conformingRequest(transaction: ThymianHttpTransaction) {
       { cause: error },
     );
   }
-}
-
-/**
- * The transactions whose recorded pair the stated Applicability accepts, asked
- * of the analyzer's context in a call of its own; `undefined` when the rule
- * stated none, so that every recorded transaction counts as applicable.
- */
-function applicableTransactions(
-  stated: StatedApplicability,
-  context: AnalyticsApiContext,
-): Set<string> | undefined {
-  if (stated === undefined) {
-    return undefined;
-  }
-
-  return new Set(
-    stated
-      .flatMap((appliesTo: HttpFilterExpression) =>
-        context.validateCommonHttpTransactions({
-          appliesTo,
-          violatedWhen: (_req, _res, location): RuleFnResult[] => [
-            { location, findings: [] },
-          ],
-        }),
-      )
-      .map(({ location }) =>
-        typeof location === 'string' ? location : location.elementId,
-      ),
-  );
 }

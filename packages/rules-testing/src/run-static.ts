@@ -1,7 +1,5 @@
 import {
-  type HttpFilterExpression,
   NoopLogger,
-  type RuleFnResult,
   type RuleRunnerAdapter,
   runRules,
   type ThymianFormat,
@@ -16,6 +14,7 @@ import {
 import type { RuleUnderTest } from './rule-under-test.js';
 import {
   type ApplicabilityCalls,
+  applicableTransactions,
   observeApplicability,
   type StatedApplicability,
 } from './stated-applicability.js';
@@ -28,7 +27,7 @@ const applicabilityCalls: ApplicabilityCalls = {
     'validateCommonHttpTransactions',
     'validateGroupedCommonHttpTransactions',
   ]),
-  silent: new Set(['validateHttpTransactions']),
+  notStating: new Set(['validateHttpTransactions']),
 };
 
 /**
@@ -60,42 +59,14 @@ export async function runStatic(
   const result = await runRules(logger, [rule], format, rulesConfig, adapter);
   const reported = reportedExecutions(result, underTest, format, 'lint');
 
-  const applicable = applicableTransactions(stated(), format);
+  const applicable = applicableTransactions(
+    stated(),
+    new StaticApiContext(format, logger),
+  );
 
   return listExecutions(
     format,
     reported,
     (transactionId) => applicable?.has(transactionId) ?? true,
-  );
-}
-
-/**
- * The transactions the stated Applicability accepts, asked of the linter's
- * context in a call of its own; `undefined` when the rule stated none, so that
- * every transaction counts as applicable.
- */
-function applicableTransactions(
-  stated: StatedApplicability,
-  format: ThymianFormat,
-): Set<string> | undefined {
-  if (stated === undefined) {
-    return undefined;
-  }
-
-  const context = new StaticApiContext(format, logger);
-
-  return new Set(
-    stated
-      .flatMap((appliesTo: HttpFilterExpression) =>
-        context.validateCommonHttpTransactions({
-          appliesTo,
-          violatedWhen: (_req, _res, location): RuleFnResult[] => [
-            { location, findings: [] },
-          ],
-        }),
-      )
-      .map(({ location }) =>
-        typeof location === 'string' ? location : location.elementId,
-      ),
   );
 }

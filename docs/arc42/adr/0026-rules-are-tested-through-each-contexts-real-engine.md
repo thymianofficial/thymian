@@ -50,8 +50,8 @@ declares, and return what the rule said about **every transaction** of the input
   context over the analyzer's own store, held in memory, driven by core's rule runner and
   report builder as `thymian analyze` drives it; the traffic is every transaction of the
   format recorded once, the request the tester would send answered with the response the
-  format declares, so no traffic plugin and no file is involved. The harness does not
-  reimplement what a context does with a rule.
+  format declares, so no traffic plugin and no recording on disk is involved. The harness
+  does not reimplement what a context does with a rule.
 - **Any rule runs, as it ships.** The rule runner leaves a rule with severity `off` out, so
   the harness hands it to the engine enabled, on a copy, and reports the severity the rule
   declares. `runRule(rule, { options })` passes the rule's options through the rules

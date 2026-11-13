@@ -38,6 +38,7 @@ async function recordedPairsOf(
     .severity('error')
     .type('analytics')
     .rule((ctx) =>
+      // No recording has status 0, so this reads every pair.
       ctx.validateCapturedHttpTransactions(not(statusCode(0)), (pair) => {
         pairs.push({
           request: pair.request.data,
@@ -285,6 +286,37 @@ describe('runRule(rule).analytics(format)', () => {
       ]);
     });
 
+    it('leaves transactions the format cannot tell apart in a recording without one: the execution keeps its label', async () => {
+      const format = createThymianFormat();
+      const createAstronaut = createPostRequest({ path: '/astronauts' });
+      const createdBare = addTransaction(
+        format,
+        createAstronaut,
+        createCreatedResponse(),
+      );
+      const createdWithLocation = addTransaction(
+        format,
+        createAstronaut,
+        createCreatedResponse({
+          headers: { location: createRequiredParameter() },
+        }),
+      );
+
+      const executions = await runRule(createdResponsesHaveLocation).analytics(
+        format,
+      );
+
+      expect(executions).toMatchObject([
+        { location: { elementId: createdBare }, status: 'notApplicable' },
+        {
+          location: { elementId: createdWithLocation },
+          status: 'notApplicable',
+        },
+        { location: expect.stringContaining('/astronauts'), status: 'failed' },
+      ]);
+      expect(executions).toHaveLength(3);
+    });
+
     it('cannot be recorded for a request that cannot be built, and says which', async () => {
       const format = createThymianFormat();
       addTransaction(
@@ -406,7 +438,7 @@ describe('runRule(rule).analytics(format)', () => {
     });
   });
 
-  it('returns a result the rule locates on a free string as reported, after the transactions', async () => {
+  it('returns an execution the rule locates on a free string as reported, after the transactions', async () => {
     const rule = httpRule('test/flags-the-recording')
       .severity('error')
       .type('analytics')
