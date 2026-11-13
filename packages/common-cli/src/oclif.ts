@@ -1,5 +1,7 @@
 export * from '@oclif/core';
 
+import { fileURLToPath } from 'node:url';
+
 import { Errors, flush, run, settings } from '@oclif/core';
 
 import { argvForHelpError } from './repoint-help-argv.js';
@@ -12,7 +14,7 @@ type ExecuteOptions = {
 };
 
 /**
- * Drop-in replacement for `@oclif/core`'s `execute()` (mirrors the v4.13.x
+ * Drop-in replacement for `@oclif/core`'s `execute()` (mirrors the v5.1.x
  * body) with a single addition: for parse errors that request help
  * (`showHelp`), repoint `process.argv` at the command that actually ran before
  * delegating to core's `handle()`, then restore it.
@@ -43,26 +45,47 @@ export async function execute(options: ExecuteOptions): Promise<unknown> {
     settings.debug = true;
   }
 
-  return run(
-    options.args ?? process.argv.slice(2),
-    options.loadOptions ?? options.dir,
-  )
-    .then((result) => {
-      flush();
-      return result;
-    })
-    .catch(async (error) => {
-      const repointed = argvForHelpError(error, process.argv);
-      if (!repointed) {
-        return Errors.handle(error);
-      }
+  try {
+    const result = await run(
+      options.args ?? process.argv.slice(2),
+      normalizeLoadOptions(options.dir, options.loadOptions),
+    );
+    await flush();
+    return result;
+  } catch (thrown) {
+    const error = thrown instanceof Error ? thrown : new Error(String(thrown));
+    const repointed = argvForHelpError(error, process.argv);
+    if (!repointed) {
+      return Errors.handle(error);
+    }
 
-      const original = process.argv;
-      process.argv = repointed;
-      try {
-        return await Errors.handle(error);
-      } finally {
-        process.argv = original;
-      }
-    });
+    const original = process.argv;
+    process.argv = repointed;
+    try {
+      return await Errors.handle(error);
+    } finally {
+      process.argv = original;
+    }
+  }
+}
+
+function normalizeLoadOptions(
+  dir: string | undefined,
+  loadOptions: ExecuteOptions['loadOptions'],
+): ExecuteOptions['loadOptions'] {
+  if (
+    typeof loadOptions !== 'object' ||
+    loadOptions === null ||
+    'runCommand' in loadOptions
+  ) {
+    return loadOptions ?? dir;
+  }
+
+  const root =
+    loadOptions.root ?? (dir?.startsWith('file://') ? fileURLToPath(dir) : dir);
+  if (!root) {
+    throw new Errors.CLIError('dir or loadOptions.root is required.');
+  }
+
+  return { ...loadOptions, root };
 }
