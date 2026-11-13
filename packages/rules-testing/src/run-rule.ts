@@ -1,5 +1,6 @@
 import type { Rule, ThymianFormat } from '@thymian/core';
 
+import type { RecordedPair } from './recorded.js';
 import type { RuleTestExecution } from './rule-test-execution.js';
 import { ruleUnderTest } from './rule-under-test.js';
 import { runAnalytics } from './run-analytics.js';
@@ -30,15 +31,36 @@ export type RunRule = {
     configuration?: RunTestConfiguration,
   ): Promise<RuleTestExecution[]>;
   /**
-   * Runs the rule as `thymian analyze` does, against traffic held in memory,
-   * and returns the same list in the same order as `static`. The traffic is
-   * every transaction of the format recorded once: the request the format
-   * describes, answered as the format declares it.
+   * Runs the rule as `thymian analyze` does, against traffic held in memory.
+   * Without `traffic` that is every transaction of the format recorded once,
+   * the request the format describes answered as the format declares it, and
+   * the list is the same, in the same order, as for `static`.
    *
-   * Throws when the rule does not declare `analytics`, and when the request
-   * of a transaction cannot be built from the format.
+   * With `traffic` the list is one entry per recording, in traffic order, on
+   * the transaction it matches; then the transactions that were never
+   * recorded, as `notApplicable`; then the executions the engine located
+   * anywhere else.
+   *
+   * Throws when the rule does not declare `analytics`, and without `traffic`
+   * when the request of a transaction cannot be built from the format.
    */
-  analytics(format: ThymianFormat): Promise<RuleTestExecution[]>;
+  analytics(
+    format: ThymianFormat,
+    configuration?: RunAnalyticsConfiguration,
+  ): Promise<RuleTestExecution[]>;
+};
+
+/**
+ * The traffic a rule is tested against in `analytics`.
+ */
+export type RunAnalyticsConfiguration = {
+  /**
+   * The recorded pairs the analyzer reads, in place of every transaction
+   * recorded once. `recorded(format, transactionId, overrides?)` gives the
+   * conforming pair of a transaction. A transaction may be recorded several
+   * times, and each recording is judged on its own.
+   */
+  traffic?: RecordedPair[];
 };
 
 /**
@@ -110,9 +132,9 @@ export function runRule<Options extends Record<PropertyKey, unknown>>(
       assertDeclares(anyRule, 'test');
       return runTest(underTest, format, respond);
     },
-    async analytics(format) {
+    async analytics(format, { traffic } = {}) {
       assertDeclares(anyRule, 'analytics');
-      return runAnalytics(underTest, format);
+      return runAnalytics(underTest, format, traffic);
     },
   };
 }

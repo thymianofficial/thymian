@@ -1,8 +1,18 @@
-import type { HttpTestContext, HttpTestHooks, Parameter } from '@thymian/core';
+import type {
+  HttpRequestTemplate,
+  HttpTestContext,
+  HttpTestHooks,
+  Parameter,
+  ThymianHttpTransaction,
+} from '@thymian/core';
 
-export const exampleRequestSampler: HttpTestContext['sampleRequest'] = async (
-  transaction,
-) => {
+/**
+ * The request a transaction describes, filled with the first example of every
+ * parameter and of the body.
+ */
+export function exampleRequestTemplate(
+  transaction: ThymianHttpTransaction,
+): HttpRequestTemplate {
   return {
     authorize: true,
     body: transaction.thymianReq.body?.examples?.[0],
@@ -16,7 +26,11 @@ export const exampleRequestSampler: HttpTestContext['sampleRequest'] = async (
     ),
     query: generateExampleParameters(transaction.thymianReq.queryParameters),
   };
-};
+}
+
+export const exampleRequestSampler: HttpTestContext['sampleRequest'] = async (
+  transaction,
+) => exampleRequestTemplate(transaction);
 
 export function generateExampleParameters(
   parameters: Record<string, Parameter>,

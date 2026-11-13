@@ -1,8 +1,14 @@
+export {
+  recorded,
+  type RecordedOverrides,
+  type RecordedPair,
+} from './recorded.js';
 export type {
   RuleTestExecution,
   RuleTestExecutionStatus,
 } from './rule-test-execution.js';
 export {
+  type RunAnalyticsConfiguration,
   type RunRule,
   runRule,
   type RunRuleConfiguration,
