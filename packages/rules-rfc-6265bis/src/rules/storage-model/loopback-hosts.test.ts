@@ -1,8 +1,6 @@
-import type { RuleFnResult } from '@thymian/core';
 import { describe, expect, it } from 'vitest';
 
-import { setCookieInputsAt } from '../../test/builders.js';
-import { runInContext } from '../../test/harness.js';
+import { onOneResponse } from '../../test/set-cookie.js';
 import { isLoopbackOrigin } from '../utils/transport.js';
 import nonMatchingDomainRule from './user-agent-must-ignore-cookie-with-non-matching-domain.rule.js';
 import secureOverInsecureRule from './user-agent-must-ignore-secure-cookie-over-insecure-connection.rule.js';
@@ -13,11 +11,6 @@ import secureOverInsecureRule from './user-agent-must-ignore-secure-cookie-over-
 // not the deployed API's either, so the transport is not judged there.
 
 const LOCAL_DEV = { protocol: 'http', host: 'localhost', port: 3000 } as const;
-
-const kinds = (results: RuleFnResult[]) =>
-  results.map((result) =>
-    result.violation === undefined ? 'skip' : 'violation',
-  );
 
 describe('isLoopbackOrigin', () => {
   it.each([
@@ -54,17 +47,24 @@ describe('a described local development server', () => {
       secureOverInsecureRule,
       'SID=31d4; Secure',
     ],
-  ])('leaves %s unjudged in static and test', async (_name, rule, line) => {
-    const inputs = setCookieInputsAt(LOCAL_DEV, [line]);
+  ])(
+    'leaves %s unjudged in static and test, and judges it in analytics',
+    async (_name, rule, line) => {
+      const at = { origin: LOCAL_DEV };
+      const skipped = {
+        status: 'skipped',
+        reason: expect.stringContaining('loopback host'),
+      };
 
-    expect(kinds(await runInContext('static', rule, inputs.static))).toEqual([
-      'skip',
-    ]);
-    expect(kinds(await runInContext('test', rule, inputs.test))).toEqual([
-      'skip',
-    ]);
-    expect(
-      kinds(await runInContext('analytics', rule, inputs.analytics)),
-    ).toEqual(['violation']);
-  });
+      expect(await onOneResponse(rule, 'static', [line], at)).toMatchObject(
+        skipped,
+      );
+      expect(await onOneResponse(rule, 'test', [line], at)).toMatchObject(
+        skipped,
+      );
+      expect(await onOneResponse(rule, 'analytics', [line], at)).toMatchObject({
+        status: 'failed',
+      });
+    },
+  );
 });

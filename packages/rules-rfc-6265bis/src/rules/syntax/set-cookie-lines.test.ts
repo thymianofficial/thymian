@@ -1,8 +1,6 @@
-import type { RuleFnResult } from '@thymian/core';
 import { describe, expect, it } from 'vitest';
 
-import { setCookieInputs } from '../../test/builders.js';
-import { fixtureContexts, runInContext } from '../../test/harness.js';
+import { contexts, onOneResponse } from '../../test/set-cookie.js';
 import rule from './server-must-send-set-cookie-conforming-to-grammar.rule.js';
 
 // Each Set-Cookie line is judged on its own, in every context: several lines
@@ -13,32 +11,23 @@ import rule from './server-must-send-set-cookie-conforming-to-grammar.rule.js';
 const CONFORMING = 'lang=en-US; Expires=Wed, 09 Jun 2021 10:18:14 GMT';
 const DEVIATING = 'SID=31d4; Max-Age=0';
 
-const messages = (results: RuleFnResult[]) =>
-  results.flatMap((result) =>
-    result.violation === undefined ? [] : [result.violation.message ?? ''],
-  );
-
-describe.each(fixtureContexts)('in %s', (context) => {
+describe.each(contexts)('in %s', (context) => {
   it('passes several conforming lines whose Expires carries a comma', async () => {
-    const results = await runInContext(
-      context,
-      rule,
-      setCookieInputs(CONFORMING, 'SID=31d4; Path=/; Secure')[context],
-    );
-
-    expect(messages(results)).toEqual([]);
+    expect(
+      await onOneResponse(rule, context, [
+        CONFORMING,
+        'SID=31d4; Path=/; Secure',
+      ]),
+    ).toMatchObject({ status: 'passed' });
   });
 
   it('quotes the deviating line alone, with the problem and what a browser does', async () => {
-    const results = await runInContext(
-      context,
-      rule,
-      setCookieInputs(CONFORMING, DEVIATING)[context],
-    );
-
-    expect(messages(results)).toEqual([
-      `The Set-Cookie line "${DEVIATING}" deviates from the draft-22 §4.1.1 grammar: the Max-Age value "0" is not a positive number of seconds without a leading zero (non-zero-digit *DIGIT). A user agent removes the cookie at once (§5.6.2 step 7); to delete a cookie within the grammar, send "Expires=Thu, 01 Jan 1970 00:00:00 GMT".`,
-    ]);
+    expect(
+      await onOneResponse(rule, context, [CONFORMING, DEVIATING]),
+    ).toMatchObject({
+      status: 'failed',
+      message: `The Set-Cookie line "${DEVIATING}" deviates from the draft-22 §4.1.1 grammar: the Max-Age value "0" is not a positive number of seconds without a leading zero (non-zero-digit *DIGIT). A user agent removes the cookie at once (§5.6.2 step 7); to delete a cookie within the grammar, send "Expires=Thu, 01 Jan 1970 00:00:00 GMT".`,
+    });
   });
 
   it.each([
@@ -76,25 +65,21 @@ describe.each(fixtureContexts)('in %s', (context) => {
       'A user agent ignores the cookie, because its name is empty and its value starts with a cookie name prefix (§5.7 step 22).',
     ],
   ])('says what a browser does with "%s"', async (line, consequence) => {
-    const results = await runInContext(
-      context,
-      rule,
-      setCookieInputs(line)[context],
-    );
-
-    expect(messages(results)).toEqual([expect.stringContaining(consequence)]);
+    expect(await onOneResponse(rule, context, [line])).toMatchObject({
+      status: 'failed',
+      message: expect.stringContaining(consequence),
+    });
   });
 
   it('escapes a control character wherever the message quotes it', async () => {
-    const results = await runInContext(
-      context,
-      rule,
-      setCookieInputs('SID=31\u0007d4')[context],
-    );
-
-    expect(messages(results)).toEqual([
-      expect.stringContaining('The Set-Cookie line "SID=31\\u0007d4" deviates'),
-    ]);
+    expect(
+      await onOneResponse(rule, context, ['SID=31\u0007d4']),
+    ).toMatchObject({
+      status: 'failed',
+      message: expect.stringContaining(
+        'The Set-Cookie line "SID=31\\u0007d4" deviates',
+      ),
+    });
   });
 
   it.each([
@@ -109,19 +94,15 @@ describe.each(fixtureContexts)('in %s', (context) => {
   ])(
     'writes no raw control character into the message for %j',
     async (line) => {
-      const results = await runInContext(
-        context,
-        rule,
-        setCookieInputs(line)[context],
-      );
+      const { status, message = '' } = await onOneResponse(rule, context, [
+        line,
+      ]);
 
       const isControl = (char: string) =>
         char.charCodeAt(0) < 0x20 || char.charCodeAt(0) === 0x7f;
 
-      expect(messages(results)).toHaveLength(1);
-      expect(
-        messages(results).flatMap((message) => [...message].filter(isControl)),
-      ).toEqual([]);
+      expect(status).toBe('failed');
+      expect([...message].filter(isControl)).toEqual([]);
     },
   );
 });
