@@ -43,8 +43,11 @@ declares, and return what the rule said about **every transaction** of the input
   that adding it returns. The output is a list of executions as plain data, with no
   dependency on a test framework.
 - **The context's own engine evaluates the rule.** In `static` that is the linter's context,
-  driven by core's rule runner and report builder as `thymian lint` drives it. The harness
-  does not reimplement what a context does with a rule.
+  driven by core's rule runner and report builder as `thymian lint` drives it. In `test` it
+  is the tester's context and the tester's report builder; the requests the tester builds
+  are answered in-process, by default with the response the format declares, so no sampler
+  plugin, dispatcher, port or network is involved. The harness does not reimplement what a
+  context does with a rule.
 - **Any rule runs, as it ships.** The rule runner leaves a rule with severity `off` out, so
   the harness hands it to the engine enabled, on a copy, and reports the severity the rule
   declares. `runRule(rule, { options })` passes the rule's options through the rules
@@ -59,6 +62,9 @@ declares, and return what the rule said about **every transaction** of the input
   transaction it accepts that the engine reported nothing on is `passed`; one it rejects is
   `notApplicable`. A rule whose applicability cannot be read from outside, because it
   decides in a plain callback, gets `passed` for every transaction it did not flag.
+  The tester does report `passed` and `skipped`, so in `test` the harness takes its
+  executions as reported and adds only `notApplicable`, for every transaction the tester
+  reported nothing on, whatever form the rule's applicability has.
 - **Locations are the engine's.** An execution carries the location the engine reported: a
   transaction, a node, or a free string. The one addition is the readable label: where a
   node or transaction location has none, the harness fills in the label a report prints for

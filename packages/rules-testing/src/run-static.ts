@@ -2,11 +2,8 @@ import {
   executionsFromRunRulesResult,
   type HttpFilterExpression,
   NoopLogger,
-  resolveViolationLocation,
-  type Rule,
   type RuleFnResult,
   type RuleRunnerAdapter,
-  type RuleViolationLocation,
   runRules,
   type ThymianFormat,
 } from '@thymian/core';
@@ -15,6 +12,7 @@ import { StaticApiContext } from '@thymian/plugin-http-linter';
 import {
   listExecutions,
   type RuleTestExecution,
+  withEngineLabel,
 } from './rule-test-execution.js';
 import type { RuleUnderTest } from './rule-under-test.js';
 import {
@@ -84,24 +82,6 @@ export async function runStatic(
     reported,
     (transactionId) => applicable?.has(transactionId) ?? true,
   );
-}
-
-function withEngineLabel(
-  location: RuleViolationLocation,
-  format: ThymianFormat,
-  rule: Rule,
-): RuleViolationLocation {
-  if (typeof location === 'string' || location.label !== undefined) {
-    return location;
-  }
-
-  const { heading } = resolveViolationLocation(
-    location,
-    format,
-    rule.meta.name,
-  );
-
-  return heading === '' ? location : { ...location, label: heading };
 }
 
 /**
