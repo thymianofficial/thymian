@@ -3,8 +3,7 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
-import { fixtureContexts } from '../../test/harness.js';
-import { loadTopicRules, reportedBy } from '../../test/topic-rules.js';
+import { contexts, loadTopicRules, reportedBy } from '../../test/set-cookie.js';
 import grammarRule from '../syntax/server-must-send-set-cookie-conforming-to-grammar.rule.js';
 
 // One defect, one violation. On a line the grammar rejects, the grammar rule
@@ -100,7 +99,7 @@ const cases: [string, string, string[]][] = [
   ],
 ];
 
-describe.each(fixtureContexts)('in %s', (context) => {
+describe.each(contexts)('in %s', (context) => {
   it.each(cases)('reports %s once', async (_name, line, expected) => {
     expect(await reportedBy(rules, context, [line])).toEqual(expected);
   });

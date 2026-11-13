@@ -3,9 +3,14 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
-import { INSECURE, type Origin, SECURE } from '../../test/builders.js';
-import { fixtureContexts } from '../../test/harness.js';
-import { loadTopicRules, reportedBy } from '../../test/topic-rules.js';
+import {
+  contexts,
+  INSECURE,
+  loadTopicRules,
+  type Origin,
+  reportedBy,
+  SECURE,
+} from '../../test/set-cookie.js';
 import grammarRule from '../syntax/server-must-send-set-cookie-conforming-to-grammar.rule.js';
 
 // One defect, one violation. The `considerations` rules judge only a cookie a
@@ -118,11 +123,11 @@ const cases: [string, Origin, string, string[]][] = [
   ],
 ];
 
-describe.each(fixtureContexts)('in %s', (context) => {
+describe.each(contexts)('in %s', (context) => {
   it.each(cases)(
     'reports %s once, or not at all',
     async (_name, origin, line, expected) => {
-      expect(await reportedBy(rules, context, [line], origin)).toEqual(
+      expect(await reportedBy(rules, context, [line], { origin })).toEqual(
         [...expected].sort(),
       );
     },

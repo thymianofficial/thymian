@@ -3,8 +3,7 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
-import { fixtureContexts } from '../../test/harness.js';
-import { loadTopicRules, reportedBy } from '../../test/topic-rules.js';
+import { contexts, loadTopicRules, reportedBy } from '../../test/set-cookie.js';
 
 // One defect, one violation. The grammar rule owns parse failures: a line a
 // user agent ignores, entirely or on receipt, sets no cookie, and the
@@ -36,7 +35,7 @@ const ignored = [
   ['SID=31\u0007d4; Path=/', 'SID="31d4"; Path=/'],
 ];
 
-describe.each(fixtureContexts)('in %s', (context) => {
+describe.each(contexts)('in %s', (context) => {
   it.each(ignored)(
     'reports a line a user agent ignores once, from the grammar rule: %j',
     async (...lines) => {

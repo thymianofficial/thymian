@@ -1,12 +1,9 @@
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import type { HttpRequest } from '@thymian/core';
 import { describe, expect, it } from 'vitest';
 
-import { recorded, setCookieLines } from '../../test/builders.js';
-import { fixtureContexts, runInContext } from '../../test/harness.js';
-import { loadTopicRules, reportedBy } from '../../test/topic-rules.js';
+import { contexts, loadTopicRules, reportedBy } from '../../test/set-cookie.js';
 import grammarRule from '../syntax/server-must-send-set-cookie-conforming-to-grammar.rule.js';
 import { receivedCookie } from '../utils/set-cookie.js';
 import { hostPrefixFailures } from '../utils/storage-model.js';
@@ -134,7 +131,7 @@ const cases: [string, string, string[]][] = [
   ],
 ];
 
-describe.each(fixtureContexts)('in %s', (context) => {
+describe.each(contexts)('in %s', (context) => {
   it.each(cases)(
     'reports %s once, or not at all',
     async (_name, line, expected) => {
@@ -161,25 +158,6 @@ const CROSS_SITE_NAVIGATION = {
   'Sec-Fetch-Mode': 'navigate',
   'Sec-Fetch-Dest': 'document',
 };
-
-async function reportedOnRecorded(
-  line: string,
-  path: string,
-  requestHeaders: NonNullable<HttpRequest['headers']> = {},
-): Promise<string[]> {
-  const names: string[] = [];
-  for (const rule of rules.filter((r) => r.meta.type.includes('analytics'))) {
-    const results = await runInContext('analytics', rule, {
-      transactions: [
-        recorded({ path, requestHeaders, headers: setCookieLines([line]) }),
-      ],
-    });
-    if (results.some((result) => result.violation !== undefined)) {
-      names.push(rule.meta.name);
-    }
-  }
-  return names.sort();
-}
 
 // Step 18 is read off recorded Fetch Metadata, and the default-path off the
 // recorded path.
@@ -229,10 +207,14 @@ describe('in analytics, on a recorded request', () => {
     ],
   ])(
     'reports %s once, or not at all',
-    async (_name, line, path, requestHeaders, expected) => {
-      expect(await reportedOnRecorded(line, path, requestHeaders)).toEqual(
-        expected,
-      );
+    async (_name, line, recordedPath, requestHeaders, expected) => {
+      expect(
+        await reportedBy(rules, 'analytics', [line], {
+          // The API description knows the path without its query.
+          path: recordedPath.replace(/\?.*$/, ''),
+          recordedRequest: { path: recordedPath, headers: requestHeaders },
+        }),
+      ).toEqual(expected);
     },
   );
 });
@@ -257,6 +239,7 @@ describe('the default-path of a path with a query', () => {
         path,
         headers: {},
         transportJudged: true,
+        responseDate: undefined,
       }),
     ).toEqual(failures);
   });
