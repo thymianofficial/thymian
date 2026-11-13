@@ -1,4 +1,5 @@
 import {
+  type FindingRecord,
   type RuleSeverity,
   type RuleViolationLocation,
   type ThymianFormat,
@@ -26,10 +27,19 @@ export type RuleTestExecution = {
   status: RuleTestExecutionStatus;
   /** Present when `failed`. */
   message?: string;
-  /** Present when `failed`: the severity the rule declares. */
+  /**
+   * Present when `failed`: the severity the rule declares, which is `off` for
+   * a rule that ships disabled.
+   */
   severity?: RuleSeverity;
   /** Present when `skipped` and the rule gave a reason. */
   reason?: string;
+  /**
+   * What the rule attached to the execution, as the engine reports it in a
+   * report: on a pass as much as on a violation. Empty when it attached
+   * nothing, and on a transaction the engine reported no execution on.
+   */
+  findings: FindingRecord[];
 };
 
 /**
@@ -80,6 +90,7 @@ export function listExecutions(
                 status: isApplicable(transactionId)
                   ? 'passed'
                   : 'notApplicable',
+                findings: [],
               },
             ];
       },
