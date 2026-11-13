@@ -68,6 +68,7 @@ export {
   createThymianSchema,
 } from './factories/schema.factory.js';
 export {
+  addTransaction,
   createThymianFormat,
   createThymianFormatWithTransaction,
   createThymianFormatWithTransactions,

@@ -146,11 +146,12 @@ C4Container
 
 Additional non-diagram packages:
 
-| Package                    | Purpose                                                            |
-| -------------------------- | ------------------------------------------------------------------ |
-| `packages/common-cli`      | Shared CLI base classes and helpers                                |
-| `packages/core-testing`    | Test utilities for the core package                                |
-| `packages/plugin-spectral` | Converts Spectral JSON reports into Thymian lint reports (Epic 14) |
+| Package                    | Purpose                                                               |
+| -------------------------- | --------------------------------------------------------------------- |
+| `packages/common-cli`      | Shared CLI base classes and helpers                                   |
+| `packages/core-testing`    | Test utilities for the core package                                   |
+| `packages/rules-testing`   | Tests a rule through each validation context's real engine (ADR-0026) |
+| `packages/plugin-spectral` | Converts Spectral JSON reports into Thymian lint reports (Epic 14)    |
 
 ### Key Architectural Changes from Epic 1
 

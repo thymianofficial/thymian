@@ -25,6 +25,7 @@ export default {
         'rules-rfc-9110',
         'rules-rfc-6797',
         'rules-rfc-6265bis',
+        'rules-testing',
         'thymian',
         'e2e',
         'plugin-har',
