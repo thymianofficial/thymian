@@ -5,7 +5,7 @@ sidebar:
   order: 3
 ---
 
-A rule declares the validation contexts it runs in: `static` (`thymian lint`), `test` (`thymian test`) and `analytics` (`thymian analyze`). A rule test shows, in an ordinary unit test, what the rule says in each of them. It runs the rule through the engine the command uses, and not by calling the rule function directly, because the engine decides what a rule means in a context: the linter asks `appliesTo` of the specification, the analyzer of the recorded traffic, the tester of both.
+A rule declares the validation contexts it runs in: `static` (`thymian lint`), `test` (`thymian test`) and `analytics` (`thymian analyze`). A rule test shows, in an ordinary unit test, what the rule says in each of them. It runs the rule through the engine the command uses, and not by calling the rule function directly, because the engine decides what a rule means in a context: the linter asks `appliesTo` of the specification, the analyzer of the recorded traffic, the tester of the specification and then again of the response that came back.
 
 You describe an API, hand it to `runRule`, and get back a list that says, for **every transaction** of that API, whether the rule flagged it, accepted it or did not speak about it.
 
@@ -13,11 +13,11 @@ You describe an API, hand it to `runRule`, and get back a list that says, for **
 npm install --save-dev @thymian/rules-testing @thymian/core-testing
 ```
 
-`runRule` returns plain data and needs no particular test framework. The samples on this page use `expect` from [Vitest](https://vitest.dev/); any other assertion on a list of objects does the same. A rule test opens no port, sends nothing over the network and reads no traffic from disk.
+`runRule` returns plain data and needs no particular test framework. The code examples on this page use `expect` from [Vitest](https://vitest.dev/); any other assertion on a list of objects does the same. A rule test opens no port, sends nothing over the network and reads no traffic from disk.
 
-Every sample on this page is taken from [a test that runs in the Thymian repository](https://github.com/thymianofficial/thymian/blob/main/packages/rules-testing/test/rule-author-guide.test.ts).
+Every code example on this page is taken from [a test that runs in the Thymian repository](https://github.com/thymianofficial/thymian/blob/main/packages/rules-testing/test/rule-author-guide.test.ts), and the two example rules from the [rules that test imports](https://github.com/thymianofficial/thymian/tree/main/packages/rules-testing/test/rules).
 
-## The two example rules
+## The Two Example Rules
 
 This guide tests two rules. Both declare all three contexts.
 
@@ -85,9 +85,9 @@ const astronautRejected = addTransaction(format, createAstronaut, createBadReque
 
 Give the format what the rule should flag, what it should accept and what it should leave alone. With two transactions and "exactly one violation", a rule that flags the wrong one passes too, so a rule test names each transaction and says what is expected of it.
 
-## Run the rule in every context it declares
+## Run the Rule in Every Context It Declares
 
-`runRule(rule)` gives one function per validation context, named as in the rule's `.type(...)`: `static`, `test` and `analytics`. Each takes the format and returns a list of executions, one per transaction, in the order the transactions were added.
+`runRule(rule)` gives one function per validation context, named as in the rule's `.type(...)`: `static`, `test` and `analytics`. Each takes the format and returns a list of executions: every transaction of the format appears, in the order the transactions were added. A transaction the engine reports several executions on appears once per execution, and executions on any other location come last.
 
 ```typescript
 import { runRule } from '@thymian/rules-testing';
@@ -140,11 +140,11 @@ expect(await run.analytics(format)).toMatchObject(expected);
 The three contexts agree here because, unless you say otherwise, `test` and `analytics` take everything from the format:
 
 - **`static`** evaluates the rule against the format, as `thymian lint` evaluates it against a specification.
-- **`test`** builds a request for each transaction and answers it in-process as the format declares: the declared status, every declared header (required or not) with a value, the declared media type as `content-type`, and a body where the response declares a schema.
+- **`test`** builds a request for each transaction the rule's `appliesTo` selects, and answers it in-process as the format declares: the declared status, every declared header (required or not) with a value, the declared media type as `content-type`, and a body where the response declares a schema.
 - **`analytics`** reads every transaction of the format recorded once: the request `test` would send, answered with that same response.
 
 :::caution[Covering every declared context is your responsibility]
-Each context is its own call, and nothing checks that you made all of them. A rule that declares `.type('static', 'analytics', 'test')` and is only run with `run.static(...)` is tested in one context out of three. Call every context the rule declares, also where you expect the same result: the contexts ask `appliesTo` of different things, and a rule can be right in one and silent in another.
+Each context is its own call, and nothing checks that you made all of them. A rule that declares `.type('static', 'analytics', 'test')` and is only run with `run.static(...)` is tested in one context out of three. Call every context the rule declares, also where you expect the same executions: the contexts ask `appliesTo` of different things, and a rule can be right in one and silent in another.
 :::
 
 Calling a context the rule does **not** declare throws, so a test cannot pass while proving nothing:
@@ -164,7 +164,7 @@ const lintOnly = httpRule('demo/lint-only')
 await expect(runRule(lintOnly).test(format)).rejects.toThrow('Rule "demo/lint-only" does not declare the "test" context. It declares: static.');
 ```
 
-## Read the result
+## Read the Executions
 
 An execution is what the rule said about one location. On a transaction it looks like this:
 
@@ -191,33 +191,33 @@ expect(executions[4]).toMatchObject({
 | `status`   | `failed`, `passed`, `notApplicable` or `skipped`.                                                           |
 | `message`  | When `failed`: the message of the violation, or the rule's summary or description when the rule gives none. |
 | `severity` | When `failed`: the severity the rule declares.                                                              |
-| `reason`   | When `skipped`: why.                                                                                        |
+| `reason`   | When `skipped`, and a reason was given: why.                                                                |
 | `group`    | When a grouped rule blamed a group as a whole: the group key. See [Grouped rules](#grouped-rules).          |
 | `findings` | What the rule attached to the execution, on a pass as much as on a violation. Always a list.                |
 
 Compare with a partial match, as `toMatchObject` does, and write only the fields the test is about. The `label` is there for you: ids are hashes, and the label is what makes a failing comparison say which transaction it is about.
 
-### The four statuses
+### The Four Statuses
 
-| Status          | The rule…                                                                     |
-| --------------- | ----------------------------------------------------------------------------- |
-| `failed`        | applies to the transaction and reports a violation on it.                     |
-| `passed`        | applies to the transaction and reports nothing wrong.                         |
-| `notApplicable` | does not speak about the transaction: it is outside the rule's `appliesTo`.   |
-| `skipped`       | could not be decided for the transaction. The execution carries the `reason`. |
+| Status          | The rule…                                                                                         |
+| --------------- | ------------------------------------------------------------------------------------------------- |
+| `failed`        | applies to the transaction and reports a violation on it.                                         |
+| `passed`        | applies to the transaction and reports nothing wrong.                                             |
+| `notApplicable` | does not speak about the transaction: it is outside the rule's `appliesTo`.                       |
+| `skipped`       | could not be decided for the transaction. The execution carries the `reason`, when one was given. |
 
 `passed` and `notApplicable` are what show a rule's scope: `passed` proves the rule looked at a transaction and accepted it, `notApplicable` proves it left the transaction alone.
 
 `notApplicable` exists only in a rule test. A report of `thymian lint`, `thymian test` or `thymian analyze` knows `failed`, `passed` and `skipped`.
 
-### Where `passed` and `notApplicable` come from
+### Where `passed` and `notApplicable` Come From
 
 The linter and the analyzer report only what a rule returns, and a rule returns its violations. A transaction the rule accepted and one it never looked at both simply do not appear. So `runRule` works the difference out itself:
 
 - In **`static`** and **`analytics`**, it reads the `appliesTo` the rule states in its rule-context calls. A transaction inside it that the engine reported nothing on is `passed`; one outside it is `notApplicable`. `static` asks `appliesTo` of the format, `analytics` of the recorded request and response.
 - In **`test`**, the tester itself reports `passed` and `skipped` for every transaction it sent a request for. `runRule` takes these as reported and adds only `notApplicable`, for a transaction no request was sent for.
 
-This works when `appliesTo` is a filter expression such as `statusCode(201)`. A rule that decides applicability in a **plain callback** cannot be read from outside, so every transaction it did not flag comes back as `passed`:
+This works when `appliesTo` is a filter expression such as `statusCode(201)`. In `static`, a rule can also decide applicability in a **plain callback** (`validateHttpTransactions`). That cannot be read from outside, so every transaction the rule did not flag comes back as `passed`:
 
 ```typescript
 const decidesInACallback = httpRule('demo/decides-in-a-callback')
@@ -242,9 +242,9 @@ expect(await runRule(decidesInACallback).static(format)).toMatchObject([
 ]);
 ```
 
-This is the same check as `created-responses-have-location`, and the same format, yet the `200`, `404` and `400` answers are `passed` where they were `notApplicable`. The `failed` entries of such a rule are as reliable as any other; its `passed` entries say only "not flagged". Stating `appliesTo` as a filter expression is what makes a rule's scope testable. The same holds for a rule that passes only a violation condition, and in `analytics` for a rule that reads whole traces (`validateCapturedHttpTraces`).
+This is the same check as `created-responses-have-location`, and the same format, yet the `200`, `404` and `400` answers are `passed` where they were `notApplicable`. The `failed` entries of such a rule are as reliable as any other; its `passed` entries say only "not flagged". Stating `appliesTo` as a filter expression is what makes a rule's scope testable. The same holds for a rule that passes only a violation condition or makes no rule-context call at all, and in `analytics` for a rule that reads whole traces (`validateCapturedHttpTraces`). In `analytics`, `validateHttpTransactions` takes a filter expression, which `runRule` reads like any other.
 
-## A server that deviates
+## A Server That Deviates
 
 In `test`, the server answers as the format declares unless you give `respond`. It is a function that is called for every request and returns the response. It is given the id of the `transaction` the request is aimed at, the `conforming` response, and the `request` that was sent, so you change only what matters:
 
@@ -287,7 +287,7 @@ expect(executions).toMatchObject([
 ]);
 ```
 
-### Another status than declared is `skipped`
+### Another Status Than Declared Is `skipped`
 
 A server that answers a transaction with a **different status than the format declares** makes that transaction `skipped`, not `failed`. The tester does not ask the rule about it, exactly as `thymian test` does not:
 
@@ -305,7 +305,7 @@ expect(executions[1]).toMatchObject({
 
 So `respond` cannot turn a `201` into a `400` to see what the rule says about a `400`. Add a transaction that declares the `400` instead.
 
-## Traffic you hand in
+## Traffic You Hand In
 
 In `analytics`, the traffic is every transaction recorded once, conforming, unless you give `traffic`: a list of recorded pairs, each a request and its response as plain HTTP objects. `recorded(format, transactionId)` gives the conforming pair of a transaction:
 
@@ -367,7 +367,7 @@ expect(executions.at(-1)).toMatchObject({
 });
 ```
 
-### What an override replaces
+### What an Override Replaces
 
 An override replaces a field of the conforming request or response as a whole: `headers` given in an override are all the headers of that recording. One header is kept. The analyzer recognises a transaction in a recording by method, origin, path, status and media types, so the media type the format declares stays named as `content-type` unless the headers you give name one themselves:
 
@@ -410,9 +410,9 @@ expect(executions).toMatchObject([
 
 The same holds for a pair you write by hand: to be recognised as a transaction of the format, it has to carry the media types the format declares as `content-type`.
 
-## Grouped rules
+## Grouped Rules
 
-A rule that compares several transactions with each other (`validateGroupedCommonHttpTransactions`) says what is at fault by the location it returns, and a rule test shows both readings. The two rules below make the same check, that a resource sends `ETag` on every `200` answer or on none, and differ only in what they blame.
+A rule that compares several transactions with each other (`validateGroupedCommonHttpTransactions`) says what is at fault by the location it returns, and a rule test shows both readings. The two rules below make the same check, that a resource sends `ETag` on every `200` answer or on none, and differ only in what they blame. `url` comes from `@thymian/core`, `createPutRequest` from `@thymian/core-testing`.
 
 ```typescript
 const format = createThymianFormat();
@@ -422,7 +422,7 @@ const launchCreated = addTransaction(format, createPostRequest({ path: '/launche
 const astronautRead = addTransaction(format, createGetRequest({ path: '/astronauts' }), createOkResponse());
 ```
 
-### The rule blames one member
+### The Rule Blames One Member
 
 A rule that returns the location of one member of the group says that this transaction is wrong:
 
@@ -471,7 +471,7 @@ expect(await run.test(format)).toMatchObject(expected);
 expect(await run.analytics(format)).toMatchObject(expected);
 ```
 
-### The rule blames the group
+### The Rule Blames the Group
 
 A rule that returns the group key, the first argument of `violatedWhen`, says that the group as a whole is wrong:
 
@@ -529,7 +529,7 @@ expect(inStatic?.group).toBe('https://localhost:443/launches');
 expect(inAnalytics?.group).toBe('https://localhost/launches');
 ```
 
-## Limits you will meet
+## Limits You Will Meet
 
 - **A path parameter without an example.** A request cannot be built for it. In `test` the transaction is `skipped`, with the reason `Missing value for path parameter "id".`; in `analytics` the call throws, because there is nothing to record. Give the parameter's schema an example, as `getLaunch` does above.
 - **A group in `test` is sent together.** A server that answers one member of a group with another status than declared makes every member of that group `skipped`.
