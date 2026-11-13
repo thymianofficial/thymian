@@ -35,7 +35,7 @@ const logger = new NoopLogger();
 /**
  * What a responder is asked to answer.
  */
-export type RespondTo = {
+export type RespondInput = {
   /** The id of the transaction the request is aimed at. */
   transaction: string;
   /** The response that answers the transaction exactly as the format declares it. */
@@ -48,7 +48,7 @@ export type RespondTo = {
  * The server under test of a rule test: decides what comes back for a request.
  */
 export type Respond = (
-  exchange: RespondTo,
+  input: RespondInput,
 ) => HttpResponse | Promise<HttpResponse>;
 
 /**

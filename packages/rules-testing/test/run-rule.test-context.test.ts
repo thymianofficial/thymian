@@ -22,15 +22,15 @@ import {
 } from '@thymian/core-testing';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { type RespondTo, runRule } from '../src/index.js';
+import { type RespondInput, runRule } from '../src/index.js';
 import { clientErrorsAreProblemJson } from './rules/client-errors-are-problem-json.js';
 import { createdResponsesHaveLocation } from './rules/created-responses-have-location.js';
 
 /** Runs a rule that flags nothing and returns what the responder was given. */
-async function exchangesOf(
+async function respondInputsOf(
   format: ReturnType<typeof createThymianFormat>,
-): Promise<RespondTo[]> {
-  const exchanges: RespondTo[] = [];
+): Promise<RespondInput[]> {
+  const inputs: RespondInput[] = [];
   const asksEverything = httpRule('test/asks-every-transaction')
     .severity('error')
     .type('test')
@@ -43,13 +43,13 @@ async function exchangesOf(
     .done();
 
   await runRule(asksEverything).test(format, {
-    respond: (exchange) => {
-      exchanges.push(exchange);
-      return exchange.conforming;
+    respond: (input) => {
+      inputs.push(input);
+      return input.conforming;
     },
   });
 
-  return exchanges;
+  return inputs;
 }
 
 describe('runRule(rule).test(format)', () => {
@@ -155,9 +155,9 @@ describe('runRule(rule).test(format)', () => {
         }),
       );
 
-      const [exchange] = await exchangesOf(format);
+      const [input] = await respondInputsOf(format);
 
-      expect(exchange?.conforming).toMatchObject({
+      expect(input?.conforming).toMatchObject({
         statusCode: 201,
         headers: {
           location: '/astronauts/7',
@@ -168,7 +168,7 @@ describe('runRule(rule).test(format)', () => {
       });
     });
 
-    it('has no body and no content type when the format declares neither', async () => {
+    it('has no body and no media type when the format declares neither', async () => {
       const format = createThymianFormat();
       addTransaction(
         format,
@@ -176,10 +176,10 @@ describe('runRule(rule).test(format)', () => {
         createOkResponse({ mediaType: '' }),
       );
 
-      const [exchange] = await exchangesOf(format);
+      const [input] = await respondInputsOf(format);
 
-      expect(exchange?.conforming.headers).toEqual({});
-      expect(exchange?.conforming).not.toHaveProperty('body');
+      expect(input?.conforming.headers).toEqual({});
+      expect(input?.conforming).not.toHaveProperty('body');
     });
   });
 
@@ -198,10 +198,10 @@ describe('runRule(rule).test(format)', () => {
         createBadRequestResponse(),
       );
 
-      const exchanges = await exchangesOf(format);
+      const inputs = await respondInputsOf(format);
 
       expect(
-        exchanges.map(({ transaction, conforming }) => [
+        inputs.map(({ transaction, conforming }) => [
           transaction,
           conforming.statusCode,
         ]),
@@ -211,7 +211,7 @@ describe('runRule(rule).test(format)', () => {
           [astronautRejected, 400],
         ]),
       );
-      expect(exchanges).toHaveLength(2);
+      expect(inputs).toHaveLength(2);
     });
 
     it('receives the request that was sent', async () => {
@@ -229,9 +229,9 @@ describe('runRule(rule).test(format)', () => {
         createCreatedResponse(),
       );
 
-      const [exchange] = await exchangesOf(format);
+      const [input] = await respondInputsOf(format);
 
-      expect(exchange?.request).toMatchObject({
+      expect(input?.request).toMatchObject({
         method: 'POST',
         origin: 'https://localhost:443',
         path: '/crews/sts-7/astronauts',

@@ -59,7 +59,7 @@ expect(await run.static(format)).toMatchObject(expected);
 expect(await run.test(format)).toMatchObject(expected);
 ```
 
-`runRule(rule)` gives one function per validation context, named as in the rule's `.type(...)`: `static` evaluates the rule with the context `thymian lint` uses, `test` with the one `thymian test` uses. Each returns the same list in the same order. Calling a context the rule does not declare throws.
+`runRule(rule)` gives one function per validation context, named as in the rule's `.type(...)`: `static` evaluates the rule with the context `thymian lint` uses, `test` with the one `thymian test` uses. Each returns a list of the same shape in the same order. Calling a context the rule does not declare throws.
 
 ### The server in `test`
 
@@ -117,7 +117,7 @@ The `label` is the readable name of the location, so a failing comparison says w
 
 **Where `passed` and `notApplicable` come from.** In `test` the tester reports an execution for every transaction it sent a request for, `passed` and `skipped` included; `runRule` takes them as reported and adds only `notApplicable`, for a transaction no request was sent for. The linter reports only what a rule returns, which for most rules is its violations. In `static`, `runRule` works out the rest from the `appliesTo` the rule states in its rule-context calls: a transaction inside it that the engine reported nothing on is `passed`, one outside it is `notApplicable`. Several calls count together; a transaction is applicable when any of them accepts it.
 
-A rule whose applicability cannot be read from outside, because it decides in a plain callback (`validateHttpTransactions` in `static`), passes only a violation condition, or makes no rule-context call at all, gets `passed` for every transaction it did not flag.
+In `static`, a rule whose applicability cannot be read from outside, because it decides in a plain callback (`validateHttpTransactions` in `static`), passes only a violation condition, or makes no rule-context call at all, gets `passed` for every transaction it did not flag.
 
 **Skips and findings.** A rule that returns a `rule-skip` finding for a location yields a `skipped` execution there, with the `reason` it gave. Any other finding comes back in `findings`, on a `passed` execution as much as on a `failed` one, in the shape of a report finding: `{ id, kind, title, message: { text } }`. The `id` is generated per run, so compare findings with `toMatchObject` or leave it out.
 

@@ -63,7 +63,8 @@ declares, and return what the rule said about **every transaction** of the input
   `notApplicable`. A rule whose applicability cannot be read from outside, because it
   decides in a plain callback, gets `passed` for every transaction it did not flag.
   The tester does report `passed` and `skipped`, so in `test` the harness takes its
-  executions as reported and adds only `notApplicable`.
+  executions as reported and adds only `notApplicable`, for every transaction the tester
+  reported nothing on, whatever form the rule's applicability has.
 - **Locations are the engine's.** An execution carries the location the engine reported: a
   transaction, a node, or a free string. The one addition is the readable label: where a
   node or transaction location has none, the harness fills in the label a report prints for

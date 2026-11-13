@@ -26,7 +26,7 @@ export type RunRule = {
    */
   test(
     format: ThymianFormat,
-    server?: RunTestConfiguration,
+    configuration?: RunTestConfiguration,
   ): Promise<RuleTestExecution[]>;
 };
 

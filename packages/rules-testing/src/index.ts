@@ -8,4 +8,4 @@ export {
   type RunRuleConfiguration,
   type RunTestConfiguration,
 } from './run-rule.js';
-export type { Respond, RespondTo } from './run-test.js';
+export type { Respond, RespondInput } from './run-test.js';
