@@ -159,6 +159,38 @@ describe('the committed type surface', () => {
     });
   });
 
+  describe('default transactions', () => {
+    it('are absent from Endpoints, Responses, Status and StatusClass', async () => {
+      const format = formatWithExamples();
+
+      format.addHttpTransaction(
+        createHttpRequest({ method: 'GET', path: '/launches' }),
+        createHttpResponse({
+          statusCode: 'default',
+          mediaType: 'application/problem+json',
+        }),
+        'test-source',
+      );
+      // An operation that declares only `default` has nothing to target.
+      format.addHttpTransaction(
+        createHttpRequest({ method: 'DELETE', path: '/clock' }),
+        createHttpResponse({ statusCode: 'default', mediaType: '' }),
+        'test-source',
+      );
+
+      const { requestTypes } = await generateTypeSurface(catalogOf(format));
+
+      expect(requestTypes).not.toContain('default');
+      expect(requestTypes).not.toContain('/clock');
+      expect(requestTypes).toContain('export type Status = 200 | 201;');
+      expect(requestTypes).toContain('export type StatusClass = "2XX";');
+      expect(requestTypes).toEqual(
+        (await generateTypeSurface(catalogOf(formatWithExamples())))
+          .requestTypes,
+      );
+    });
+  });
+
   describe('examples on named component schemas', () => {
     /**
      * The same schema twice: once inline, once behind a `$ref` into `$defs`.

@@ -14,7 +14,7 @@ function formatOf(
   pairs: Array<{
     method: string;
     path: string;
-    status: number;
+    status: number | 'default';
     requestMediaType?: string;
     responseMediaType?: string;
   }>,
@@ -100,6 +100,36 @@ describe('TransactionFilter', () => {
     expect(matching({ statusClass: '4XX' })).toEqual([
       'GET /v1/launches -> 404',
     ]);
+  });
+
+  it('never matches a default response by status or status class, and its not does', () => {
+    const [ok, fallback] = formatOf([
+      { method: 'GET', path: '/v1/clock', status: 200 },
+      { method: 'GET', path: '/v1/clock', status: 'default' },
+    ]).getThymianHttpTransactions();
+
+    if (!ok || !fallback) {
+      throw new Error('fixture has two transactions');
+    }
+
+    for (const filter of [
+      { status: 200 },
+      { statusClass: '2XX' },
+      { statusClass: '4XX' },
+    ] as const) {
+      expect(
+        matchesTransactionFilter(filter, fallback),
+        JSON.stringify(filter),
+      ).toBe(false);
+    }
+
+    expect(matchesTransactionFilter({ status: 200 }, ok)).toBe(true);
+    expect(
+      matchesTransactionFilter(
+        { path: '/v1/clock', not: { status: 200 } },
+        fallback,
+      ),
+    ).toBe(true);
   });
 
   it('matches declared media types', () => {

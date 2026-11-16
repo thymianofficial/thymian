@@ -8,6 +8,7 @@ import {
   type RequestFilterFn,
   type ResponseFilterFn,
   runRequests,
+  type TestableThymianHttpTransaction,
   type ThymianHttpTransaction,
   thymianHttpTransactionToString,
 } from '@thymian/core';
@@ -23,6 +24,7 @@ import {
   reportOf,
   summaryLineOf,
   summaryOf,
+  transactionsToCheck,
 } from '../../check-result.js';
 import { createContext } from '../../create-context.js';
 
@@ -99,7 +101,7 @@ export default class Check extends BaseCliRunCommand<typeof Check> {
       });
 
       try {
-        for (const transaction of format.getThymianHttpTransactions()) {
+        for (const transaction of transactionsToCheck(format)) {
           if (runEnded) {
             break;
           }
@@ -140,7 +142,7 @@ export default class Check extends BaseCliRunCommand<typeof Check> {
    * every transaction after it. Here it ends that transaction and nothing else.
    */
   private async checkTransaction(
-    transaction: ThymianHttpTransaction,
+    transaction: TestableThymianHttpTransaction,
     context: ReturnType<typeof createContext>,
     targetUrl?: string,
   ): Promise<CheckedTransaction> {
@@ -235,7 +237,9 @@ export default class Check extends BaseCliRunCommand<typeof Check> {
    * every declared Transaction is accounted for, per the check-outcomes
    * contract, without sending a request nothing can assert against.
    */
-  private isCheckableTransaction(transaction: ThymianHttpTransaction): boolean {
+  private isCheckableTransaction(
+    transaction: TestableThymianHttpTransaction,
+  ): boolean {
     // By first digit, not by the registered-code lists.
     //
     // A description may declare a status IANA never registered — `499` is the

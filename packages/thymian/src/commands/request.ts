@@ -13,6 +13,7 @@ import {
   type HttpResponse,
   httpStatusCodeToPhrase,
   httpTest,
+  isTestableTransaction,
   isValidHttpStatusCode,
   mapToTestCase,
   runRequests,
@@ -39,7 +40,11 @@ export default class RunRequest extends BaseCliRunCommand<typeof RunRequest> {
 
       const titleToTransaction = new Map<string, ThymianHttpTransaction>();
 
-      for (const t of format.getThymianHttpTransactions()) {
+      // A `default` Transaction names no status to send a request for, so the
+      // picker does not offer it (ADR-0027).
+      for (const t of format
+        .getThymianHttpTransactions()
+        .filter(isTestableTransaction)) {
         titleToTransaction.set(
           thymianHttpTransactionToString(t.thymianReq, t.thymianRes),
           t,

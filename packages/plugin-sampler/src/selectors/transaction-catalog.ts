@@ -1,4 +1,8 @@
-import type { ThymianFormat, ThymianHttpTransaction } from '@thymian/core';
+import {
+  isTestableTransaction,
+  type ThymianFormat,
+  type ThymianHttpTransaction,
+} from '@thymian/core';
 
 import { nearestPathHints } from './nearest-paths.js';
 import {
@@ -152,6 +156,22 @@ export class TransactionCatalog {
     );
   }
 
+  /**
+   * The concrete statuses `transaction`'s operation documents, ascending and
+   * without `default` — what a hook or seed aimed at a `default` Transaction is
+   * told to target instead (ADR-0027).
+   */
+  concreteStatusesOf(transaction: ThymianHttpTransaction): number[] {
+    return [
+      ...new Set(
+        this.responsesOf(transaction)
+          .map(([, sibling]) => sibling)
+          .filter(isTestableTransaction)
+          .map((sibling) => sibling.thymianRes.statusCode),
+      ),
+    ].sort((a, b) => a - b);
+  }
+
   /** The selector one transaction renders as, for a diagnostic that has the id. */
   selectorFor(transactionId: string): Selector | undefined {
     return this.selectorByTransactionId.get(transactionId);
@@ -232,6 +252,9 @@ export class TransactionCatalog {
    * Deterministic rank buckets, in catalog order: same method and path first,
    * then the same path under another method. No fuzzy matching — it would add a
    * dependency and make the ordering unexplainable.
+   *
+   * A `default` Transaction is never proposed: it cannot be a hook or seed
+   * target, so suggesting one would only trade this error for that one.
    */
   private nearMisses(parts: SelectorParts): Selector[] {
     const sameMethod: Selector[] = [];
@@ -239,7 +262,10 @@ export class TransactionCatalog {
     const path = encodePath(parts.path);
 
     for (const [selector, transaction] of this.orderedEntries) {
-      if (encodePath(transaction.thymianReq.path) !== path) {
+      if (
+        !isTestableTransaction(transaction) ||
+        encodePath(transaction.thymianReq.path) !== path
+      ) {
         continue;
       }
 
