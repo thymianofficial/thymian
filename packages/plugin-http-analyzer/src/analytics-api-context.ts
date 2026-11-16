@@ -146,10 +146,14 @@ export class AnalyticsApiContext implements AnalyzeContext {
       this.roles = expandHttpParticipantRoles(roles);
     }
 
-    // A recorded pair the specification does not describe is not secured.
+    // A recorded pair to an operation the specification does not describe is
+    // not secured. An undocumented response still belongs to its operation.
     this.repository.answerIsSecuredWith((request, response) => {
-      const reqId = this.format.matchTransaction(request, response)?.[1];
-      return !!reqId && this.format.requestIsSecured(reqId);
+      const resolution = this.format.resolveTransaction(request, response);
+      return (
+        resolution.kind !== 'unknown-operation' &&
+        this.format.requestIsSecured(resolution.requestId)
+      );
     });
   }
 
@@ -170,28 +174,42 @@ export class AnalyticsApiContext implements AnalyzeContext {
         );
   }
 
-  // Locates a recorded pair on the format Transaction it matches. A pair that
-  // matches none, or more than one, keeps its label as the location, and so
-  // does a pair the format cannot be asked about (a duplicated Content-Type,
-  // an origin that is no URL): where a result is shown must not end the run.
+  /**
+   * Where a recorded pair lands in the specification: the matched Transaction,
+   * the matched operation's request node for an Undocumented Response (no
+   * label, so the report names the operation's selector, not the recorded
+   * URL), or the recorded pair's label for an unknown operation. A pair the
+   * format cannot be asked about (a duplicated Content-Type, an origin that is
+   * no URL) keeps its label too: where a result is shown must not end the run.
+   */
   private locate(
     request: HttpRequest,
     response: HttpResponse,
     label: string,
   ): RuleViolationLocation {
-    let transactionId: string | undefined;
+    let resolution: ReturnType<ThymianFormat['resolveTransaction']>;
 
     try {
-      transactionId = this.format.matchTransaction(request, response)?.[0];
+      resolution = this.format.resolveTransaction(request, response);
     } catch (error) {
       this.logger.debug(
         `Cannot match "${label}" to a transaction, locating it by its label: ${String(error)}`,
       );
+      return label;
     }
 
-    return transactionId
-      ? { elementType: 'edge', elementId: transactionId, label }
-      : label;
+    switch (resolution.kind) {
+      case 'matched':
+        return {
+          elementType: 'edge',
+          elementId: resolution.transactionId,
+          label,
+        };
+      case 'undocumented-response':
+        return { elementType: 'node', elementId: resolution.requestId };
+      case 'unknown-operation':
+        return label;
+    }
   }
 
   validateCommonHttpTransactions(
@@ -377,19 +395,11 @@ export class AnalyticsApiContext implements AnalyzeContext {
       finalFilter,
       this.roles,
     )) {
-      const matchResult = this.format.matchTransaction(
+      const location = this.locate(
         request.data,
         response.data,
+        httpTransactionToLabel(request.data, response.data),
       );
-      const transactionId = matchResult?.[0];
-
-      const location: RuleViolationLocation = transactionId
-        ? {
-            elementType: 'edge',
-            elementId: transactionId,
-            label: httpTransactionToLabel(request.data, response.data),
-          }
-        : httpTransactionToLabel(request.data, response.data);
 
       results.push(...validateFn(request.data, response.data, location));
     }
