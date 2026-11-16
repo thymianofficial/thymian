@@ -229,6 +229,24 @@ describe('feedback command', () => {
       );
     });
 
+    it('offers to leave the stack out only when there is a stack', async () => {
+      writeFileSync(
+        recordFile,
+        JSON.stringify({ ...record, stack: undefined }),
+      );
+      answer(true, 'github', 'send');
+
+      await run();
+
+      const review = select.mock.calls[1]![0] as {
+        choices: { value: string }[];
+      };
+      expect(review.choices.map((choice) => choice.value)).toEqual([
+        'send',
+        'cancel',
+      ]);
+    });
+
     it('opens nothing and keeps the record on cancel', async () => {
       const content = writeRecord();
       answer(true, 'email', 'cancel');
@@ -257,6 +275,18 @@ describe('feedback command', () => {
     it('at the confirm exits 130, opens nothing and keeps the record', async () => {
       const content = writeRecord();
       answer(exitPromptError());
+
+      const { error } = await run();
+
+      expect(exitCodeOf(error)).toBe(130);
+      expect(openMock).not.toHaveBeenCalled();
+      expect(readFileSync(recordFile, 'utf-8')).toBe(content);
+    });
+
+    it('at the channel choice exits 130, opens nothing and keeps the record', async () => {
+      const content = writeRecord();
+      answer(true);
+      select.mockRejectedValueOnce(exitPromptError());
 
       const { error } = await run();
 

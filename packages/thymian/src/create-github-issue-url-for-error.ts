@@ -1,17 +1,12 @@
 import type { CachedError } from '@thymian/common-cli';
 
-import { shortenHomeDir } from './shorten-home-dir.js';
+import { type DraftOptions, shortenHomeDir } from './draft.js';
 
 /** A prefilled GitHub issue: what the user reviews and the URL that opens it. */
 export type IssueDraft = {
   title: string;
   body: string;
   url: string;
-};
-
-export type DraftOptions = {
-  /** Leave the stack out, with a placeholder line where it was. */
-  withoutStack?: boolean;
 };
 
 export function createGithubIssueDraft(

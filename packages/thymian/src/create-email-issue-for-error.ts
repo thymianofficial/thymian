@@ -1,7 +1,6 @@
 import type { CachedError } from '@thymian/common-cli';
 
-import type { DraftOptions } from './create-github-issue-url-for-error.js';
-import { shortenHomeDir } from './shorten-home-dir.js';
+import { type DraftOptions, shortenHomeDir } from './draft.js';
 
 /** A prefilled email: what the user reviews and the mailto that opens it. */
 export type EmailDraft = {

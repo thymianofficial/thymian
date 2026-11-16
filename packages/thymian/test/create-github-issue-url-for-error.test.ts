@@ -414,6 +414,29 @@ describe('createGithubIssueDraft', () => {
       expect(draft.body).toContain('**Command:** `lint`');
     });
 
+    it('leaves the stack untouched when the home directory is the root', () => {
+      vi.spyOn(os, 'homedir').mockReturnValue('/');
+
+      const draft = createGithubIssueDraft(error);
+
+      expect(draft.body).toContain(
+        'Error: Test\n  at /home/testuser/project/src/test.ts:10',
+      );
+    });
+
+    it('shortens only the home directory, not a longer one it prefixes', () => {
+      vi.spyOn(os, 'homedir').mockReturnValue('/home/test');
+
+      const draft = createGithubIssueDraft({
+        ...error,
+        stack:
+          'Error: Test\n  at /home/test/a.ts:1\n  at /home/testuser/b.ts:2',
+      });
+
+      expect(draft.body).toContain('at ~/a.ts:1');
+      expect(draft.body).toContain('at /home/testuser/b.ts:2');
+    });
+
     it('leaves the stack untouched when there is no home directory', () => {
       vi.spyOn(os, 'homedir').mockReturnValue('');
 

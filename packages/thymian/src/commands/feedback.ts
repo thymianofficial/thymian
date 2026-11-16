@@ -155,7 +155,7 @@ export class Feedback extends ThymianBaseCommand<typeof Feedback> {
         message: `Send this ${draft.kind}?`,
         choices: [
           { name: 'Send', value: 'send' },
-          ...(withoutStack
+          ...(withoutStack || !error.stack
             ? []
             : [
                 {
