@@ -1,17 +1,17 @@
+import os from 'node:os';
+
 import { type CachedError } from '@thymian/common-cli';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { createGithubIssueUrlForError } from '../src/create-github-issue-url-for-error.js';
+import { createGithubIssueDraft } from '../src/create-github-issue-url-for-error.js';
 
-describe('createGithubIssueUrlForError', () => {
-  const originalHome = process.env.HOME;
-
+describe('createGithubIssueDraft', () => {
   beforeEach(() => {
-    process.env.HOME = '/home/testuser';
+    vi.spyOn(os, 'homedir').mockReturnValue('/home/testuser');
   });
 
   afterEach(() => {
-    process.env.HOME = originalHome;
+    vi.restoreAllMocks();
   });
 
   it('should generate correct GitHub issue URL', () => {
@@ -30,7 +30,7 @@ describe('createGithubIssueUrlForError', () => {
       pluginVersions: [],
     };
 
-    const url = createGithubIssueUrlForError(error);
+    const url = createGithubIssueDraft(error).url;
 
     expect(url).toContain(
       'https://github.com/thymianofficial/thymian/issues/new',
@@ -52,7 +52,7 @@ describe('createGithubIssueUrlForError', () => {
       pluginVersions: [],
     };
 
-    const url = createGithubIssueUrlForError(error);
+    const url = createGithubIssueDraft(error).url;
     const parsedUrl = new URL(url);
 
     expect(parsedUrl.searchParams.get('title')).toBe(
@@ -75,7 +75,7 @@ describe('createGithubIssueUrlForError', () => {
       pluginVersions: [],
     };
 
-    const url = createGithubIssueUrlForError(error);
+    const url = createGithubIssueDraft(error).url;
     const parsedUrl = new URL(url);
 
     expect(parsedUrl.searchParams.get('labels')).toBe('bug');
@@ -97,7 +97,7 @@ describe('createGithubIssueUrlForError', () => {
       pluginVersions: [],
     };
 
-    const url = createGithubIssueUrlForError(error);
+    const url = createGithubIssueDraft(error).url;
     const parsedUrl = new URL(url);
     const body = parsedUrl.searchParams.get('body');
 
@@ -122,7 +122,7 @@ describe('createGithubIssueUrlForError', () => {
       pluginVersions: [],
     };
 
-    const body = new URL(createGithubIssueUrlForError(error)).searchParams.get(
+    const body = new URL(createGithubIssueDraft(error).url).searchParams.get(
       'body',
     );
 
@@ -149,7 +149,7 @@ describe('createGithubIssueUrlForError', () => {
       pluginVersions: [],
     } as unknown as CachedError;
 
-    const parsedUrl = new URL(createGithubIssueUrlForError(error));
+    const parsedUrl = new URL(createGithubIssueDraft(error).url);
     const title = parsedUrl.searchParams.get('title');
     const body = parsedUrl.searchParams.get('body');
 
@@ -177,7 +177,7 @@ describe('createGithubIssueUrlForError', () => {
       ],
     };
 
-    const url = createGithubIssueUrlForError(error);
+    const url = createGithubIssueDraft(error).url;
     const parsedUrl = new URL(url);
     const body = parsedUrl.searchParams.get('body');
 
@@ -201,7 +201,7 @@ describe('createGithubIssueUrlForError', () => {
       pluginVersions: [],
     };
 
-    const url = createGithubIssueUrlForError(error);
+    const url = createGithubIssueDraft(error).url;
     const parsedUrl = new URL(url);
     const body = parsedUrl.searchParams.get('body');
 
@@ -224,7 +224,7 @@ describe('createGithubIssueUrlForError', () => {
       pluginVersions: [],
     };
 
-    const url = createGithubIssueUrlForError(error);
+    const url = createGithubIssueDraft(error).url;
     const parsedUrl = new URL(url);
     const body = parsedUrl.searchParams.get('body');
 
@@ -249,7 +249,7 @@ describe('createGithubIssueUrlForError', () => {
       pluginVersions: [],
     };
 
-    const url = createGithubIssueUrlForError(error);
+    const url = createGithubIssueDraft(error).url;
     const parsedUrl = new URL(url);
     const body = parsedUrl.searchParams.get('body');
 
@@ -273,7 +273,7 @@ describe('createGithubIssueUrlForError', () => {
       pluginVersions: [],
     };
 
-    const url = createGithubIssueUrlForError(error);
+    const url = createGithubIssueDraft(error).url;
     const parsedUrl = new URL(url);
     const body = parsedUrl.searchParams.get('body');
 
@@ -297,7 +297,7 @@ describe('createGithubIssueUrlForError', () => {
       pluginVersions: [],
     };
 
-    const url = createGithubIssueUrlForError(error);
+    const url = createGithubIssueDraft(error).url;
     const parsedUrl = new URL(url);
     const body = parsedUrl.searchParams.get('body');
 
@@ -320,7 +320,7 @@ describe('createGithubIssueUrlForError', () => {
       pluginVersions: [],
     };
 
-    const url = createGithubIssueUrlForError(error);
+    const url = createGithubIssueDraft(error).url;
     const parsedUrl = new URL(url);
     const body = parsedUrl.searchParams.get('body');
 
@@ -343,7 +343,7 @@ describe('createGithubIssueUrlForError', () => {
       pluginVersions: [],
     };
 
-    const url = createGithubIssueUrlForError(error);
+    const url = createGithubIssueDraft(error).url;
     const parsedUrl = new URL(url);
     const body = parsedUrl.searchParams.get('body');
 
@@ -369,7 +369,7 @@ describe('createGithubIssueUrlForError', () => {
       pluginVersions: [{ name: '@thymian/plugin-openapi', version: '1.0.0' }],
     };
 
-    const url = createGithubIssueUrlForError(error);
+    const url = createGithubIssueDraft(error).url;
     const parsedUrl = new URL(url);
     const body = parsedUrl.searchParams.get('body');
 
@@ -377,5 +377,51 @@ describe('createGithubIssueUrlForError', () => {
     expect(body).toContain('<summary>');
     expect(body).toContain('</details>');
     expect(body).toContain('</summary>');
+  });
+  describe('the draft', () => {
+    const error: CachedError = {
+      name: 'TestError',
+      message: 'Test',
+      stack: 'Error: Test\n  at /home/testuser/project/src/test.ts:10',
+      commandName: 'lint',
+      timestamp: Date.now(),
+      argv: [],
+      version: {
+        architecture: 'x64',
+        cliVersion: '1.0.0',
+        nodeVersion: 'v18.0.0',
+      },
+      pluginVersions: [],
+    };
+
+    it('carries exactly the title and body that the URL opens', () => {
+      const draft = createGithubIssueDraft(error);
+      const params = new URL(draft.url).searchParams;
+
+      expect(draft.title).toBe('TestError while running in command `lint`');
+      expect(params.get('title')).toBe(draft.title);
+      expect(params.get('body')).toBe(draft.body);
+    });
+
+    it('leaves the stack out, with a placeholder line in its place', () => {
+      const draft = createGithubIssueDraft(error, { withoutStack: true });
+      const body = new URL(draft.url).searchParams.get('body');
+
+      expect(body).toBe(draft.body);
+      expect(draft.body.split('\n')).toContain('_Stack trace left out._');
+      expect(draft.body).not.toContain('at ~/project/src/test.ts:10');
+      expect(draft.body).not.toContain('Click to expand Stacktrace');
+      expect(draft.body).toContain('**Command:** `lint`');
+    });
+
+    it('leaves the stack untouched when there is no home directory', () => {
+      vi.spyOn(os, 'homedir').mockReturnValue('');
+
+      const draft = createGithubIssueDraft(error);
+
+      expect(draft.body).toContain(
+        'Error: Test\n  at /home/testuser/project/src/test.ts:10',
+      );
+    });
   });
 });

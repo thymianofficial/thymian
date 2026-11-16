@@ -1,19 +1,34 @@
 import type { CachedError } from '@thymian/common-cli';
 
-export function createEmailReport(
+import type { DraftOptions } from './create-github-issue-url-for-error.js';
+import { shortenHomeDir } from './shorten-home-dir.js';
+
+/** A prefilled email: what the user reviews and the mailto that opens it. */
+export type EmailDraft = {
+  subject: string;
+  body: string;
+  url: string;
+};
+
+export function createEmailDraft(
   recipient: string,
   errorData: CachedError,
-): string {
-  const subject = `CLI Error Report: ${errorData.commandName}`;
+  { withoutStack = false }: DraftOptions = {},
+): EmailDraft {
+  const subject = `CLI error in ${errorData.commandName}`;
+
+  const stack = withoutStack
+    ? '[Stack trace left out]'
+    : errorData.stack
+      ? shortenHomeDir(errorData.stack)
+      : 'No stacktrace available';
 
   const body = `
 Hi Support Team,
 
 I'd like to provide some feedback regarding the CLI.
+This email draft was prepared by thymian feedback for an error I ran into.
 
-${
-  errorData
-    ? `--- ERROR REPORT ---
 Command: ${errorData.commandName}
 Timestamp: ${new Date(errorData.timestamp).toLocaleString()}
 
@@ -26,14 +41,15 @@ PLUGINS:
 ${errorData.pluginVersions.map((p) => `  - ${p.name}: ${p.version}`).join('\n')}
 
 STACKTRACE:
-${errorData.stack?.replaceAll(process.env.HOME || '', '~') || 'No stacktrace available'}
---------------------`
-    : 'Description of my feedback:\n\n[Please enter your message here]'
-}
+${stack}
 
 Best regards,
 [Your Name]
 `.trim();
 
-  return `mailto:${recipient}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  return {
+    subject,
+    body,
+    url: `mailto:${recipient}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`,
+  };
 }

@@ -1,18 +1,19 @@
+import os from 'node:os';
+
 import { type CachedError } from '@thymian/common-cli';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { createEmailReport } from '../src/create-email-issue-for-error.js';
+import { createEmailDraft } from '../src/create-email-issue-for-error.js';
 
-describe('createEmailReport', () => {
-  const originalHome = process.env.HOME;
+describe('createEmailDraft', () => {
   const testRecipient = 'support@example.com';
 
   beforeEach(() => {
-    process.env.HOME = '/home/testuser';
+    vi.spyOn(os, 'homedir').mockReturnValue('/home/testuser');
   });
 
   afterEach(() => {
-    process.env.HOME = originalHome;
+    vi.restoreAllMocks();
   });
 
   it('should generate proper mailto URL', () => {
@@ -31,7 +32,7 @@ describe('createEmailReport', () => {
       pluginVersions: [],
     };
 
-    const url = createEmailReport(testRecipient, error);
+    const url = createEmailDraft(testRecipient, error).url;
 
     expect(url).toMatch(/^mailto:support@example\.com\?subject=.*&body=.*/);
   });
@@ -51,9 +52,9 @@ describe('createEmailReport', () => {
       pluginVersions: [],
     };
 
-    const url = createEmailReport(testRecipient, error);
+    const url = createEmailDraft(testRecipient, error).url;
 
-    expect(url).toContain('subject=CLI%20Error%20Report%3A%20test%3Acommand');
+    expect(url).toContain('subject=CLI%20error%20in%20test%3Acommand');
   });
 
   it('should URL-encode body', () => {
@@ -71,7 +72,7 @@ describe('createEmailReport', () => {
       pluginVersions: [],
     };
 
-    const url = createEmailReport(testRecipient, error);
+    const url = createEmailDraft(testRecipient, error).url;
     const decodedUrl = decodeURIComponent(url);
 
     expect(decodedUrl).toContain('Hi Support Team,');
@@ -93,10 +94,9 @@ describe('createEmailReport', () => {
       pluginVersions: [],
     };
 
-    const url = createEmailReport(testRecipient, error);
+    const url = createEmailDraft(testRecipient, error).url;
     const decodedUrl = decodeURIComponent(url);
 
-    expect(decodedUrl).toContain('--- ERROR REPORT ---');
     expect(decodedUrl).toContain('Command: test:command');
   });
 
@@ -116,7 +116,7 @@ describe('createEmailReport', () => {
       pluginVersions: [],
     };
 
-    const url = createEmailReport(testRecipient, error);
+    const url = createEmailDraft(testRecipient, error).url;
     const decodedUrl = decodeURIComponent(url);
 
     expect(decodedUrl).toContain('ENVIRONMENT:');
@@ -143,7 +143,7 @@ describe('createEmailReport', () => {
       ],
     };
 
-    const url = createEmailReport(testRecipient, error);
+    const url = createEmailDraft(testRecipient, error).url;
     const decodedUrl = decodeURIComponent(url);
 
     expect(decodedUrl).toContain('PLUGINS:');
@@ -167,7 +167,7 @@ describe('createEmailReport', () => {
       pluginVersions: [],
     };
 
-    const url = createEmailReport(testRecipient, error);
+    const url = createEmailDraft(testRecipient, error).url;
     const decodedUrl = decodeURIComponent(url);
 
     expect(decodedUrl).toContain('STACKTRACE:');
@@ -191,7 +191,7 @@ describe('createEmailReport', () => {
       pluginVersions: [],
     };
 
-    const url = createEmailReport(testRecipient, error);
+    const url = createEmailDraft(testRecipient, error).url;
     const decodedUrl = decodeURIComponent(url);
 
     expect(decodedUrl).toContain('STACKTRACE:');
@@ -214,7 +214,7 @@ describe('createEmailReport', () => {
       pluginVersions: [],
     };
 
-    const url = createEmailReport(testRecipient, error);
+    const url = createEmailDraft(testRecipient, error).url;
     const decodedUrl = decodeURIComponent(url);
 
     const expectedTimestamp = new Date(timestamp).toLocaleString();
@@ -236,7 +236,7 @@ describe('createEmailReport', () => {
       pluginVersions: [],
     };
 
-    const url = createEmailReport(testRecipient, error);
+    const url = createEmailDraft(testRecipient, error).url;
     const decodedUrl = decodeURIComponent(url);
 
     expect(decodedUrl).toContain('Hi Support Team,');
@@ -260,7 +260,7 @@ describe('createEmailReport', () => {
       pluginVersions: [],
     };
 
-    const url = createEmailReport(testRecipient, error);
+    const url = createEmailDraft(testRecipient, error).url;
     const decodedUrl = decodeURIComponent(url);
 
     expect(decodedUrl).toContain('Best regards,');
@@ -282,7 +282,7 @@ describe('createEmailReport', () => {
       pluginVersions: [],
     };
 
-    const url = createEmailReport(testRecipient, error);
+    const url = createEmailDraft(testRecipient, error).url;
     const decodedUrl = decodeURIComponent(url);
 
     expect(decodedUrl).toContain('PLUGINS:');
@@ -305,9 +305,9 @@ describe('createEmailReport', () => {
       pluginVersions: [],
     };
 
-    const url = createEmailReport(testRecipient, error);
+    const url = createEmailDraft(testRecipient, error).url;
 
-    expect(url).toContain('subject=CLI%20Error%20Report%3A%20custom%3Acommand');
+    expect(url).toContain('subject=CLI%20error%20in%20custom%3Acommand');
   });
 
   it('should include recipient in mailto URL', () => {
@@ -326,7 +326,7 @@ describe('createEmailReport', () => {
       pluginVersions: [],
     };
 
-    const url = createEmailReport(customRecipient, error);
+    const url = createEmailDraft(customRecipient, error).url;
 
     expect(url).toContain('mailto:custom@support.com?');
   });
@@ -346,10 +346,68 @@ describe('createEmailReport', () => {
       pluginVersions: [],
     };
 
-    const url = createEmailReport(testRecipient, error);
+    const url = createEmailDraft(testRecipient, error).url;
     const decodedUrl = decodeURIComponent(url);
 
     // Body should start with Hi Support Team (no leading whitespace)
     expect(decodedUrl).toContain('body=Hi Support Team,');
+  });
+  describe('the draft', () => {
+    const error: CachedError = {
+      name: 'TestError',
+      message: 'Test',
+      stack: 'Error: Test\n  at /home/testuser/project/src/test.ts:10',
+      commandName: 'lint',
+      timestamp: Date.now(),
+      argv: [],
+      version: {
+        architecture: 'x64',
+        cliVersion: '1.0.0',
+        nodeVersion: 'v18.0.0',
+      },
+      pluginVersions: [],
+    };
+
+    function openedParams(url: string): URLSearchParams {
+      return new URLSearchParams(url.slice(url.indexOf('?') + 1));
+    }
+
+    it('carries exactly the subject and body that the mailto opens', () => {
+      const draft = createEmailDraft(testRecipient, error);
+      const params = openedParams(draft.url);
+
+      expect(draft.subject).toBe('CLI error in lint');
+      expect(params.get('subject')).toBe(draft.subject);
+      expect(params.get('body')).toBe(draft.body);
+    });
+
+    it('calls itself an email draft and has no ERROR REPORT banner', () => {
+      const draft = createEmailDraft(testRecipient, error);
+
+      expect(draft.body).toContain('email draft');
+      expect(draft.body).not.toContain('ERROR REPORT');
+      expect(draft.subject).not.toMatch(/report/i);
+    });
+
+    it('leaves the stack out, with a placeholder line in its place', () => {
+      const draft = createEmailDraft(testRecipient, error, {
+        withoutStack: true,
+      });
+
+      expect(openedParams(draft.url).get('body')).toBe(draft.body);
+      expect(draft.body.split('\n')).toContain('[Stack trace left out]');
+      expect(draft.body).not.toContain('project/src/test.ts');
+      expect(draft.body).toContain('Command: lint');
+    });
+
+    it('leaves the stack untouched when there is no home directory', () => {
+      vi.spyOn(os, 'homedir').mockReturnValue('');
+
+      const draft = createEmailDraft(testRecipient, error);
+
+      expect(draft.body).toContain(
+        'Error: Test\n  at /home/testuser/project/src/test.ts:10',
+      );
+    });
   });
 });
