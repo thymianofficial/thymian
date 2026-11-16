@@ -71,7 +71,7 @@ function recorded(
 ): CapturedTransaction {
   const response: HttpResponse = {
     statusCode,
-    headers: { 'content-type': contentType },
+    headers: contentType ? { 'content-type': contentType } : {},
     trailers: {},
     duration: 0,
   };
@@ -177,6 +177,16 @@ describe(NAME, () => {
         },
         findings: [],
       },
+    ]);
+  });
+
+  it('names a missing content type as (none)', async () => {
+    const { format } = specification();
+
+    const results = await analyze(format, [recorded('POST', 200, '')]);
+
+    expect(results.map(({ violation }) => violation?.message)).toEqual([
+      'Response media type (none) is not documented for status 200 of POST /v2/clock. Documented: application/json, application/xml.',
     ]);
   });
 
