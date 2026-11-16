@@ -530,6 +530,260 @@ describe('ThymianFormat', () => {
     });
   });
 
+  describe('resolveTransaction', () => {
+    type RequestNode = PartialBy<ThymianHttpRequest, 'label' | 'sourceName'>;
+    type ResponseNode = PartialBy<ThymianHttpResponse, 'label' | 'sourceName'>;
+
+    function requestNode(overrides: Partial<RequestNode> = {}): RequestNode {
+      return {
+        type: 'http-request',
+        host: 'api.example.com',
+        port: 443,
+        protocol: 'https',
+        path: '/v2/clock',
+        method: 'post',
+        headers: {},
+        queryParameters: {},
+        cookies: {},
+        pathParameters: {},
+        mediaType: 'application/json',
+        ...overrides,
+      };
+    }
+
+    function responseNode(
+      statusCode: number | 'default',
+      mediaType = 'application/json',
+    ): ResponseNode {
+      return { type: 'http-response', headers: {}, mediaType, statusCode };
+    }
+
+    function observedRequest(
+      overrides: Partial<HttpRequest> = {},
+    ): HttpRequest {
+      return {
+        origin: 'https://api.example.com',
+        path: '/v2/clock',
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        ...overrides,
+      };
+    }
+
+    function observedResponse(
+      statusCode: number,
+      contentType = 'application/json',
+    ): HttpResponse {
+      return {
+        statusCode,
+        headers: { 'content-type': contentType },
+        trailers: {},
+        duration: 1,
+      };
+    }
+
+    it('resolves a fully documented pair to its transaction', () => {
+      const format = new ThymianFormat();
+      const [reqId, resId, transactionId] = format.addHttpTransaction(
+        requestNode(),
+        responseNode(200),
+        'src',
+      );
+
+      expect(
+        format.resolveTransaction(observedRequest(), observedResponse(200)),
+      ).toEqual({
+        kind: 'matched',
+        transactionId,
+        requestId: reqId,
+        responseId: resId,
+      });
+    });
+
+    it('reports an unknown operation when no request node matches', () => {
+      const format = new ThymianFormat();
+      format.addHttpTransaction(requestNode(), responseNode(200), 'src');
+
+      expect(
+        format.resolveTransaction(
+          observedRequest({ method: 'DELETE' }),
+          observedResponse(200),
+        ),
+      ).toEqual({ kind: 'unknown-operation' });
+      expect(
+        format.resolveTransaction(
+          observedRequest({ path: '/v2/unknown' }),
+          observedResponse(200),
+        ),
+      ).toEqual({ kind: 'unknown-operation' });
+    });
+
+    it('reports an undocumented status with the documented statuses in numeric order, default last', () => {
+      const format = new ThymianFormat();
+      const [reqId] = format.addHttpTransaction(
+        requestNode(),
+        responseNode(404),
+        'src',
+      );
+      format.addHttpTransaction(requestNode(), responseNode(200), 'src');
+      format.addHttpTransaction(
+        requestNode(),
+        responseNode(200, 'text/plain'),
+        'src',
+      );
+      format.addHttpTransaction(requestNode(), responseNode(201), 'src');
+
+      expect(
+        format.resolveTransaction(observedRequest(), observedResponse(500)),
+      ).toEqual({
+        kind: 'undocumented-response',
+        requestId: reqId,
+        undocumented: 'status',
+        documentedStatuses: [200, 201, 404],
+      });
+    });
+
+    it('validates a response that only default covers against default', () => {
+      const format = new ThymianFormat();
+      format.addHttpTransaction(requestNode(), responseNode(200), 'src');
+      const [reqId, resId, transactionId] = format.addHttpTransaction(
+        requestNode(),
+        responseNode('default'),
+        'src',
+      );
+
+      expect(
+        format.resolveTransaction(observedRequest(), observedResponse(503)),
+      ).toEqual({
+        kind: 'matched',
+        transactionId,
+        requestId: reqId,
+        responseId: resId,
+      });
+    });
+
+    it('does not fall back to default when a documented status misses the media type', () => {
+      const format = new ThymianFormat();
+      const [reqId] = format.addHttpTransaction(
+        requestNode(),
+        responseNode(400, 'application/problem+json'),
+        'src',
+      );
+      format.addHttpTransaction(
+        requestNode(),
+        responseNode('default', 'text/html'),
+        'src',
+      );
+
+      expect(
+        format.resolveTransaction(
+          observedRequest(),
+          observedResponse(400, 'text/html'),
+        ),
+      ).toEqual({
+        kind: 'undocumented-response',
+        requestId: reqId,
+        undocumented: 'media-type',
+        statusCode: 400,
+        documentedMediaTypes: ['application/problem+json'],
+      });
+    });
+
+    it('reports a media-type miss against default with the media types default documents', () => {
+      const format = new ThymianFormat();
+      const [reqId] = format.addHttpTransaction(
+        requestNode(),
+        responseNode('default', 'application/problem+json'),
+        'src',
+      );
+
+      expect(
+        format.resolveTransaction(
+          observedRequest(),
+          observedResponse(500, 'text/html'),
+        ),
+      ).toEqual({
+        kind: 'undocumented-response',
+        requestId: reqId,
+        undocumented: 'media-type',
+        statusCode: 'default',
+        documentedMediaTypes: ['application/problem+json'],
+      });
+    });
+
+    it('resolves the operation by its concrete path before a template that documents the observed status', () => {
+      const format = new ThymianFormat();
+      const [concreteReqId] = format.addHttpTransaction(
+        requestNode({ method: 'get', mediaType: '', path: '/users/me' }),
+        responseNode(200),
+        'src',
+      );
+      format.addHttpTransaction(
+        requestNode({ method: 'get', mediaType: '', path: '/users/{id}' }),
+        responseNode(404),
+        'src',
+      );
+
+      expect(
+        format.resolveTransaction(
+          observedRequest({ method: 'GET', path: '/users/me', headers: {} }),
+          observedResponse(404),
+        ),
+      ).toEqual({
+        kind: 'undocumented-response',
+        requestId: concreteReqId,
+        undocumented: 'status',
+        documentedStatuses: [200],
+      });
+    });
+
+    it('resolves the operation through the relaxed origin tier for an undocumented response', () => {
+      const format = new ThymianFormat();
+      const [reqId] = format.addHttpTransaction(
+        requestNode(),
+        responseNode(200),
+        'src',
+      );
+
+      expect(
+        format.resolveTransaction(
+          observedRequest({ origin: 'https://other.example.com' }),
+          observedResponse(418),
+        ),
+      ).toMatchObject({ kind: 'undocumented-response', requestId: reqId });
+    });
+
+    it('treats ambiguous operations at a tier as unknown', () => {
+      const format = new ThymianFormat();
+      format.addHttpTransaction(
+        requestNode({ host: 'a.example.com' }),
+        responseNode(200),
+        'src',
+      );
+      format.addHttpTransaction(
+        requestNode({ host: 'b.example.com' }),
+        responseNode(200),
+        'src',
+      );
+
+      expect(
+        format.resolveTransaction(
+          observedRequest({ origin: 'https://other.example.com' }),
+          observedResponse(418),
+        ),
+      ).toEqual({ kind: 'unknown-operation' });
+    });
+
+    it('keeps matchTransaction to full matches only', () => {
+      const format = new ThymianFormat();
+      format.addHttpTransaction(requestNode(), responseNode(200), 'src');
+
+      expect(
+        format.matchTransaction(observedRequest(), observedResponse(500)),
+      ).toBeUndefined();
+    });
+  });
+
   describe('filter', () => {
     it('should filter transactions based on expression', () => {
       const format = new ThymianFormat();

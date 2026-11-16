@@ -75,6 +75,46 @@ export interface ThymianEdges {
   'has-sample': HasSample;
 }
 
+/**
+ * Where a recorded request/response pair lands in the format (ADR-0027).
+ * Matching resolves the operation first, then the response within it:
+ *
+ * - `unknown-operation`: no request node matches method, path, origin and
+ *   request media type.
+ * - `undocumented-response`: the operation is documented, the response is not
+ *   (an **Undocumented Response**). `undocumented` says whether no response
+ *   covers the status, or the status is covered (concretely, or by `default`)
+ *   but none of its media types matches.
+ * - `matched`: a full match to one Transaction.
+ */
+export type TransactionResolution =
+  | { kind: 'unknown-operation' }
+  | {
+      kind: 'undocumented-response';
+      requestId: string;
+      undocumented: 'status';
+      /**
+       * The operation's documented statuses in numeric order. Never holds
+       * `default`: an operation that declares `default` covers every status,
+       * so its misses are media-type misses.
+       */
+      documentedStatuses: number[];
+    }
+  | {
+      kind: 'undocumented-response';
+      requestId: string;
+      undocumented: 'media-type';
+      /** The status whose media types were searched: concrete or `default`. */
+      statusCode: number | 'default';
+      documentedMediaTypes: string[];
+    }
+  | {
+      kind: 'matched';
+      transactionId: string;
+      requestId: string;
+      responseId: string;
+    };
+
 export type ThymianHttpTransaction = {
   thymianReq: ThymianHttpRequest;
   thymianReqId: string;
@@ -526,87 +566,140 @@ export class ThymianFormat {
     );
   }
 
+  /**
+   * The full match of a recorded pair, or `undefined` for anything less — an
+   * unknown operation and an Undocumented Response alike. Use
+   * {@link resolveTransaction} to tell those two apart.
+   */
   matchTransaction(
     req: HttpRequest,
     res: HttpResponse,
   ): [string, string, string] | undefined {
-    const reqMediaType = getContentType(req.headers);
+    const resolution = this.resolveTransaction(req, res);
+
+    return resolution.kind === 'matched'
+      ? [resolution.transactionId, resolution.requestId, resolution.responseId]
+      : undefined;
+  }
+
+  /**
+   * Resolves a recorded pair in two stages (ADR-0027). First the operation:
+   * method, path, origin and request media type, tried as exact path, then
+   * strict template, then template with any origin; more than one candidate at
+   * a tier is no match. Then the response, among that operation's responses
+   * only: a concrete status equal to the observed one (a media-type miss there
+   * does not fall back to `default`), else `default` by media type, else the
+   * status is undocumented.
+   */
+  resolveTransaction(
+    req: HttpRequest,
+    res: HttpResponse,
+  ): TransactionResolution {
+    const requestId = this.resolveOperation(req);
+
+    if (!requestId) {
+      return { kind: 'unknown-operation' };
+    }
+
     const resMediaType = getContentType(res.headers);
+    const responses = this.getHttpResponsesOf(requestId);
+    // A documented concrete status is searched alone: OpenAPI selects the
+    // response by status first, so a media-type miss there is not `default`'s.
+    const searchedStatus: number | 'default' = responses.some(
+      ([, { statusCode }]) => statusCode === res.statusCode,
+    )
+      ? res.statusCode
+      : 'default';
+    const candidates = responses.filter(
+      ([, { statusCode }]) => statusCode === searchedStatus,
+    );
+
+    if (candidates.length === 0) {
+      return {
+        kind: 'undocumented-response',
+        requestId,
+        undocumented: 'status',
+        documentedStatuses: [
+          ...new Set(
+            responses.flatMap(([, { statusCode }]) =>
+              statusCode === 'default' ? [] : [statusCode],
+            ),
+          ),
+        ].sort((a, b) => a - b),
+      };
+    }
+
+    const matches = candidates.filter(([, thymianRes]) =>
+      matchesMediaType(thymianRes, resMediaType),
+    );
+
+    if (matches.length === 1 && matches[0]) {
+      const [responseId, , transactionId] = matches[0];
+
+      return { kind: 'matched', transactionId, requestId, responseId };
+    }
+
+    if (matches.length > 1) {
+      // Two documented responses claim the pair; as before staged matching,
+      // an ambiguous match is no match.
+      return { kind: 'unknown-operation' };
+    }
+
+    return {
+      kind: 'undocumented-response',
+      requestId,
+      undocumented: 'media-type',
+      statusCode: searchedStatus,
+      documentedMediaTypes: [
+        ...new Set(candidates.map(([, { mediaType }]) => mediaType)),
+      ],
+    };
+  }
+
+  /** Stage 1 of {@link resolveTransaction}: the one matching request node. */
+  private resolveOperation(req: HttpRequest): string | undefined {
+    const reqMediaType = getContentType(req.headers);
     const reqOriginUrl = normalizeUrl(req.origin);
     const reqPath = new URL(req.path, reqOriginUrl).pathname;
-    const matchingEdges = (
-      matcher: (thymianReq: ThymianHttpRequest) => boolean,
+    const matchesTemplate = (thymianReq: ThymianHttpRequest): boolean =>
+      !!match(thymianReq.path.replaceAll(/{([^}]+)}/gi, ':$1'))(reqPath);
+    const matchingRequests = (
+      matchesPath: (thymianReq: ThymianHttpRequest) => boolean,
       ignoreOrigin = false,
     ): string[] =>
-      this.graph.reduceEdges(
-        (matches, id, edge, _sourceId, _targetId, source, target) => {
-          if (!isEdgeType(edge, 'http-transaction')) {
-            return matches;
-          }
+      this.graph.reduceNodes((matches, id, node) => {
+        if (
+          isNodeType(node, 'http-request') &&
+          equalsIgnoreCase(node.method, req.method) &&
+          matchesPath(node) &&
+          (ignoreOrigin ||
+            equalsIgnoreCase(
+              thymianRequestToOrigin(node),
+              reqOriginUrl.toString(),
+            )) &&
+          matchesMediaType(node, reqMediaType)
+        ) {
+          matches.push(id);
+        }
 
-          const thymianReq = source as ThymianHttpRequest;
-          const thymianRes = target as ThymianHttpResponse;
+        return matches;
+      }, [] as string[]);
 
-          const origin = thymianRequestToOrigin(thymianReq);
-          const originMatches = ignoreOrigin
-            ? true
-            : equalsIgnoreCase(origin, reqOriginUrl.toString());
+    const tiers: [(thymianReq: ThymianHttpRequest) => boolean, boolean][] = [
+      [(thymianReq) => equalsIgnoreCase(thymianReq.path, reqPath), false],
+      [matchesTemplate, false],
+      [matchesTemplate, true],
+    ];
 
-          if (
-            equalsIgnoreCase(thymianReq.method, req.method) &&
-            matcher(thymianReq) &&
-            originMatches &&
-            thymianRes.statusCode === res.statusCode &&
-            matchesMediaType(thymianReq, reqMediaType) &&
-            matchesMediaType(thymianRes, resMediaType)
-          ) {
-            matches.push(id);
-          }
+    for (const [matchesPath, ignoreOrigin] of tiers) {
+      const matches = matchingRequests(matchesPath, ignoreOrigin);
 
-          return matches;
-        },
-        [] as string[],
-      );
-
-    const exactPathMatches = matchingEdges((thymianReq) =>
-      equalsIgnoreCase(thymianReq.path, reqPath),
-    );
-
-    if (exactPathMatches.length === 1 && exactPathMatches[0]) {
-      return [
-        exactPathMatches[0],
-        ...this.graph.extremities(exactPathMatches[0]),
-      ];
+      if (matches.length > 0) {
+        return matches.length === 1 ? matches[0] : undefined;
+      }
     }
 
-    if (exactPathMatches.length > 1) {
-      return undefined;
-    }
-
-    const strictMatches = matchingEdges(
-      (thymianReq) =>
-        !!match(thymianReq.path.replaceAll(/{([^}]+)}/gi, ':$1'))(reqPath),
-    );
-
-    if (strictMatches.length === 1 && strictMatches[0]) {
-      return [strictMatches[0], ...this.graph.extremities(strictMatches[0])];
-    }
-
-    if (strictMatches.length > 1) {
-      return undefined;
-    }
-
-    const relaxedMatches = matchingEdges(
-      (thymianReq) =>
-        !!match(thymianReq.path.replaceAll(/{([^}]+)}/gi, ':$1'))(reqPath),
-      true,
-    );
-
-    if (relaxedMatches.length !== 1) {
-      return undefined;
-    }
-
-    return [relaxedMatches[0]!, ...this.graph.extremities(relaxedMatches[0]!)];
+    return undefined;
   }
 
   matchHtpRequestByUrl(url: string): MatchResult | undefined {
