@@ -1,81 +1,29 @@
 import { readFile } from 'node:fs/promises';
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { resolve } from 'node:path';
 
 import type { Logger, ThymianFormatLocation } from '@thymian/core';
 
 import { JsonLocDocument } from './json-loc-document.js';
+import { formatRefTarget, parseRef, type RefTarget } from './json-ref.js';
 import type { LocDocument, LocMapper } from './loc-mapper.js';
 import { YamlLocDocument } from './yaml-loc-document.js';
-
-/** Where a path item's operations live: a file and a pointer into it. */
-type Target = { file: string; pointer: string[] };
-
-function isJson(str: string): boolean {
-  try {
-    JSON.parse(str);
-    return true;
-  } catch {
-    return false;
-  }
-}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-function describe({ file, pointer }: Target): string {
-  return `${file}#/${pointer.join('/')}`;
-}
-
-function unescapePointerSegment(segment: string): string {
-  return decodeURIComponent(segment).replace(/~1/g, '/').replace(/~0/g, '~');
-}
-
-/**
- * Parses a `$ref` relative to the file that holds it. Returns the target, or
- * the reason the ref is not followed.
- */
-function parseRef(ref: string, base: string): Target | string {
-  const hashIndex = ref.indexOf('#');
-  const location = hashIndex === -1 ? ref : ref.slice(0, hashIndex);
-  const fragment = hashIndex === -1 ? '' : ref.slice(hashIndex + 1);
-
-  if (fragment !== '' && !fragment.startsWith('/')) {
-    return `the ref "${ref}" does not use a JSON pointer`;
-  }
-
+/** A JSON document is also YAML, so JSON is tried first for its positions. */
+function parseLocDocument(text: string): LocDocument {
   try {
-    const pointer =
-      fragment === ''
-        ? []
-        : fragment.slice(1).split('/').map(unescapePointerSegment);
-
-    if (location === '') {
-      return { file: base, pointer };
-    }
-    if (/^https?:/i.test(location)) {
-      return `the remote ref "${ref}" is not fetched`;
-    }
-    if (/^file:/i.test(location)) {
-      return { file: fileURLToPath(location), pointer };
-    }
-    // a scheme has at least two characters, so `C:\…` is still a path
-    if (/^[a-z][a-z\d+.-]+:/i.test(location)) {
-      return `the ref "${ref}" has an unsupported scheme`;
-    }
-    return {
-      file: resolve(dirname(base), decodeURIComponent(location)),
-      pointer,
-    };
+    return new JsonLocDocument(text);
   } catch {
-    return `the ref "${ref}" is malformed`;
+    return new YamlLocDocument(text);
   }
 }
 
 class RefFollowingLocMapper implements LocMapper {
   constructor(
-    private readonly targets: Map<string, Target>,
+    private readonly targets: Map<string, RefTarget>,
     private readonly documents: Map<string, LocDocument | undefined>,
     private readonly logger: Logger,
   ) {}
@@ -94,7 +42,7 @@ class RefFollowingLocMapper implements LocMapper {
       ?.keyPositionAt([...target.pointer, method]);
     if (!position) {
       this.logger.debug(
-        `No source location for ${method} ${pathTemplate}: ${describe(target)} has no "${method}" key.`,
+        `No source location for ${method} ${pathTemplate}: ${formatRefTarget(target)} has no "${method}" key.`,
       );
       return undefined;
     }
@@ -120,10 +68,7 @@ export async function locMapperForFile(
     if (!documents.has(file)) {
       try {
         const text = await readFile(file, 'utf-8');
-        documents.set(
-          file,
-          isJson(text) ? new JsonLocDocument(text) : new YamlLocDocument(text),
-        );
+        documents.set(file, parseLocDocument(text));
       } catch (e) {
         logger.debug(
           `Cannot read ${file} for source locations: ${e instanceof Error ? e.message : String(e)}`,
@@ -136,8 +81,8 @@ export async function locMapperForFile(
 
   async function follow(
     pathTemplate: string,
-    start: Target,
-  ): Promise<Target | undefined> {
+    start: RefTarget,
+  ): Promise<RefTarget | undefined> {
     const giveUp = (reason: string): undefined => {
       logger.debug(`No source location for ${pathTemplate}: ${reason}.`);
       return undefined;
@@ -148,7 +93,7 @@ export async function locMapperForFile(
     for (;;) {
       const key = JSON.stringify([current.file, current.pointer]);
       if (visited.has(key)) {
-        return giveUp(`the refs form a cycle at ${describe(current)}`);
+        return giveUp(`the refs form a cycle at ${formatRefTarget(current)}`);
       }
       visited.add(key);
 
@@ -159,22 +104,22 @@ export async function locMapperForFile(
 
       const value = document.valueAt(current.pointer);
       if (!isRecord(value)) {
-        return giveUp(`${describe(current)} is not an object`);
+        return giveUp(`${formatRefTarget(current)} is not an object`);
       }
       // like the processor, follow the ref and ignore sibling keys
       if (typeof value['$ref'] !== 'string') {
         return current;
       }
 
-      const next = parseRef(value['$ref'], current.file);
-      if (typeof next === 'string') {
-        return giveUp(next);
+      const parsed = parseRef(value['$ref'], current.file);
+      if ('reason' in parsed) {
+        return giveUp(parsed.reason);
       }
-      current = next;
+      current = parsed.target;
     }
   }
 
-  const targets = new Map<string, Target>();
+  const targets = new Map<string, RefTarget>();
   const paths = (await load(rootPath))?.valueAt(['paths']);
   if (isRecord(paths)) {
     for (const pathTemplate of Object.keys(paths)) {

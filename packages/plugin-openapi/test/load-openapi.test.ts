@@ -339,18 +339,23 @@ describe('load-openapi', () => {
         filter: constant(true),
         filePath,
         serverInfo: {
-          basePath: '',
+          basePath: '/api',
           port: 8080,
           host: 'localhost',
           protocol: 'http',
         },
       });
 
-      const [transaction] = format.getThymianHttpTransactions();
-      expect(transaction?.thymianReq.path).toBe('/users/{id}');
-      expect(transaction?.thymianRes.sourceLocation).toMatchObject({
+      const transactions = format.getThymianHttpTransactions();
+      const get = transactions.find((t) => t.thymianReq.method === 'get');
+      const put = transactions.find((t) => t.thymianReq.method === 'put');
+      expect(get?.thymianRes.sourceLocation).toMatchObject({
         path: join(dir, 'paths/user.yaml'),
         position: { line: 7, column: 1 },
+      });
+      expect(put?.thymianReq.sourceLocation).toMatchObject({
+        path: join(dir, 'paths/user.yaml'),
+        position: { line: 15, column: 1 },
       });
     });
 
