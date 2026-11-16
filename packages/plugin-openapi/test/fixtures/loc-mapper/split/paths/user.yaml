@@ -12,3 +12,12 @@ get:
         application/json:
           schema:
             type: object
+put:
+  requestBody:
+    content:
+      application/json:
+        schema:
+          type: object
+  responses:
+    '204':
+      description: Updated
