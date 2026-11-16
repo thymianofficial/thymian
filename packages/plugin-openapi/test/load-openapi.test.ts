@@ -931,19 +931,21 @@ describe('load-openapi', () => {
     });
 
     it('throws OpenAPIDereferenceError naming a missing external file', async () => {
-      const error = await loadAndUpgrade(
-        join(import.meta.dirname, 'fixtures/missing-ref.yaml'),
-        process.cwd(),
-        new NoopLogger(),
-      ).catch((e: unknown) => e);
-
-      expect(error).toBeInstanceOf(ThymianBaseError);
-      expect((error as ThymianBaseError).options.name).toBe(
-        'OpenAPIDereferenceError',
-      );
-      expect(((error as ThymianBaseError).cause as Error).message).toContain(
-        'schemas/missing.yaml',
-      );
+      try {
+        await loadAndUpgrade(
+          join(import.meta.dirname, 'fixtures/missing-ref.yaml'),
+          process.cwd(),
+          new NoopLogger(),
+        );
+        expect.fail('Error should have been thrown');
+      } catch (error) {
+        expect(error).toBeInstanceOf(ThymianBaseError);
+        const thymianError = error as ThymianBaseError;
+        expect(thymianError.options.name).toBe('OpenAPIDereferenceError');
+        expect((thymianError.cause as Error).message).toContain(
+          'schemas/missing.yaml',
+        );
+      }
     });
   });
 
