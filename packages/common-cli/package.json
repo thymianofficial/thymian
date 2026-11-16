@@ -51,7 +51,7 @@
     "yaml": "^2.8.3",
     "wrap-ansi": "^7.0.0",
     "string-width": "^4.2.3",
-    "@oclif/core": "^4.3.3",
+    "@oclif/core": "^5.1.12",
     "@thymian/core": "0.0.0-PLACEHOLDER"
   }
 }

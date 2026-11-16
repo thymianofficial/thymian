@@ -51,7 +51,7 @@
     "license-checker": "^25.0.1",
     "lint-staged": "^16.1.6",
     "nx": "24.0.5",
-    "oclif": "^4.22.70",
+    "oclif": "^6.0.15",
     "prettier": "^3.6.2",
     "tinyglobby": "^0.2.15",
     "tslib": "^2.3.0",
