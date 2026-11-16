@@ -774,6 +774,20 @@ describe('ThymianFormat', () => {
       ).toEqual({ kind: 'unknown-operation' });
     });
 
+    it('treats two documented responses fitting the pair as no match, as before staged matching', () => {
+      const format = new ThymianFormat();
+      format.addHttpTransaction(
+        requestNode(),
+        responseNode(200, 'application/json'),
+        'src',
+      );
+      format.addHttpTransaction(requestNode(), responseNode(200, '*/*'), 'src');
+
+      expect(
+        format.resolveTransaction(observedRequest(), observedResponse(200)),
+      ).toEqual({ kind: 'unknown-operation' });
+    });
+
     it('keeps matchTransaction to full matches only', () => {
       const format = new ThymianFormat();
       format.addHttpTransaction(requestNode(), responseNode(200), 'src');
