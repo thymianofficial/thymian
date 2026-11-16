@@ -7,12 +7,17 @@ import {
   httpRule,
   type RuleFnResult,
   type RuleViolationLocation,
-  type ThymianHttpRequest,
 } from '@thymian/core';
+
+import {
+  type GraphLocation,
+  missingElementMessage,
+  requestAt,
+} from './located-request.js';
 
 const NAME = 'thymian/response-must-be-documented';
 
-function list(values: (string | number)[]): string {
+function documentedOrNone(values: (string | number)[]): string {
   return values.length > 0 ? values.join(', ') : 'none';
 }
 
@@ -55,20 +60,36 @@ export default httpRule(NAME)
           ];
         }
 
-        const operation = ctx.format.getNode<ThymianHttpRequest>(
-          resolution.requestId,
-        );
-        const selector = operation
-          ? formatRequestSelector(operation)
-          : resolution.requestId;
+        const operationLocation: GraphLocation = {
+          elementType: 'node',
+          elementId: resolution.requestId,
+        };
+        const operation = requestAt(ctx.format, operationLocation);
+
+        if (!operation) {
+          return [
+            {
+              location,
+              findings: [
+                {
+                  title: NAME,
+                  kind: 'rule-skip',
+                  message: missingElementMessage(operationLocation),
+                },
+              ],
+            },
+          ];
+        }
+
+        const selector = formatRequestSelector(operation);
         const message =
           resolution.undocumented === 'status'
-            ? `Response status ${response.statusCode} is not documented for ${selector}. Documented: ${list(resolution.documentedStatuses)}.`
+            ? `Response status ${response.statusCode} is not documented for ${selector}. Documented: ${documentedOrNone(resolution.documentedStatuses)}.`
             : `Response media type ${getContentType(response.headers)} is not documented for ${
                 resolution.statusCode === 'default'
                   ? 'default'
                   : `status ${resolution.statusCode}`
-              } of ${selector}. Documented: ${list(resolution.documentedMediaTypes)}.`;
+              } of ${selector}. Documented: ${documentedOrNone(resolution.documentedMediaTypes)}.`;
 
         return [{ location, violation: { message }, findings: [] }];
       },
