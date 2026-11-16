@@ -25,6 +25,9 @@ export default httpRule(
         if (method !== 'TRACE' && method !== 'OPTIONS') {
           continue;
         }
+        // On a Capture Gap this can miss a violation but never invent one: it
+        // reports only a field it reads on both hops, so it needs no
+        // isHeaderCaptured guard (ADR-0026).
         const receivedValue = parseMaxForwards(
           getHeader(inbound.request.data.headers, 'max-forwards'),
         );

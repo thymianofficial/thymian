@@ -33,6 +33,9 @@ export default httpRule(
         // legitimately be replaced with the intermediary's own control options
         // for the next hop (which can reuse the same option names), so a
         // repeated option name is not by itself observable as a violation.
+        // On a Capture Gap this can miss a violation but never invent one: it
+        // reports only a field it reads on both hops, so it needs no
+        // isHeaderCaptured guard (ADR-0026).
         const optionNames = connectionOptionNames(
           getHeader(inbound.request.data.headers, 'connection'),
         );

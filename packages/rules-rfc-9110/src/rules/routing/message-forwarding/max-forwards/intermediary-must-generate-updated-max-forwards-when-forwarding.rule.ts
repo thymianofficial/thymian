@@ -1,4 +1,9 @@
-import { getHeader, httpRule, type RuleFnResult } from '@thymian/core';
+import {
+  getHeader,
+  httpRule,
+  isHeaderCaptured,
+  type RuleFnResult,
+} from '@thymian/core';
 
 import { forwardingHops, parseMaxForwards } from '../../utils/forwarding.js';
 
@@ -23,6 +28,13 @@ export default httpRule(
       for (const { inbound, outbound } of forwardingHops(trace)) {
         const method = inbound.request.data.method.toUpperCase();
         if (method !== 'TRACE' && method !== 'OPTIONS') {
+          continue;
+        }
+        // A hop whose field was not captured cannot show what was forwarded.
+        if (
+          !isHeaderCaptured(inbound.request, 'max-forwards') ||
+          !isHeaderCaptured(outbound.request, 'max-forwards')
+        ) {
           continue;
         }
         const receivedValue = parseMaxForwards(

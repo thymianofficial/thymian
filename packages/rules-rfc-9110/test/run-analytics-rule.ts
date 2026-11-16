@@ -1,4 +1,5 @@
 import {
+  type CapturedTrace,
   type CapturedTransaction,
   NoopLogger,
   type Rule,
@@ -22,11 +23,12 @@ function enabled(rule: Rule): Rule {
 /**
  * Runs a rule's `analytics` function through core's `runRules` and the real
  * `AnalyticsApiContext`, as `plugin-http-analyzer` drives it, over an
- * in-memory repository holding `transactions`.
+ * in-memory repository holding `transactions` and `traces`.
  */
 export async function runAnalyticsRule(
   rule: Rule,
   transactions: CapturedTransaction[],
+  traces: CapturedTrace[] = [],
 ): Promise<RuleFnResult[]> {
   const logger = new NoopLogger();
   const format = new ThymianFormat();
@@ -35,6 +37,10 @@ export async function runAnalyticsRule(
 
   for (const transaction of transactions) {
     repository.insertHttpTransaction(transaction);
+  }
+
+  for (const trace of traces) {
+    repository.insertHttpTrace(trace);
   }
 
   try {
