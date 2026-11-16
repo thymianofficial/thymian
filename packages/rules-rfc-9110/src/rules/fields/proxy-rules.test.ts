@@ -114,14 +114,14 @@ describe('proxy-must-forward-unrecognized-header-fields', () => {
     expect(message).not.toContain('connection');
   });
 
-  // The analyzer reads a leg recorded without headers back as an empty object;
-  // it stores no header whose value is undefined. Without a marker that leg
+  // The analyzer reads a hop recorded without headers back as an empty object;
+  // it stores no header whose value is undefined. Without a marker that hop
   // was captured and carried no field, so every received field was dropped.
   it.each([
     ['an empty header object', {}],
     ['only undefined header values', { accept: undefined }],
   ])(
-    'flags every received field when the forwarded leg was recorded with %s',
+    'flags every received field when the forwarded hop was recorded with %s',
     async (_, forwardedHeaders) => {
       const trace: CapturedTrace = [
         hop('proxy', { 'x-custom': 'v' }),
@@ -139,7 +139,7 @@ describe('proxy-must-forward-unrecognized-header-fields', () => {
     ['an empty header object', {}],
     ['only undefined header values', { accept: undefined }],
   ])(
-    'does not flag when the forwarded leg has %s and its headers not captured',
+    'does not flag when the forwarded hop has %s and its headers not captured',
     async (_, forwardedHeaders) => {
       const trace: CapturedTrace = [
         hop('proxy', { 'x-custom': 'v' }),
