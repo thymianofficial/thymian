@@ -122,7 +122,11 @@ export function thymianHttpResponseToLabel(
     ? httpStatusCodeToPhrase[statusCode]
     : '';
 
-  const label = `${statusCode} ${phrase.toUpperCase()}`;
+  // A default response has no status and so no reason phrase (ADR-0027).
+  const label =
+    statusCode === 'default'
+      ? statusCode
+      : `${statusCode} ${phrase.toUpperCase()}`;
 
   return res.mediaType ? label + ` - ${res.mediaType}` : label;
 }

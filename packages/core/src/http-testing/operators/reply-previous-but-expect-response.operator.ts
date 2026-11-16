@@ -1,6 +1,10 @@
 import { mergeMap, type Observable, of, type OperatorFunction } from 'rxjs';
 
-import { matchObjects, type ThymianHttpResponse } from '../../index.js';
+import {
+  isTestableTransaction,
+  matchObjects,
+  type ThymianHttpResponse,
+} from '../../index.js';
 import type { StringAndNumberProperties } from '../../utils.js';
 import {
   type HttpTestCase,
@@ -60,6 +64,7 @@ export function replayStepButExpectResponse<Steps extends HttpTestCaseStep[]>(
       .getThymianHttpTransactions()
       .filter((transaction) => {
         return (
+          isTestableTransaction(transaction) &&
           matchObjects(transaction.thymianReq, {
             host: thymianReq.host,
             port: thymianReq.port,
