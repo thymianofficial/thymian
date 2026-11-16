@@ -618,7 +618,7 @@ describe('ThymianFormat', () => {
       ).toEqual({ kind: 'unknown-operation' });
     });
 
-    it('reports an undocumented status with the documented statuses in numeric order, default last', () => {
+    it('reports an undocumented status with the documented statuses in numeric order', () => {
       const format = new ThymianFormat();
       const [reqId] = format.addHttpTransaction(
         requestNode(),
