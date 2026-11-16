@@ -195,6 +195,26 @@ export function summaryOf(
   };
 }
 
+/**
+ * The closing line `sampler check` prints: everything passed, or the tally.
+ *
+ * The outcome counts need no number agreement — `1 passed` and `2 passed` read
+ * alike — but the count of transactions does.
+ */
+export function summaryLineOf(summary: CheckSummary): string {
+  const checked = `Checked ${summary.total} ${summary.total === 1 ? 'transaction' : 'transactions'}`;
+
+  if (summary.passed === summary.total) {
+    return `${checked}. All passed.`;
+  }
+
+  const tally = (['failed', 'skipped', 'errored'] as const)
+    .filter((outcome) => summary[outcome] > 0)
+    .map((outcome) => `${summary[outcome]} ${outcome}`);
+
+  return `${checked}: ${summary.passed} passed, ${tally.join(', ')}.`;
+}
+
 function selectorOf(transaction: ThymianHttpTransaction): Selector {
   return thymianHttpTransactionToString(
     transaction.thymianReq,
