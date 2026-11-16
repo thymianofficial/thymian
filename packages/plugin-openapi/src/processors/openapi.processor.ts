@@ -130,6 +130,7 @@ export class OpenapiProcessor {
         operationId: operationObject.operationId,
         method,
         path: joinUrlPath(operationServerInfo.basePath, path),
+        pathTemplate: path,
         sourceName: this.sourceName,
       },
       document,
@@ -139,6 +140,8 @@ export class OpenapiProcessor {
       parameters,
       document,
     );
+
+    const sourceLocation = this.locMapper.locationForOperation(path, method);
 
     const securitySchemes = this.globalSecuritySchemes.length
       ? this.globalSecuritySchemes
@@ -157,10 +160,6 @@ export class OpenapiProcessor {
       for (const { responses, links } of responsesAndLinks) {
         const responseIds: string[] = [];
         for (const res of responses) {
-          const sourceLocation = operationObject.operationId
-            ? this.locMapper.locationForOperationId(operationObject.operationId)
-            : undefined;
-
           const [resId] = this.format.addResponseToRequest(
             reqId,
             {

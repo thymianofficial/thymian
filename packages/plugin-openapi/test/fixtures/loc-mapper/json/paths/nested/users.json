@@ -1,0 +1,10 @@
+{
+  "description": "Users, reached through a chain",
+  "delete": {
+    "responses": {
+      "204": {
+        "description": "No content"
+      }
+    }
+  }
+}

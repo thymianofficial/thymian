@@ -374,13 +374,14 @@ export async function openapiToThymianFormat(
     );
   }
 
+  const logger = options.logger ?? new NoopLogger();
   const locMapper =
     typeof options.filePath === 'string'
-      ? await locMapperForFile(options.filePath)
+      ? await locMapperForFile(options.filePath, logger)
       : new NoopLocMapper();
 
   return new OpenapiProcessor(
-    options.logger ?? new NoopLogger(),
+    logger,
     options.serverInfo,
     locMapper,
     options.format,
