@@ -910,6 +910,34 @@ export const seed = beforeEach(${JSON.stringify(selector)}, async (request, ctx,
       expect(await checkSurface(catalog)).toEqual([]);
     });
 
+    it('emits a closed array as never[]', async () => {
+      // `items: false` arrives as `{ not: {} }`, and read as a value schema it
+      // became `{ [k: string]: unknown }[]`, which admits elements.
+      const format = new ThymianFormat();
+
+      format.addHttpTransaction(
+        createHttpRequest({ method: 'GET', path: '/x' }),
+        createHttpResponse({
+          statusCode: 200,
+          mediaType: 'application/json',
+          schema: {
+            type: 'object',
+            required: ['nothing'],
+            properties: {
+              nothing: { type: 'array', items: { not: {} } },
+            },
+          } as never,
+        }),
+        'test-source',
+      );
+
+      const catalog = catalogOf(format);
+      const { requestTypes } = await generateTypeSurface(catalog);
+
+      expect(requestTypes).toContain('nothing: never[]');
+      expect(await checkSurface(catalog)).toEqual([]);
+    });
+
     it('produces a surface that typechecks without skipLibCheck', async () => {
       expect(await checkSurface(catalogOf(formatWithExamples()))).toEqual([]);
     });
