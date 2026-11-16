@@ -3,6 +3,7 @@ import {
   createRegExpFromOriginWildcard,
   equalsIgnoreCase,
   type HttpFilterExpression,
+  isStatusCodeInRange,
   type ThymianFormat,
   type ThymianHttpTransaction,
   thymianRequestToOrigin,
@@ -121,13 +122,7 @@ const visitor = createFilterVisitor<StaticFilter>({
   visitStatusCodeRange({ start, end }) {
     return (transaction: ThymianHttpTransaction) => {
       const statusCode = transaction.thymianRes.statusCode;
-      // A `default` response has no status, so no range holds it (ADR-0026).
-      return (
-        typeof statusCode === 'number' &&
-        Number.isInteger(statusCode) &&
-        statusCode >= start &&
-        statusCode <= end
-      );
+      return isStatusCodeInRange(statusCode, start, end);
     };
   },
   visitResponseMediaType({ mediaType }) {

@@ -31,6 +31,7 @@ import {
 } from './hooks/load-user-hooks.js';
 import { RequestSampler } from './request-sampler.js';
 import { resolveSamplerPaths } from './sampler-paths.js';
+import { DEFAULT_RESPONSE_NOT_TESTED } from './selectors/selector-errors.js';
 import { TransactionCatalog } from './selectors/transaction-catalog.js';
 import { entryExists } from './utils.js';
 import {
@@ -325,7 +326,7 @@ export const samplePlugin: ThymianPlugin<Partial<SamplerPluginOptions>> = {
       if (!isTestableTransaction(transaction)) {
         ctx.reply({
           selector,
-          notTested: 'default response: not tested, no sample is derived',
+          notTested: DEFAULT_RESPONSE_NOT_TESTED,
         });
 
         return;
