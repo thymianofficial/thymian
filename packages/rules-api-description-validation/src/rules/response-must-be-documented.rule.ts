@@ -85,7 +85,7 @@ export default httpRule(NAME)
         const message =
           resolution.undocumented === 'status'
             ? `Response status ${response.statusCode} is not documented for ${selector}. Documented: ${documentedOrNone(resolution.documentedStatuses)}.`
-            : `Response media type ${getContentType(response.headers)} is not documented for ${
+            : `Response media type ${getContentType(response.headers, '(none)')} is not documented for ${
                 resolution.statusCode === 'default'
                   ? 'default'
                   : `status ${resolution.statusCode}`
