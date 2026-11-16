@@ -1,28 +1,35 @@
 import { isRecord } from '@thymian/core';
 
 /**
+ * The positions where the boolean form of a forbidding schema changes what the
+ * consumers produce.
+ */
+const CLOSING_KEYS = new Set(['additionalProperties', 'items']);
+
+/**
  * Restores the boolean form of a schema that forbids everything.
  *
- * `additionalProperties: false` reaches the sampler as `{ not: {} }`, which is
- * the correct JSON Schema for it (`plugin-openapi`'s `normalizeSchema` turns
- * every boolean schema into its object form). Two consumers misread it, since
- * both treat any object in that position as a value schema:
+ * `false` reaches the sampler as `{ not: {} }`, which is the correct JSON
+ * Schema for it (`plugin-openapi`'s `normalizeSchema` turns every boolean
+ * schema into its object form). Two consumers misread it in two positions,
+ * since both treat any object there as a value schema:
  *
- * - the type emitter emits `[k: string]: { [k: string]: unknown }`, an index
- *   signature that every declared property then fails to satisfy — `TS2411`,
- *   six times over on the demo description;
- * - `openapi-sampler` invents `property1`, `property2` for it, which the same
- *   schema forbids.
+ * - `additionalProperties`: `openapi-sampler` invents `property1`,
+ *   `property2`, which the same schema forbids; the type emitter emits
+ *   `[k: string]: { [k: string]: unknown }`, an index signature that every
+ *   declared property then fails to satisfy — `TS2411`.
+ * - `items`: `openapi-sampler` produces `[null]` where only `[]` is valid; the
+ *   type emitter emits `{ [k: string]: unknown }[]` where `never[]` is correct.
  *
- * Handed the boolean, the emitter emits no index signature and the sampler
- * invents nothing, which is what a closed object is.
+ * Handed the boolean, both get a closed object or a closed array right.
  *
- * Only this position is rewritten. `{ not: {} }` elsewhere means `never`, which
- * the emitter is free to render however it likes.
+ * Only these positions are rewritten, and never the root, which the emitter
+ * cannot take as a boolean. `{ not: {} }` elsewhere means `never`, which the
+ * emitter is free to render however it likes.
  */
-export function closedObjectsToBoolean(input: unknown): unknown {
+export function closedSchemasToBoolean(input: unknown): unknown {
   if (Array.isArray(input)) {
-    return input.map(closedObjectsToBoolean);
+    return input.map(closedSchemasToBoolean);
   }
 
   if (!isRecord(input)) {
@@ -33,9 +40,9 @@ export function closedObjectsToBoolean(input: unknown): unknown {
 
   for (const [key, value] of Object.entries(input)) {
     out[key] =
-      key === 'additionalProperties' && forbidsEverything(value)
+      CLOSING_KEYS.has(key) && forbidsEverything(value)
         ? false
-        : closedObjectsToBoolean(value);
+        : closedSchemasToBoolean(value);
   }
 
   return out;

@@ -1,22 +1,31 @@
 import { describe, expect, it } from 'vitest';
 
-import { closedObjectsToBoolean } from '../src/generation/closed-schema.js';
+import { closedSchemasToBoolean } from '../src/generation/closed-schema.js';
 
-describe('closedObjectsToBoolean', () => {
+describe('closedSchemasToBoolean', () => {
   it('should turn a forbidding additionalProperties back into false', () => {
     expect(
-      closedObjectsToBoolean({
+      closedSchemasToBoolean({
         type: 'object',
         additionalProperties: { not: {} },
       }),
     ).toEqual({ type: 'object', additionalProperties: false });
   });
 
+  it('should turn a forbidding items back into false', () => {
+    expect(
+      closedSchemasToBoolean({
+        type: 'array',
+        items: { not: {} },
+      }),
+    ).toEqual({ type: 'array', items: false });
+  });
+
   it('should reach closed objects nested in properties, items and $defs', () => {
     const closed = { additionalProperties: { not: {} } };
 
     expect(
-      closedObjectsToBoolean({
+      closedSchemasToBoolean({
         properties: { a: closed },
         items: closed,
         $defs: { B: closed },
@@ -28,13 +37,29 @@ describe('closedObjectsToBoolean', () => {
     });
   });
 
+  it('should reach closed arrays nested in properties, items and $defs', () => {
+    const closed = { type: 'array', items: { not: {} } };
+
+    expect(
+      closedSchemasToBoolean({
+        properties: { a: closed },
+        items: closed,
+        $defs: { B: closed },
+      }),
+    ).toEqual({
+      properties: { a: { type: 'array', items: false } },
+      items: { type: 'array', items: false },
+      $defs: { B: { type: 'array', items: false } },
+    });
+  });
+
   it('should leave `not: {}` in every other position alone', () => {
     const schema = {
       properties: { never: { not: {} } },
       propertyNames: { not: {} },
     };
 
-    expect(closedObjectsToBoolean(schema)).toEqual(schema);
+    expect(closedSchemasToBoolean(schema)).toEqual(schema);
   });
 
   it('should leave an additionalProperties that admits something alone', () => {
@@ -43,24 +68,42 @@ describe('closedObjectsToBoolean', () => {
       properties: { a: { additionalProperties: { type: 'string' } } },
     };
 
-    expect(closedObjectsToBoolean(schema)).toEqual(schema);
+    expect(closedSchemasToBoolean(schema)).toEqual(schema);
   });
 
-  it('should rewrite a key named additionalProperties wherever it sits', () => {
+  it('should leave an items that admits something alone', () => {
+    const schema = {
+      items: { not: { type: 'string' } },
+      properties: { a: { items: { type: 'string' } } },
+    };
+
+    expect(closedSchemasToBoolean(schema)).toEqual(schema);
+  });
+
+  it('should rewrite a key named additionalProperties or items wherever it sits', () => {
     // Known and accepted: the walk is keyed on the name, not on the position,
     // and only fires on exactly `{ not: {} }`.
     expect(
-      closedObjectsToBoolean({
-        properties: { additionalProperties: { not: {} } },
+      closedSchemasToBoolean({
+        properties: {
+          additionalProperties: { not: {} },
+          items: { not: {} },
+        },
       }),
-    ).toEqual({ properties: { additionalProperties: false } });
+    ).toEqual({ properties: { additionalProperties: false, items: false } });
   });
 
   it('should not mutate its input', () => {
-    const schema = { additionalProperties: { not: {} } };
+    const schema = {
+      additionalProperties: { not: {} },
+      properties: { a: { items: { not: {} } } },
+    };
 
-    closedObjectsToBoolean(schema);
+    closedSchemasToBoolean(schema);
 
-    expect(schema).toEqual({ additionalProperties: { not: {} } });
+    expect(schema).toEqual({
+      additionalProperties: { not: {} },
+      properties: { a: { items: { not: {} } } },
+    });
   });
 });

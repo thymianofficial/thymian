@@ -39,4 +39,23 @@ describe('XmlContentTypeStrategy', () => {
       ).toBe('<CrewMember>\n  <astronaut_id>0</astronaut_id>\n</CrewMember>\n');
     });
   });
+
+  describe('closed arrays', () => {
+    // `items: false` reaches the strategy as `{ not: {} }`.
+    it('should sample a wrapped closed array as an empty wrapper', async () => {
+      expect(
+        await xmlOf({
+          type: 'object',
+          properties: {
+            a: {
+              type: 'array',
+              items: { not: {} },
+              xml: { wrapped: true },
+            },
+          },
+          required: ['a'],
+        }),
+      ).toBe('<a></a>\n');
+    });
+  });
 });

@@ -1,7 +1,7 @@
 import { isRecord } from '@thymian/core';
 import { compile, type JSONSchema } from 'json-schema-to-typescript';
 
-import { closedObjectsToBoolean } from '../closed-schema.js';
+import { closedSchemasToBoolean } from '../closed-schema.js';
 import { type Declaration, splitDeclarations } from './declaration-set.js';
 import { reflectExamples } from './example-reflection.js';
 
@@ -242,7 +242,7 @@ export async function generateSchemaType(
   ]);
   const declaration = await compile(
     defsToDefinitions(
-      closedObjectsToBoolean(reflectExamples(stripped)),
+      closedSchemasToBoolean(reflectExamples(stripped)),
     ) as JSONSchema,
     typeName,
     {
