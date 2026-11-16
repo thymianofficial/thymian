@@ -1,4 +1,10 @@
-import type { RuleFnResult, RuleViolationLocation } from '@thymian/core';
+import {
+  type HttpRequest,
+  type HttpResponse,
+  type RuleFnResult,
+  type RuleViolationLocation,
+  ThymianFormat,
+} from '@thymian/core';
 import { describe, expect, it } from 'vitest';
 
 import requestBodyRule from '../src/rules/request-body-conforms-to-schema.rule.js';
@@ -37,7 +43,7 @@ function makeCtx(
   };
 }
 
-const rules = [
+const requestRules = [
   {
     ruleName: 'request-body-conforms-to-schema',
     ruleTitle: 'thymian/request-body-must-conform-to-schema',
@@ -58,6 +64,9 @@ const rules = [
     ruleTitle: 'thymian/request-query-parameters-must-conform-to-schema',
     rule: requestQueryParametersRule,
   },
+];
+
+const responseRules = [
   {
     ruleName: 'response-body-conforms-to-schema',
     ruleTitle: 'thymian/response-body-must-conforms-to-schema',
@@ -69,6 +78,8 @@ const rules = [
     rule: responseHeadersRule,
   },
 ];
+
+const rules = [...requestRules, ...responseRules];
 
 describe.each(rules)('rule-skip guards: $ruleName', ({ ruleTitle, rule }) => {
   // All rules in this table are analytics rules, so analyzeRule is always defined.
@@ -114,4 +125,148 @@ describe.each(rules)('rule-skip guards: $ruleName', ({ ruleTitle, rule }) => {
       message: `Can't find transaction with given ID ${txId} in Thymian format.`,
     });
   });
+});
+
+// An Undocumented Response reaches a rule as a node location on the matched
+// request node (ADR-0026). These cases run the rules against a real format.
+describe('undocumented response (node location on the request node)', () => {
+  const format = new ThymianFormat();
+  const [requestId, , transactionId] = format.addHttpTransaction(
+    {
+      type: 'http-request',
+      host: 'api.example.com',
+      port: 443,
+      protocol: 'https',
+      path: '/v2/clock/{id}',
+      method: 'post',
+      headers: {
+        'x-api-key': { required: true, schema: { type: 'string' } },
+      },
+      queryParameters: {
+        tz: { required: true, schema: { type: 'string' } },
+      },
+      cookies: {},
+      pathParameters: {
+        id: { required: true, schema: { type: 'integer' } },
+      },
+      mediaType: 'application/json',
+      body: {
+        type: 'object',
+        required: ['time'],
+        properties: { time: { type: 'string' } },
+      },
+    },
+    {
+      type: 'http-response',
+      headers: {},
+      mediaType: 'application/json',
+      statusCode: 200,
+    },
+    'test-source',
+  );
+
+  // Violates every request rule: no header, no query, a non-integer path
+  // parameter and a body without `time`.
+  const request: HttpRequest = {
+    origin: 'https://api.example.com',
+    path: '/v2/clock/abc',
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: '{}',
+  };
+  const response: HttpResponse = {
+    statusCode: 418,
+    headers: { 'content-type': 'application/json' },
+    body: '{}',
+    trailers: {},
+    duration: 0,
+  };
+
+  function run(
+    rule: (typeof rules)[number]['rule'],
+    location: RuleViolationLocation,
+  ) {
+    const ctx = {
+      format,
+      validateHttpTransactions: ({
+        violatedWhen,
+      }: {
+        violatedWhen: (
+          req: HttpRequest,
+          res: HttpResponse,
+          location: RuleViolationLocation,
+        ) => RuleFnResult[];
+      }) => violatedWhen(request, response, location),
+    };
+
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    return rule.analyzeRule!(ctx as never) as Promise<RuleFnResult[]>;
+  }
+
+  const nodeLocation: RuleViolationLocation = {
+    elementType: 'node',
+    elementId: requestId,
+  };
+
+  it.each(requestRules)(
+    '$ruleName reports the same as for a documented response',
+    async ({ rule }) => {
+      const documented = await run(rule, {
+        elementType: 'edge',
+        elementId: transactionId,
+      });
+      const undocumented = await run(rule, nodeLocation);
+
+      expect(documented[0]?.violation).toBeDefined();
+      expect(
+        undocumented.map(({ violation, findings }) => ({
+          violation,
+          findings,
+        })),
+      ).toEqual(
+        documented.map(({ violation, findings }) => ({ violation, findings })),
+      );
+      expect(undocumented[0]?.location).toEqual(nodeLocation);
+    },
+  );
+
+  it.each(responseRules)(
+    '$ruleName skips naming the undocumented response and its operation',
+    async ({ rule, ruleTitle }) => {
+      const results = await run(rule, nodeLocation);
+
+      expect(results).toEqual([
+        {
+          location: nodeLocation,
+          findings: [
+            {
+              kind: 'rule-skip',
+              title: ruleTitle,
+              message:
+                'Skipped: the response 418 (application/json) is not documented in the API specification for POST /v2/clock/{id} (application/json).',
+            },
+          ],
+        },
+      ]);
+    },
+  );
+
+  it.each(rules)(
+    '$ruleName skips when the node location names no request',
+    async ({ rule, ruleTitle }) => {
+      const results = await run(rule, {
+        elementType: 'node',
+        elementId: 'missing',
+      });
+
+      expect(results[0]?.findings).toEqual([
+        {
+          kind: 'rule-skip',
+          title: ruleTitle,
+          message:
+            "Can't find request with given ID missing in Thymian format.",
+        },
+      ]);
+    },
+  );
 });

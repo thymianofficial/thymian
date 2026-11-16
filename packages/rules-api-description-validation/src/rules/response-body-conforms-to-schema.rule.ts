@@ -12,6 +12,12 @@ import {
   validateBodyForResponse,
 } from '@thymian/core';
 
+import {
+  missingElementMessage,
+  requestAt,
+  undocumentedResponseMessage,
+} from './located-request.js';
+
 const NAME = 'thymian/response-body-must-conforms-to-schema';
 
 // eslint-disable-next-line thymian-internal/require-rule-tags -- schema-conformance check against the API description, not a security or privacy concern
@@ -45,6 +51,25 @@ export default httpRule(NAME)
           ];
         }
 
+        if (location.elementType === 'node') {
+          const operation = requestAt(ctx.format, location);
+
+          return [
+            {
+              location,
+              findings: [
+                {
+                  title: NAME,
+                  kind: 'rule-skip',
+                  message: operation
+                    ? undocumentedResponseMessage(response, operation)
+                    : missingElementMessage(location),
+                },
+              ],
+            },
+          ];
+        }
+
         const transaction = ctx.format.getThymianHttpTransactionById(
           location.elementId,
         );
@@ -57,7 +82,7 @@ export default httpRule(NAME)
                 {
                   title: NAME,
                   kind: 'rule-skip',
-                  message: `Can't find transaction with given ID ${location.elementId} in Thymian format.`,
+                  message: missingElementMessage(location),
                 },
               ],
             },

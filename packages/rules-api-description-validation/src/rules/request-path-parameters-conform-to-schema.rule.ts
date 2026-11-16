@@ -9,6 +9,8 @@ import {
   validateRequestPathParameters,
 } from '@thymian/core';
 
+import { missingElementMessage, requestAt } from './located-request.js';
+
 const NAME = 'thymian/request-path-parameters-must-conform-to-schema';
 
 // eslint-disable-next-line thymian-internal/require-rule-tags -- schema-conformance check against the API description, not a security or privacy concern
@@ -42,11 +44,9 @@ export default httpRule(NAME)
           ];
         }
 
-        const transaction = ctx.format.getThymianHttpTransactionById(
-          location.elementId,
-        );
+        const thymianReq = requestAt(ctx.format, location);
 
-        if (!transaction) {
+        if (!thymianReq) {
           return [
             {
               location,
@@ -54,17 +54,14 @@ export default httpRule(NAME)
                 {
                   title: NAME,
                   kind: 'rule-skip',
-                  message: `Can't find transaction with given ID ${location.elementId} in Thymian format.`,
+                  message: missingElementMessage(location),
                 },
               ],
             },
           ];
         }
 
-        const results = validateRequestPathParameters(
-          request.path,
-          transaction.thymianReq,
-        );
+        const results = validateRequestPathParameters(request.path, thymianReq);
         const failures = results.filter((r) => r.type === 'assertion-failure');
 
         if (failures.length > 0) {
