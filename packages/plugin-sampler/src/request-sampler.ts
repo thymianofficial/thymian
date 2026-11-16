@@ -1,5 +1,6 @@
 import {
   type HttpRequestTemplate,
+  isTestableTransaction,
   type ThymianEmitter,
   ThymianFormat,
   type ThymianHttpTransaction,
@@ -48,7 +49,11 @@ export class RequestSampler {
     this.shape = shape;
     this.samples = new Map();
 
-    for (const transaction of format.getThymianHttpTransactions()) {
+    // A `default` Transaction is not tested, so no sample is derived for it
+    // (ADR-0026).
+    for (const transaction of format
+      .getThymianHttpTransactions()
+      .filter(isTestableTransaction)) {
       this.samples.set(
         transaction.transactionId,
         await generateRequestSampleForTransaction(format, transaction, emitter),

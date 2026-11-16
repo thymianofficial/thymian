@@ -2,6 +2,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 
 import {
   type HttpRequestTemplate,
+  isTestableTransaction,
   ThymianFormat,
   type ThymianHttpTransaction,
   type ThymianPlugin,
@@ -60,10 +61,20 @@ declare module '@thymian/core' {
       event: {
         selector: string;
       };
-      response: {
-        selector: string;
-        request: HttpRequestTemplate;
-      };
+      /**
+       * The sample a Selector's Transaction would send — or, for a `default`
+       * Transaction, which is not tested and derives no sample, the sentence
+       * that says so (ADR-0026).
+       */
+      response:
+        | {
+            selector: string;
+            request: HttpRequestTemplate;
+          }
+        | {
+            selector: string;
+            notTested: string;
+          };
     };
 
     'sampler.sync': {
@@ -310,6 +321,15 @@ export const samplePlugin: ThymianPlugin<Partial<SamplerPluginOptions>> = {
 
     emitter.onAction('sampler.show', async ({ selector }, ctx) => {
       const transaction = catalog.resolve(selector);
+
+      if (!isTestableTransaction(transaction)) {
+        ctx.reply({
+          selector,
+          notTested: 'default response: not tested, no sample is derived',
+        });
+
+        return;
+      }
 
       ctx.reply({
         selector,

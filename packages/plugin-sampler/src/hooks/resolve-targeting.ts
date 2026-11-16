@@ -1,4 +1,7 @@
-import type { ThymianHttpTransaction } from '@thymian/core';
+import {
+  isTestableTransaction,
+  type ThymianHttpTransaction,
+} from '@thymian/core';
 
 import { nearestPathHints } from '../selectors/nearest-paths.js';
 import { hasWildcard, matchesPathGlob } from '../selectors/path-glob.js';
@@ -8,6 +11,7 @@ import {
   parseSelector,
   type Selector,
 } from '../selectors/selector.js';
+import { defaultResponseTargetMessage } from '../selectors/selector-errors.js';
 import type { TransactionCatalog } from '../selectors/transaction-catalog.js';
 import {
   emptyValueFields,
@@ -104,6 +108,22 @@ function resolveSelectors(
 
   for (const selector of selectors) {
     const transaction = catalog.tryResolve(selector);
+
+    // A `default` Selector resolves — `sampler show` prints it — but it names
+    // no status a request could be aimed at, so it is refused through the same
+    // channel as an unknown one (ADR-0026).
+    if (transaction && !isTestableTransaction(transaction)) {
+      diagnostics.push({
+        ...where,
+        reason: defaultResponseTargetMessage(
+          selector,
+          'hook',
+          catalog.concreteStatusesOf(transaction),
+        ),
+      });
+
+      continue;
+    }
 
     if (transaction) {
       if (!bound.has(transaction.transactionId)) {
@@ -222,8 +242,11 @@ function resolveFilter(
     return [];
   }
 
+  // A `default` Transaction is never a hook target, so a filter does not bind
+  // to one either — silently, since a filter names no Transaction itself.
   const matched = catalog
     .transactions()
+    .filter(isTestableTransaction)
     .filter((transaction) => matchesTransactionFilter(filter, transaction));
 
   if (matched.length === 0) {

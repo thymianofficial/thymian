@@ -45,9 +45,16 @@ export type SelectorParts = {
   method: string;
   path: string;
   requestMediaType?: string;
-  status: number;
+  /** A status code, or `'default'` for a default response (ADR-0026). */
+  status: number | 'default';
   responseMediaType?: string;
 };
+
+/** The literal a default response's status part is spelled as. */
+const DEFAULT_STATUS = 'default';
+
+/** `default` in any casing, including the one the grammar accepts. */
+const ANY_CASE_DEFAULT = /^default$/i;
 
 const METHOD_TOKEN = new RegExp(`^[${SELECTOR_METHOD_CHARS}]+$`);
 const UPPERCASE_METHOD = new RegExp(`^[A-Z0-9!#$%&'*+.^_\`|~-]+$`);
@@ -229,6 +236,13 @@ function splitSelector(value: string): SelectorParts | undefined {
     return undefined;
   }
 
+  // Only the lowercase literal is a selector. Any other casing is a near miss
+  // the canonical-form hint answers with a "Did you mean", rather than a
+  // well-formed status that would parse to `NaN` and name nothing.
+  if (ANY_CASE_DEFAULT.test(status) && status !== DEFAULT_STATUS) {
+    return undefined;
+  }
+
   let responseMediaType: string | undefined;
 
   if (statusEnd !== -1) {
@@ -251,7 +265,7 @@ function splitSelector(value: string): SelectorParts | undefined {
     method: method.content,
     path: path.content,
     requestMediaType,
-    status: Number(status),
+    status: status === DEFAULT_STATUS ? DEFAULT_STATUS : Number(status),
     responseMediaType,
   };
 }
@@ -323,13 +337,14 @@ export function malformedSelectorHints(value: string): string[] {
 }
 
 /**
- * The grammar relaxed on exactly the three axes a hand-authored selector slips
- * on — method case, the leading slash, and a zero-padded status. Used ONLY to
+ * The grammar relaxed on exactly the four axes a hand-authored selector slips
+ * on — method case, the leading slash, a zero-padded status and the casing of
+ * `default`. Used ONLY to
  * turn a rejection into a "did you mean …?" suggestion; it never decides whether
  * a selector is valid.
  */
 const LENIENT_SHAPE = new RegExp(
-  `^([${SELECTOR_METHOD_CHARS}]+) (\\S+)(?: \\(([^()]*)\\))? -> (\\d+)(?: \\(([^()]*)\\))?$`,
+  `^([${SELECTOR_METHOD_CHARS}]+) (\\S+)(?: \\(([^()]*)\\))? -> (\\d+|[dD][eE][fF][aA][uU][lL][tT])(?: \\(([^()]*)\\))?$`,
 );
 
 /**
@@ -360,9 +375,14 @@ function canonicalizablePath(path: string): boolean {
 /**
  * Strips a status's zero padding, but only when what is left is a status code —
  * three digits, per RFC 9110 §15. Reinterpreting through `Number` instead would
- * turn `007` into `7`, suggesting a selector no transaction can carry.
+ * turn `007` into `7`, suggesting a selector no transaction can carry. `default`
+ * in any casing becomes the lowercase literal the grammar accepts.
  */
 function canonicalStatus(status: string): string {
+  if (ANY_CASE_DEFAULT.test(status)) {
+    return DEFAULT_STATUS;
+  }
+
   const stripped = status.replace(/^0+/, '');
 
   return /^[1-9]\d\d$/.test(stripped) ? stripped : status;
@@ -393,7 +413,11 @@ function describeNormalizations(
   }
 
   if (canonicalStatus(status) !== status) {
-    rules.push('spells its status without leading zeros');
+    rules.push(
+      ANY_CASE_DEFAULT.test(status)
+        ? 'spells default in lowercase'
+        : 'spells its status without leading zeros',
+    );
   }
 
   return rules.length > 0 ? `A selector ${joinWithAnd(rules)}. ` : '';
@@ -401,7 +425,8 @@ function describeNormalizations(
 
 /**
  * Suggests the canonical spelling of a value that is *nearly* a selector:
- * lowercase method, missing leading slash, zero-padded status. Returns nothing
+ * lowercase method, missing leading slash, zero-padded status, `default` in
+ * another casing. Returns nothing
  * when the value is not recognizable or already canonical.
  */
 function canonicalFormHint(value: string): string[] {

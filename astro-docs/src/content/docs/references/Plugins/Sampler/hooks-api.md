@@ -35,6 +35,14 @@ DELETE /astronauts/{id} -> 204
 - **Path templates, verbatim.** `{id}` is spelled the way the description spells
   it.
 
+A response your description declares as its OpenAPI `default` has the literal
+lowercase `default` in the status position:
+`POST /v2/clock (application/json) -> default (application/json)`. Thymian does
+not test `default` responses, so such a Selector is never a hook or seed target:
+it is absent from the generated types, a hook aimed at it is refused when the
+hooks load, and `utils.request` aimed at it errors the Transaction that called
+it. Each refusal lists the operation's documented statuses to target instead.
+
 A component the grammar cannot carry bare is quoted — a path containing a space,
 for example, renders as `GET "/a b" -> 200`. That is rare and mechanical; you
 will normally see the plain form.
@@ -411,8 +419,9 @@ reordering of your document are not drift.
 
 ### `thymian sampler check`
 
-Sends every Transaction's request against the live API and reports which ones
-can be executed at all — a narrower question than `thymian test`, which checks
+Sends every Transaction's request against the live API — every one but a
+`default` Transaction, which is not tested — and reports which ones can be
+executed at all — a narrower question than `thymian test`, which checks
 whether the responses conform. It needs nothing generated first.
 
 Every Transaction ends in exactly one Outcome — `passed`, `failed`, `skipped` or
@@ -431,3 +440,5 @@ thymian sampler show 'GET /launches -> 200 (application/json)'
 ```
 
 An unknown Selector gets the nearest matches; a malformed one gets the grammar.
+A `default` Selector resolves, but prints
+`default response: not tested, no sample is derived` instead of a request.

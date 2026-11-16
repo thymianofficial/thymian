@@ -582,4 +582,66 @@ export const seed = beforeEach(${JSON.stringify(GET_LAUNCH)}, async (request, ct
     // before the seed's request could be built and sent.
     expect(harness.dispatched).toHaveLength(0);
   });
+
+  it('refuses a default selector as a seed target, as a hook error that does not end the run', async () => {
+    const harness = await sampler();
+    const DEFAULT = 'POST /launches (application/json) -> default';
+    const format = new ThymianFormat();
+    const create = createHttpRequest({
+      method: 'POST',
+      path: '/launches',
+      mediaType: 'application/json',
+    });
+
+    format.addHttpTransaction(
+      create,
+      createHttpResponse({ statusCode: 201 }),
+      'test-source',
+    );
+    format.addHttpTransaction(
+      create,
+      createHttpResponse({ statusCode: 'default', mediaType: '' }),
+      'test-source',
+    );
+    format.addHttpTransaction(
+      createHttpRequest({ method: 'GET', path: '/launches/{id}' }),
+      createHttpResponse({ statusCode: 200 }),
+      'test-source',
+    );
+
+    await harness.writeHook(
+      'seed.ts',
+      `import { beforeEach } from '@thymian/hooks';
+
+export const seed = beforeEach(${JSON.stringify(GET_LAUNCH)}, async (request, ctx, utils) => {
+  await utils.request(${JSON.stringify(DEFAULT)});
+});
+`,
+    );
+
+    await harness.loadFormat(format);
+
+    let error: unknown;
+
+    try {
+      await harness.beforeRequest(
+        TransactionCatalog.fromThymianFormat(format).resolve(GET_LAUNCH)
+          .transactionId,
+        format,
+      );
+    } catch (e) {
+      error = e;
+    }
+
+    expect((error as Error | undefined)?.message).toBe(
+      `"${DEFAULT}" names a default response. Thymian does not test default responses, so it cannot be a seed target. Target one of the operation's documented statuses instead: 201.`,
+    );
+    // `warn`, not `error`: under ADR-0024 the transaction is `errored` and the
+    // run goes on.
+    expect(
+      (error as { options?: { severity?: string } } | undefined)?.options
+        ?.severity,
+    ).toBe('warn');
+    expect(harness.dispatched).toHaveLength(0);
+  });
 });
