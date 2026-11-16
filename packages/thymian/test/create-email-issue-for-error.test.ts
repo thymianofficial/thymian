@@ -1,4 +1,4 @@
-import { type CachedError } from '@thymian/common-cli';
+import { type CachedError, RECORD_VERSION } from '@thymian/common-cli';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { createEmailReport } from '../src/create-email-issue-for-error.js';
@@ -17,7 +17,7 @@ describe('createEmailReport', () => {
 
   it('should generate proper mailto URL', () => {
     const error: CachedError = {
-      recordVersion: 1,
+      recordVersion: RECORD_VERSION,
       name: 'TestError',
       message: 'Test error message',
       commandName: 'test:command',
@@ -39,7 +39,7 @@ describe('createEmailReport', () => {
 
   it('should URL-encode subject', () => {
     const error: CachedError = {
-      recordVersion: 1,
+      recordVersion: RECORD_VERSION,
       name: 'TestError',
       message: 'Test',
       commandName: 'test:command',
@@ -60,7 +60,7 @@ describe('createEmailReport', () => {
 
   it('should URL-encode body', () => {
     const error: CachedError = {
-      recordVersion: 1,
+      recordVersion: RECORD_VERSION,
       name: 'TestError',
       message: 'Test',
       commandName: 'test',
@@ -82,7 +82,7 @@ describe('createEmailReport', () => {
 
   it('should include error details when errorData provided', () => {
     const error: CachedError = {
-      recordVersion: 1,
+      recordVersion: RECORD_VERSION,
       name: 'TestError',
       message: 'Test error',
       commandName: 'test:command',
@@ -106,7 +106,7 @@ describe('createEmailReport', () => {
 
   it('should include environment information', () => {
     const error: CachedError = {
-      recordVersion: 1,
+      recordVersion: RECORD_VERSION,
       name: 'TestError',
       message: 'Test',
       commandName: 'test',
@@ -132,7 +132,7 @@ describe('createEmailReport', () => {
 
   it('should include plugin versions', () => {
     const error: CachedError = {
-      recordVersion: 1,
+      recordVersion: RECORD_VERSION,
       name: 'TestError',
       message: 'Test',
       commandName: 'test',
@@ -159,7 +159,7 @@ describe('createEmailReport', () => {
 
   it('should include stack trace with HOME replaced by ~', () => {
     const error: CachedError = {
-      recordVersion: 1,
+      recordVersion: RECORD_VERSION,
       name: 'TestError',
       message: 'Test',
       stack: `Error: Test\n  at /home/testuser/project/src/test.ts:10\n  at /home/testuser/.config/test.js:20`,
@@ -185,7 +185,7 @@ describe('createEmailReport', () => {
 
   it('should handle missing stack trace', () => {
     const error: CachedError = {
-      recordVersion: 1,
+      recordVersion: RECORD_VERSION,
       name: 'TestError',
       message: 'Test',
       commandName: 'test',
@@ -209,7 +209,7 @@ describe('createEmailReport', () => {
   it('should format timestamp correctly', () => {
     const timestamp = 1234567890000;
     const error: CachedError = {
-      recordVersion: 1,
+      recordVersion: RECORD_VERSION,
       name: 'TestError',
       message: 'Test',
       commandName: 'test',
@@ -232,7 +232,7 @@ describe('createEmailReport', () => {
 
   it('should include feedback message header', () => {
     const error: CachedError = {
-      recordVersion: 1,
+      recordVersion: RECORD_VERSION,
       name: 'TestError',
       message: 'Test',
       commandName: 'test',
@@ -257,7 +257,7 @@ describe('createEmailReport', () => {
 
   it('should include footer with signature placeholder', () => {
     const error: CachedError = {
-      recordVersion: 1,
+      recordVersion: RECORD_VERSION,
       name: 'TestError',
       message: 'Test',
       commandName: 'test',
@@ -280,7 +280,7 @@ describe('createEmailReport', () => {
 
   it('should handle empty plugin list', () => {
     const error: CachedError = {
-      recordVersion: 1,
+      recordVersion: RECORD_VERSION,
       name: 'TestError',
       message: 'Test',
       commandName: 'test',
@@ -304,7 +304,7 @@ describe('createEmailReport', () => {
 
   it('should use correct subject format', () => {
     const error: CachedError = {
-      recordVersion: 1,
+      recordVersion: RECORD_VERSION,
       name: 'TestError',
       message: 'Test',
       commandName: 'custom:command',
@@ -326,7 +326,7 @@ describe('createEmailReport', () => {
   it('should include recipient in mailto URL', () => {
     const customRecipient = 'custom@support.com';
     const error: CachedError = {
-      recordVersion: 1,
+      recordVersion: RECORD_VERSION,
       name: 'TestError',
       message: 'Test',
       commandName: 'test',
@@ -347,7 +347,7 @@ describe('createEmailReport', () => {
 
   it('should trim body content', () => {
     const error: CachedError = {
-      recordVersion: 1,
+      recordVersion: RECORD_VERSION,
       name: 'TestError',
       message: 'Test',
       commandName: 'test',
