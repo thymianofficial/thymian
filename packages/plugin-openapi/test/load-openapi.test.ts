@@ -288,8 +288,8 @@ describe('load-openapi', () => {
     });
 
     it('still throws OpenAPIValidationError for a real schema error next to a path item $ref', async () => {
-      await expect(
-        loadAndUpgrade(
+      try {
+        await loadAndUpgrade(
           join(
             import.meta.dirname,
             'fixtures/path-item-ref-with-schema-error.yaml',
@@ -297,12 +297,16 @@ describe('load-openapi', () => {
           process.cwd(),
           new NoopLogger(),
           true,
-        ),
-      ).rejects.toSatisfy(
-        (error) =>
-          error instanceof ThymianBaseError &&
-          error.options.name === 'OpenAPIValidationError',
-      );
+        );
+        expect.fail('Error should have been thrown');
+      } catch (error) {
+        expect(error).toBeInstanceOf(ThymianBaseError);
+        expect((error as ThymianBaseError).options.name).toBe(
+          'OpenAPIValidationError',
+        );
+        const cause = (error as ThymianBaseError).cause as Error;
+        expect(cause.message).toBe("must have required property 'description'");
+      }
     });
 
     it('returns upgraded documents without fully dereferencing recursive schemas', async () => {
