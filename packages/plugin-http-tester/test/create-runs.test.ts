@@ -88,6 +88,25 @@ function makeStep(withTransaction = false): HttpTestCaseStep {
   return makeSingleStep('tx-1', withTransaction);
 }
 
+/** A step whose executed transaction carries `transactionId` as its edge id. */
+function makeEdgeStep(transactionId: string, path = '/x'): HttpTestCaseStep {
+  return {
+    type: 'single',
+    source: { transactionId },
+    transactions: [
+      {
+        request: { origin: 'http://localhost', path, method: 'GET' },
+        response: { statusCode: 200, headers: {} },
+        source: { transactionId },
+      },
+    ],
+  } as unknown as HttpTestCaseStep;
+}
+
+function hasViolation(step: { findings: { kind: string }[] }): boolean {
+  return step.findings.some((f) => f.kind === 'rule-violation');
+}
+
 function makePassedCase(name: string, steps: HttpTestCaseStep[]): HttpTestCase {
   return { name, status: 'passed', start: 0, end: 100, steps, results: [] };
 }
@@ -594,38 +613,11 @@ describe('createRuns', () => {
       violation: { message: 'replayed request broke the rule' },
       findings: [],
     });
-    const makeEdgeStep = (path: string): HttpTestCaseStep =>
-      ({
-        type: 'single',
-        source: { transactionId: 'tx-7' },
-        transactions: [
-          {
-            request: { origin: 'http://localhost', path, method: 'GET' },
-            response: { statusCode: 200, headers: {} },
-            source: { transactionId: 'tx-7' },
-          },
-        ],
-      }) as unknown as HttpTestCaseStep;
-    const makeEdgeCase = (
-      name: string,
-      steps: HttpTestCaseStep[],
-    ): HttpTestCase =>
-      ({
-        name,
-        status: 'passed',
-        start: 0,
-        end: 5,
-        steps,
-        results: [],
-      }) as unknown as HttpTestCase;
-    const hasViolation = (step: { findings: { kind: string }[] }): boolean =>
-      step.findings.some((f) => f.kind === 'rule-violation');
-
     it('attaches it to the last step of the case, where the replayed probe ran', () => {
       const cases: HttpTestCase[] = [
-        makeEdgeCase('GET /x replayed', [
-          makeEdgeStep('/original'),
-          makeEdgeStep('/replayed'),
+        makePassedCase('GET /x replayed', [
+          makeEdgeStep('tx-7', '/original'),
+          makeEdgeStep('tx-7', '/replayed'),
         ]),
       ];
       const diagnostics: HttpTesterRuleDiagnostics = [
@@ -647,8 +639,12 @@ describe('createRuns', () => {
 
     it('keeps it in the first case that ran the edge', () => {
       const cases: HttpTestCase[] = [
-        makeEdgeCase('first case', [makeEdgeStep('/first')]),
-        makeEdgeCase('second case', [makeEdgeStep('/second')]),
+        makePassedCase('first case', [makeEdgeStep('tx-7', '/first')]),
+        // Two steps, so a later case's own replay cannot pull the finding over.
+        makePassedCase('second case', [
+          makeEdgeStep('tx-7', '/second'),
+          makeEdgeStep('tx-7', '/second-replayed'),
+        ]),
       ];
       const diagnostics: HttpTesterRuleDiagnostics = [
         { testResult: { name: 'run', duration: 0, cases }, placements: [] },
@@ -668,7 +664,7 @@ describe('createRuns', () => {
       expect(hasViolation(first!.steps[0]!)).toBe(true);
       expect(second!.name).toBe('second case');
       expect(second!.status.kind).not.toBe('failed');
-      expect(hasViolation(second!.steps[0]!)).toBe(false);
+      expect(second!.steps.some(hasViolation)).toBe(false);
     });
   });
 
@@ -683,34 +679,12 @@ describe('createRuns', () => {
       violation: { message: 'assertion failed in entry B' },
       findings: [],
     };
-    const makeEdgeStep = (): HttpTestCaseStep =>
-      ({
-        type: 'single',
-        source: { transactionId: 'tx-1' },
-        transactions: [
-          {
-            request: { origin: 'http://localhost', path: '/x', method: 'GET' },
-            response: { statusCode: 200, headers: {} },
-            source: { transactionId: 'tx-1' },
-          },
-        ],
-      }) as unknown as HttpTestCaseStep;
-    const makeEdgeCase = (name: string): HttpTestCase =>
-      ({
-        name,
-        status: 'passed',
-        start: 0,
-        end: 5,
-        steps: [makeEdgeStep()],
-        results: [],
-      }) as unknown as HttpTestCase;
-
     const diagnostics: HttpTesterRuleDiagnostics = [
       {
         testResult: {
           name: 'validate',
           duration: 0,
-          cases: [makeEdgeCase('case-a')],
+          cases: [makePassedCase('case-a', [makeEdgeStep('tx-1')])],
         },
         placements: [],
       },
@@ -718,7 +692,7 @@ describe('createRuns', () => {
         testResult: {
           name: 'httpTest',
           duration: 0,
-          cases: [makeEdgeCase('case-b')],
+          cases: [makePassedCase('case-b', [makeEdgeStep('tx-1')])],
         },
         placements: [{ result: failing, testCaseIndex: 0, stepIndex: 0 }],
       },
@@ -739,11 +713,7 @@ describe('createRuns', () => {
 
     // entry A's case stays passed — the failure belongs to entry B.
     expect(caseA.status.kind).toBe('passed');
-    expect(
-      caseA.steps
-        .flatMap((s) => s.findings)
-        .some((f) => f.kind === 'rule-violation'),
-    ).toBe(false);
+    expect(caseA.steps.some(hasViolation)).toBe(false);
 
     // entry B renders the failure exactly once.
     expect(caseB.status.kind).toBe('failed');
