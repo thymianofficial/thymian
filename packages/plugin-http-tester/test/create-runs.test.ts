@@ -588,6 +588,90 @@ describe('createRuns', () => {
     expect(logger.warn).not.toHaveBeenCalled();
   });
 
+  describe('when an unplaced result references an edge that ran more than once', () => {
+    const edgeResult = (): RuleFnResult => ({
+      location: { elementType: 'edge', elementId: 'tx-7' },
+      violation: { message: 'replayed request broke the rule' },
+      findings: [],
+    });
+    const makeEdgeStep = (path: string): HttpTestCaseStep =>
+      ({
+        type: 'single',
+        source: { transactionId: 'tx-7' },
+        transactions: [
+          {
+            request: { origin: 'http://localhost', path, method: 'GET' },
+            response: { statusCode: 200, headers: {} },
+            source: { transactionId: 'tx-7' },
+          },
+        ],
+      }) as unknown as HttpTestCaseStep;
+    const makeEdgeCase = (
+      name: string,
+      steps: HttpTestCaseStep[],
+    ): HttpTestCase =>
+      ({
+        name,
+        status: 'passed',
+        start: 0,
+        end: 5,
+        steps,
+        results: [],
+      }) as unknown as HttpTestCase;
+    const hasViolation = (step: { findings: { kind: string }[] }): boolean =>
+      step.findings.some((f) => f.kind === 'rule-violation');
+
+    it('attaches it to the last step of the case, where the replayed probe ran', () => {
+      const cases: HttpTestCase[] = [
+        makeEdgeCase('GET /x replayed', [
+          makeEdgeStep('/original'),
+          makeEdgeStep('/replayed'),
+        ]),
+      ];
+      const diagnostics: HttpTesterRuleDiagnostics = [
+        { testResult: { name: 'run', duration: 0, cases }, placements: [] },
+      ];
+
+      const [run] = createRuns(
+        PLUGIN,
+        ruleResults([edgeResult()], diagnostics),
+        [rule],
+        FORMAT,
+        makeLogger(),
+      );
+      const [testCase] = testCases(run!.executions);
+
+      expect(hasViolation(testCase!.steps[1]!)).toBe(true);
+      expect(hasViolation(testCase!.steps[0]!)).toBe(false);
+    });
+
+    it('keeps it in the first case that ran the edge', () => {
+      const cases: HttpTestCase[] = [
+        makeEdgeCase('first case', [makeEdgeStep('/first')]),
+        makeEdgeCase('second case', [makeEdgeStep('/second')]),
+      ];
+      const diagnostics: HttpTesterRuleDiagnostics = [
+        { testResult: { name: 'run', duration: 0, cases }, placements: [] },
+      ];
+
+      const [run] = createRuns(
+        PLUGIN,
+        ruleResults([edgeResult()], diagnostics),
+        [rule],
+        FORMAT,
+        makeLogger(),
+      );
+      const [first, second] = testCases(run!.executions);
+
+      expect(first!.name).toBe('first case');
+      expect(first!.status.kind).toBe('failed');
+      expect(hasViolation(first!.steps[0]!)).toBe(true);
+      expect(second!.name).toBe('second case');
+      expect(second!.status.kind).not.toBe('failed');
+      expect(hasViolation(second!.steps[0]!)).toBe(false);
+    });
+  });
+
   it('does not leak a placement from one diagnostics entry into another', () => {
     // A rule makes two context calls that both run `tx-1`: a passing validate*()
     // (entry A, no placement recorded) and a failing httpTest() (entry B, which
