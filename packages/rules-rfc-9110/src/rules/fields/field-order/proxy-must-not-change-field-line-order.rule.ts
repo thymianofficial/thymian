@@ -52,12 +52,8 @@ export default httpRule('rfc9110/proxy-must-not-change-field-line-order')
           continue;
         }
 
-        const inbound = prev.request.data.headers;
+        const inbound = prev.request.data.headers ?? {};
         const outbound = curr.request.data.headers;
-
-        if (!inbound || !outbound) {
-          continue;
-        }
 
         // Compare the relative order of every same-name multi-line field.
         const seen = new Set<string>();

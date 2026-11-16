@@ -1,4 +1,9 @@
-import { getHeader, httpRule, type RuleFnResult } from '@thymian/core';
+import {
+  getHeader,
+  httpRule,
+  isHeaderCaptured,
+  type RuleFnResult,
+} from '@thymian/core';
 
 import { equalHeaderValues } from '../../utils/header-value-equality.js';
 
@@ -31,6 +36,14 @@ export default httpRule('rfc9110/proxy-must-not-modify-authorization')
         const curr = trace[i];
 
         if (!prev || !curr || prev.request.meta.role !== 'proxy') {
+          continue;
+        }
+
+        // A hop whose field was not captured cannot show a modification.
+        if (
+          !isHeaderCaptured(prev.request, 'authorization') ||
+          !isHeaderCaptured(curr.request, 'authorization')
+        ) {
           continue;
         }
 

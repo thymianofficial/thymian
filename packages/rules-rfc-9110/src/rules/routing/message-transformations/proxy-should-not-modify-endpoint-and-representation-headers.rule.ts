@@ -1,4 +1,9 @@
-import { getHeader, httpRule, type RuleFnResult } from '@thymian/core';
+import {
+  getHeader,
+  httpRule,
+  isHeaderCaptured,
+  type RuleFnResult,
+} from '@thymian/core';
 
 import { equalHeaderValues, forwardingHops } from '../utils/forwarding.js';
 
@@ -36,6 +41,13 @@ export default httpRule(
         // outbound leg's response from upstream and forwards it downstream
         // as the inbound leg's response.
         const modified = REPRESENTATION_HEADERS.filter((name) => {
+          // A field not captured on either side cannot show a modification.
+          if (
+            !isHeaderCaptured(outbound.response, name) ||
+            !isHeaderCaptured(inbound.response, name)
+          ) {
+            return false;
+          }
           const before = getHeader(outbound.response.data.headers, name);
           const after = getHeader(inbound.response.data.headers, name);
           if (before === undefined && after === undefined) {
