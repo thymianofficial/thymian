@@ -97,7 +97,10 @@ function createToolErrorResult(
 export async function loadOpenApi(
   value: string,
   cwd: string = process.cwd(),
-): Promise<{ document: object; filePath: string | undefined }> {
+): Promise<{
+  document: Record<string, unknown>;
+  filePath: string | undefined;
+}> {
   const readFilesPlugin = readFiles();
   // the validate function of the readFiles plugin returns undefined if the value is not a local file
   const isFileValue = readFilesPlugin.validate(value);
@@ -114,10 +117,11 @@ export async function loadOpenApi(
 
   try {
     return {
-      document: await bundle(finalValue, {
+      // bundle() types its result as `object`, but a parsed JSON/YAML document is always a record
+      document: (await bundle(finalValue, {
         plugins,
         treeShake: false,
-      }),
+      })) as Record<string, unknown>,
       filePath: isFileValue ? finalValue : undefined,
     };
   } catch (e) {

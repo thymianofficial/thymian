@@ -260,6 +260,51 @@ describe('load-openapi', () => {
       }
     });
 
+    it('loads a path item $ref with validateSpecs enabled', async () => {
+      const result = await loadAndUpgrade(
+        join(import.meta.dirname, 'fixtures/path-item-ref.yaml'),
+        process.cwd(),
+        new NoopLogger(),
+        true,
+      );
+
+      expect(result.document.paths?.['/u']).toEqual({
+        $ref: '#/components/pathItems/U',
+      });
+    });
+
+    it('does not warn about a path item $ref when validateSpecs is false', async () => {
+      const logger = new NoopLogger();
+      const warnSpy = vitest.spyOn(logger, 'warn');
+
+      await loadAndUpgrade(
+        join(import.meta.dirname, 'fixtures/path-item-ref.yaml'),
+        process.cwd(),
+        logger,
+        false,
+      );
+
+      expect(warnSpy).not.toHaveBeenCalled();
+    });
+
+    it('still throws OpenAPIValidationError for a real schema error next to a path item $ref', async () => {
+      await expect(
+        loadAndUpgrade(
+          join(
+            import.meta.dirname,
+            'fixtures/path-item-ref-with-schema-error.yaml',
+          ),
+          process.cwd(),
+          new NoopLogger(),
+          true,
+        ),
+      ).rejects.toSatisfy(
+        (error) =>
+          error instanceof ThymianBaseError &&
+          error.options.name === 'OpenAPIValidationError',
+      );
+    });
+
     it('returns upgraded documents without fully dereferencing recursive schemas', async () => {
       const document = {
         openapi: '3.1.0',
@@ -803,6 +848,21 @@ describe('load-openapi', () => {
 
     it('returns success result for valid documents', async () => {
       const result = await validateOpenApi('test/fixtures/petstore-v2.yaml', {
+        cwd: join(import.meta.dirname, '..'),
+        logger: new NoopLogger(),
+      });
+
+      expect(result).toEqual(
+        expect.objectContaining({
+          type: 'openapi',
+          status: 'success',
+          issues: [],
+        }),
+      );
+    });
+
+    it('returns success result for a document with a path item $ref', async () => {
+      const result = await validateOpenApi('test/fixtures/path-item-ref.yaml', {
         cwd: join(import.meta.dirname, '..'),
         logger: new NoopLogger(),
       });

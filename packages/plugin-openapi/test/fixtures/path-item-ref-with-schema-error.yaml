@@ -1,0 +1,18 @@
+openapi: 3.1.0
+info:
+  title: Path item $ref with a schema error
+  version: '1'
+paths:
+  /u:
+    $ref: '#/components/pathItems/U'
+  /v:
+    get:
+      responses:
+        '200': {}
+components:
+  pathItems:
+    U:
+      get:
+        responses:
+          '200':
+            description: ok
