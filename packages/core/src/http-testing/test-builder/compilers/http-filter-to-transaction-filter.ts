@@ -152,6 +152,8 @@ export function responseScopeHttpFilterToTransactionFilter(
         reqId: string,
         res: ThymianHttpResponse,
       ) =>
+        // A `default` response has no status, so no range holds it (ADR-0026).
+        typeof res.statusCode === 'number' &&
         Number.isInteger(res.statusCode) &&
         res.statusCode >= expression.start &&
         res.statusCode <= expression.end;

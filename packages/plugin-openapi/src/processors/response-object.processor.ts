@@ -13,7 +13,7 @@ export type ResponsesWithLinks = {
 
 export function processResponseObject(
   responseObject: OpenApiV31.ResponseObject,
-  statusCode: number,
+  statusCode: number | 'default',
   parameters: Parameters,
   document: OpenApiV31.Document,
 ): ResponsesWithLinks {

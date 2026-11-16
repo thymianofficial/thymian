@@ -30,6 +30,7 @@ import {
   createHttpResponse,
   createThymianFormat,
   createThymianFormatWithTransaction,
+  createThymianFormatWithTransactions,
 } from '@thymian/core-testing';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -117,6 +118,29 @@ describe('HttpTestApiContext', () => {
       );
 
       expect(result).toHaveLength(1);
+    });
+
+    it('never tests a default transaction, not even through a negated status filter', async () => {
+      const format = createThymianFormatWithTransactions([
+        [
+          createHttpRequest({ method: 'get', path: '/users' }),
+          createHttpResponse({ statusCode: 200, headers: {} }),
+        ],
+        [
+          createHttpRequest({ method: 'get', path: '/users' }),
+          createHttpResponse({ statusCode: 'default', headers: {} }),
+        ],
+      ]);
+      const mockContext = createMockHttpTestContext({ format });
+      const context = new HttpTestApiContext('test-rule', mockContext);
+
+      const result = await context.validateCommonHttpTransactions(
+        not(statusCode(200)),
+        method('get'),
+      );
+
+      expect(result).toHaveLength(0);
+      expect(mockContext.runRequest).toHaveBeenCalledTimes(0);
     });
 
     it('should return empty array when no transactions match', async () => {

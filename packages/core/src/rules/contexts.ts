@@ -29,7 +29,11 @@ export type CommonHttpRequest = {
 };
 
 export type CommonHttpResponse = {
-  statusCode: number;
+  /**
+   * `'default'` only for a response the specification declares as its
+   * default (ADR-0026); a recorded or received response always has a number.
+   */
+  statusCode: number | 'default';
   mediaType: string;
   headers: string[];
   body: boolean;

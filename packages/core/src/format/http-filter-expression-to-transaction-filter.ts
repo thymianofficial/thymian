@@ -108,8 +108,12 @@ const visitor = createFilterVisitor<TransactionFilterFn>({
   visitStatusCodeRange({ start, end }) {
     return (transaction: ThymianHttpTransaction) => {
       const statusCode = transaction.thymianRes.statusCode;
+      // A `default` response has no status, so no range holds it (ADR-0026).
       return (
-        Number.isInteger(statusCode) && statusCode >= start && statusCode <= end
+        typeof statusCode === 'number' &&
+        Number.isInteger(statusCode) &&
+        statusCode >= start &&
+        statusCode <= end
       );
     };
   },

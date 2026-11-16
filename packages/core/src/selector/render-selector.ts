@@ -9,6 +9,9 @@ import type { ThymianHttpTransaction } from '../format/thymian-format.js';
  * METHOD SP path [ SP "(" reqMediaType ")" ] SP "->" SP status [ SP "(" resMediaType ")" ]
  * ```
  *
+ * `status` is a status code or, for a default response, the literal lowercase
+ * `default` (ADR-0026).
+ *
  * ```
  * GET /launches -> 200 (application/json)
  * POST /astronauts (application/json) -> 201 (application/json)
@@ -194,10 +197,12 @@ export function formatRequestSelector(req: ThymianHttpRequest): string {
  * grammar, so carrying it would put a second spelling of a Transaction back
  * (ADR-0023). Failure *detail* text may still spell one out.
  *
- * The status is `String(res.statusCode)`. `statusCode` is typed `number`, and
- * `String` is injective over the numbers a description can carry, so a loader
- * that produces a status outside `100..599` — or one that is not an integer at
- * all — still yields an addressable label rather than aborting the load.
+ * The status is `String(res.statusCode)`: the literal `default` for a default
+ * response (ADR-0026), otherwise the number. `String` is injective over the
+ * numbers a description can carry and never yields `default` for one, so a
+ * loader that produces a status outside `100..599` — or one that is not an
+ * integer at all — still yields an addressable label rather than aborting the
+ * load.
  */
 export function formatResponseSelector(res: ThymianHttpResponse): string {
   const media = res.mediaType ? ` (${encodeMediaType(res.mediaType)})` : '';

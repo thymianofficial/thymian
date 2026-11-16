@@ -54,7 +54,15 @@ export function processResponsesObject(
     );
 
     if (statusCode === 'default') {
-      /* ignored */
+      // A real response node, not a test target (ADR-0026): `lint` and
+      // `analyze` must know the specification documents its other statuses
+      // generically. Keyed apart from any numeric code, so it never shadows one.
+      responses[statusCode] = processResponseObject(
+        resolvedResponse,
+        'default',
+        parameters,
+        document,
+      );
     } else if (isHttpStatusCodeRange(statusCode)) {
       httpStatusCodeRanges[statusCode].forEach((code) => {
         const strCode = String(code);
