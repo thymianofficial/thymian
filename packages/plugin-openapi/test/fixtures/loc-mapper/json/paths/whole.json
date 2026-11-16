@@ -1,0 +1,10 @@
+{
+  "get": {
+    "operationId": "getWhole",
+    "responses": {
+      "200": {
+        "description": "OK"
+      }
+    }
+  }
+}

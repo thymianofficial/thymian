@@ -381,6 +381,33 @@ describe('load-openapi', () => {
   });
 
   describe('openapiToThymianFormat', () => {
+    it('locates an operation defined in a file referenced from a path item', async () => {
+      const dir = join(import.meta.dirname, 'fixtures/loc-mapper/split');
+      const { document, filePath } = await loadAndUpgrade(
+        join(dir, 'openapi.yaml'),
+        process.cwd(),
+        new NoopLogger(),
+      );
+
+      const format = await openapiToThymianFormat(document, {
+        filter: constant(true),
+        filePath,
+        serverInfo: {
+          basePath: '',
+          port: 8080,
+          host: 'localhost',
+          protocol: 'http',
+        },
+      });
+
+      const [transaction] = format.getThymianHttpTransactions();
+      expect(transaction?.thymianReq.path).toBe('/users/{id}');
+      expect(transaction?.thymianRes.sourceLocation).toMatchObject({
+        path: join(dir, 'paths/user.yaml'),
+        position: { line: 7, column: 1 },
+      });
+    });
+
     it('throws error for non supported openapi version', async () => {
       await expect(
         async () =>

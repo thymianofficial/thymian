@@ -1,0 +1,21 @@
+{
+  "pointed": {
+    "summary": "A path item behind a pointer",
+    "patch": {
+      "responses": {
+        "200": {
+          "description": "OK"
+        }
+      }
+    }
+  },
+  "siblingTarget": {
+    "get": {
+      "responses": {
+        "200": {
+          "description": "OK"
+        }
+      }
+    }
+  }
+}
