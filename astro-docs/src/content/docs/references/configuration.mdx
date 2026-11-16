@@ -278,8 +278,10 @@ Pick `markdown` when a person or AI agent reads the result — in a pull request
 
 - **Review in GitHub**: the document uses inline HTML (`<details>` blocks, a `<sub>` legend,
   colored `<span>` counts), so it pastes straight into a PR comment or `$GITHUB_STEP_SUMMARY`.
-- **Triage at a glance**: a severity roll-up, a per-run outcome table, and lint findings grouped
-  under the endpoint they belong to.
+- **Triage at a glance**: a severity roll-up, a per-run outcome table, and one row per lint or
+  analyze execution, grouped under the endpoint it belongs to (or by rule or severity with
+  `--sort-reports-by`). An execution's findings sit in a collapsed `<details>` block beneath its
+  table, so the table stays scannable.
 - **Failures only**: passed test cases and passed executions without findings are left out, so the
   document stays focused on what needs attention.
 

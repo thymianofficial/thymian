@@ -237,13 +237,17 @@ describe('MarkdownFormatter lint/analyze bodies (AC5-AC8)', () => {
 
     expect(output).toContain('### POST /orders');
     expect(output).toContain(
-      '| warning | <code>content-type-charset</code> | msg |',
+      '| warning | failed | <code>content-type-charset</code> | msg |',
     );
+    // The passed execution's informational finding hangs beneath its own row.
     expect(output).toContain(
-      '| info | <code>content-type-charset</code> | auth-scheme deprecated |',
+      '|  | passed | <code>content-type-charset</code> |  |',
     );
+    expect(output).toContain('| info | auth-scheme deprecated |');
     expect(output).toContain('### GET /widgets');
-    expect(output).toContain('| error | <code>unnamed check</code> | broken |');
+    expect(output).toContain(
+      '| error | failed | <code>unnamed check</code> | broken |',
+    );
   });
 
   it('omits passed executions with no findings and their location (AC7)', async () => {
@@ -275,7 +279,7 @@ describe('MarkdownFormatter lint/analyze bodies (AC5-AC8)', () => {
     // `)` stays inside the href instead of truncating the link and leaking the
     // rest of the URL into the table row.
     expect(output).toContain(
-      `| error | <a href="${helpUri.replaceAll('&', '&amp;')}"><code>tricky-uri</code></a> | boom |`,
+      `| error | failed | <a href="${helpUri.replaceAll('&', '&amp;')}"><code>tricky-uri</code></a> | boom |`,
     );
     // The corrupt markdown-link form must not appear.
     expect(output).not.toContain(`](${helpUri})`);
@@ -283,7 +287,7 @@ describe('MarkdownFormatter lint/analyze bodies (AC5-AC8)', () => {
 });
 
 describe('MarkdownFormatter lint/analyze assertion-failure findings', () => {
-  it('renders assertion-failure findings as failed rows with expected/actual (BaggersIO PR-311 finding 2)', async () => {
+  it('renders assertion-failure findings as failed finding rows with expected/actual (BaggersIO PR-311 finding 2)', async () => {
     const report = createReport([
       createToolRun({
         tool: { name: '@thymian/plugin-http-analyzer' },
@@ -318,7 +322,7 @@ describe('MarkdownFormatter lint/analyze assertion-failure findings', () => {
     const output = await render(report);
 
     expect(output).toContain(
-      '| failed | <code>schema-conforms</code> | unexpected status code — expected: 200, actual: 404 |',
+      '| failed | unexpected status code — expected: 200, actual: 404 |',
     );
     // assertion-success stays omitted, consistent with the omit-passed policy.
     expect(output).not.toContain('headers ok');
@@ -350,10 +354,278 @@ describe('MarkdownFormatter lint/analyze assertion-failure findings', () => {
 
     const output = await render(report);
 
-    expect(output).toContain(
-      '| failed | <code>schema-conforms</code> | missing required header |',
-    );
+    expect(output).toContain('| failed | missing required header |');
     expect(output).not.toContain('undefined');
+  });
+});
+
+describe('MarkdownFormatter lint/analyze findings nest under their execution', () => {
+  const rules: RuleDescriptor[] = [
+    { id: 'request-headers', severity: 'error' },
+    { id: 'cache-control', severity: 'warn' },
+    { id: 'etag-format', severity: 'warn' },
+    { id: 'server-timing', severity: 'hint' },
+  ];
+
+  const headerFinding = (id: string, header: string) => ({
+    id,
+    kind: 'assertion-failure' as const,
+    title: 'request header',
+    message: { text: `Request contains header "${header}"` },
+  });
+
+  // An execution with several findings, one with none, a skipped one, a
+  // passed one that still carries an informational finding, and the same rule
+  // failing on a second location.
+  const report = createReport([
+    createToolRun({
+      tool: { name: '@thymian/plugin-http-analyzer' },
+      runType: 'analyze',
+      rules,
+      executions: [
+        createAnalyzeExecution({
+          location: { type: 'custom', value: 'GET /users' },
+          ruleId: 'request-headers',
+          status: {
+            kind: 'failed',
+            reason: 'Headers do not conform (3 issues)',
+          },
+          findings: [
+            headerFinding('f-1', 'x-api-user'),
+            headerFinding('f-2', 'x-api-key'),
+            headerFinding('f-3', 'x-external'),
+            {
+              id: 's-1',
+              kind: 'assertion-success',
+              title: 'accept',
+              message: { text: 'Accept header ok' },
+            },
+          ],
+        }),
+        createAnalyzeExecution({
+          location: { type: 'custom', value: 'GET /users' },
+          ruleId: 'cache-control',
+          status: { kind: 'failed', reason: 'Missing Cache-Control' },
+        }),
+        createAnalyzeExecution({
+          location: { type: 'custom', value: 'GET /users' },
+          ruleId: 'etag-format',
+          status: { kind: 'skipped', reason: 'No ETag in response' },
+        }),
+        createAnalyzeExecution({
+          location: { type: 'custom', value: 'GET /users' },
+          ruleId: 'server-timing',
+          status: { kind: 'passed' },
+          findings: [
+            {
+              id: 'i-1',
+              kind: 'informational',
+              title: 'server timing',
+              message: { text: 'Server-Timing header present' },
+            },
+          ],
+        }),
+        createAnalyzeExecution({
+          location: { type: 'custom', value: 'POST /orders' },
+          ruleId: 'request-headers',
+          status: {
+            kind: 'failed',
+            reason: 'Headers do not conform (1 issue)',
+          },
+          findings: [headerFinding('f-4', 'x-debug')],
+        }),
+      ],
+    }),
+  ]);
+
+  /** The run's body: everything from its `##` heading on. */
+  function section(output: string): string {
+    return output.slice(output.indexOf('## @thymian/plugin-http-analyzer'));
+  }
+
+  const requestHeadersFindings = [
+    '| Kind | Finding |',
+    '| --- | --- |',
+    '| failed | Request contains header "x-api-user" |',
+    '| failed | Request contains header "x-api-key" |',
+    '| failed | Request contains header "x-external" |',
+  ];
+
+  const debugFindings = [
+    '| Kind | Finding |',
+    '| --- | --- |',
+    '| failed | Request contains header "x-debug" |',
+  ];
+
+  it('endpoint: pure Severity column, Status column, findings in <details> beneath the table', async () => {
+    const output = await render(report);
+
+    expect(section(output)).toBe(
+      [
+        '## @thymian/plugin-http-analyzer · analyze',
+        '',
+        '### GET /users',
+        '',
+        '| Severity | Status | Rule | Message |',
+        '| --- | --- | --- | --- |',
+        '| error | failed | <code>request-headers</code> | Headers do not conform (3 issues) |',
+        '| warning | failed | <code>cache-control</code> | Missing Cache-Control |',
+        '|  | skipped | <code>etag-format</code> | No ETag in response |',
+        '|  | passed | <code>server-timing</code> |  |',
+        '',
+        '<details><summary><code>request-headers</code> · 3 findings</summary>',
+        '',
+        ...requestHeadersFindings,
+        '',
+        '</details>',
+        '',
+        '<details><summary><code>server-timing</code> · 1 finding</summary>',
+        '',
+        '| Kind | Finding |',
+        '| --- | --- |',
+        '| info | Server-Timing header present |',
+        '',
+        '</details>',
+        '',
+        '### POST /orders',
+        '',
+        '| Severity | Status | Rule | Message |',
+        '| --- | --- | --- | --- |',
+        '| error | failed | <code>request-headers</code> | Headers do not conform (1 issue) |',
+        '',
+        '<details><summary><code>request-headers</code> · 1 finding</summary>',
+        '',
+        ...debugFindings,
+        '',
+        '</details>',
+        '',
+      ].join('\n'),
+    );
+  });
+
+  it('rule: Status column beside Location, summaries name the location', async () => {
+    const output = await renderSorted(report, 'rule');
+
+    expect(section(output)).toBe(
+      [
+        '## @thymian/plugin-http-analyzer · analyze',
+        '',
+        '### ⚠ warn: cache-control',
+        '',
+        '| Status | Location | Message |',
+        '| --- | --- | --- |',
+        '| failed | GET /users | Missing Cache-Control |',
+        '',
+        '### ⚠ warn: etag-format',
+        '',
+        '| Status | Location | Message |',
+        '| --- | --- | --- |',
+        '| skipped | GET /users | No ETag in response |',
+        '',
+        '### ✖ error: request-headers',
+        '',
+        '| Status | Location | Message |',
+        '| --- | --- | --- |',
+        '| failed | GET /users | Headers do not conform (3 issues) |',
+        '| failed | POST /orders | Headers do not conform (1 issue) |',
+        '',
+        '<details><summary>GET /users · 3 findings</summary>',
+        '',
+        ...requestHeadersFindings,
+        '',
+        '</details>',
+        '',
+        '<details><summary>POST /orders · 1 finding</summary>',
+        '',
+        ...debugFindings,
+        '',
+        '</details>',
+        '',
+      ].join('\n'),
+    );
+  });
+
+  it('severity: one status per group, summaries name rule and location', async () => {
+    const output = await renderSorted(report, 'severity');
+
+    expect(section(output)).toBe(
+      [
+        '## @thymian/plugin-http-analyzer · analyze',
+        '',
+        '### ✖ ERRORS',
+        '',
+        '| Rule | Location | Message |',
+        '| --- | --- | --- |',
+        '| <code>request-headers</code> | GET /users | Headers do not conform (3 issues) |',
+        '| <code>request-headers</code> | POST /orders | Headers do not conform (1 issue) |',
+        '',
+        '<details><summary><code>request-headers</code> · GET /users · 3 findings</summary>',
+        '',
+        ...requestHeadersFindings,
+        '',
+        '</details>',
+        '',
+        '<details><summary><code>request-headers</code> · POST /orders · 1 finding</summary>',
+        '',
+        ...debugFindings,
+        '',
+        '</details>',
+        '',
+        '### ⚠ WARNINGS',
+        '',
+        '| Rule | Location | Message |',
+        '| --- | --- | --- |',
+        '| <code>cache-control</code> | GET /users | Missing Cache-Control |',
+        '',
+        '### ⏭ SKIPPED',
+        '',
+        '| Rule | Location | Message |',
+        '| --- | --- | --- |',
+        '| <code>etag-format</code> | GET /users | No ETag in response |',
+        '',
+      ].join('\n'),
+    );
+  });
+
+  it('keeps finding kinds out of every Severity column', async () => {
+    const lines = (await render(report)).split('\n');
+    const severityCells: string[] = [];
+    lines.forEach((line, index) => {
+      if (!line.startsWith('| Severity |')) {
+        return;
+      }
+      // Skip the header and delimiter rows; collect each body row's first cell.
+      for (let row = index + 2; lines[row]?.startsWith('|'); row++) {
+        severityCells.push(lines[row].split('|')[1].trim());
+      }
+    });
+
+    // Severities on failed executions, empty where the execution has none.
+    expect(severityCells).toEqual(['error', 'warning', '', '', 'error']);
+  });
+
+  it('escapes HTML in a <summary> location', async () => {
+    const tricky = createReport([
+      createToolRun({
+        tool: { name: '@thymian/plugin-http-analyzer' },
+        runType: 'analyze',
+        rules,
+        executions: [
+          createAnalyzeExecution({
+            location: { type: 'custom', value: 'GET /a -> <b>200</b>' },
+            ruleId: 'request-headers',
+            status: { kind: 'failed', reason: 'x' },
+            findings: [headerFinding('f-5', 'x-a')],
+          }),
+        ],
+      }),
+    ]);
+
+    const output = await renderSorted(tricky, 'rule');
+
+    expect(output).toContain(
+      '<details><summary>GET /a -&gt; &lt;b&gt;200&lt;/b&gt; · 1 finding</summary>',
+    );
   });
 });
 
@@ -510,10 +782,11 @@ describe('MarkdownFormatter --sort-reports-by grouping', () => {
     );
 
     // Location is now a column (no longer lost); Severity and Rule are dropped
-    // because the heading already carries both.
-    expect(output).toContain('| Location | Message |');
-    expect(output).toContain('| POST /b | w1 |');
-    expect(output).toContain('| GET /a | e1 |');
+    // because the heading already carries both. Status stays: a rule's group
+    // can hold failed and skipped executions side by side.
+    expect(output).toContain('| Status | Location | Message |');
+    expect(output).toContain('| failed | POST /b | w1 |');
+    expect(output).toContain('| failed | GET /a | e1 |');
     expect(output).not.toContain('| Severity | Location | Message |');
   });
 
