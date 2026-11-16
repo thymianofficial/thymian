@@ -6,6 +6,7 @@ import type {
   CapturedHttpResponse,
   CapturedTrace,
   CapturedTransaction,
+  CaptureGap,
   HttpFilterExpression,
   HttpParticipantRole,
   HttpRequest,
@@ -23,6 +24,8 @@ import {
   IS_SECURED_SQL_FUNCTION,
 } from './http-filter-to-where-clause.js';
 import type { HttpTransactionRepository } from './http-transaction-repository.js';
+
+type MessageKind = 'request' | 'response';
 
 type TransactionIdDb = {
   id: number;
@@ -271,6 +274,7 @@ export class SqliteHttpTransactionRepository implements HttpTransactionRepositor
           },
           meta: {
             role: row.req_role_name,
+            ...this.readCaptureGaps('request', row.req_id),
           },
         },
         response: {
@@ -284,6 +288,7 @@ export class SqliteHttpTransactionRepository implements HttpTransactionRepositor
           },
           meta: {
             role: row.res_role_name,
+            ...this.readCaptureGaps('response', row.res_id),
           },
         },
       };
@@ -448,6 +453,7 @@ export class SqliteHttpTransactionRepository implements HttpTransactionRepositor
       },
       meta: {
         role: responseRow.role_name,
+        ...this.readCaptureGaps('response', id),
       },
     };
   }
@@ -508,6 +514,7 @@ export class SqliteHttpTransactionRepository implements HttpTransactionRepositor
       },
       meta: {
         role: requestRow.role_name,
+        ...this.readCaptureGaps('request', id),
       },
     };
   }
@@ -639,6 +646,11 @@ export class SqliteHttpTransactionRepository implements HttpTransactionRepositor
     // Insert request headers and query parameters
     this.insertRequestHeaders(requestId, transaction.request.data.headers);
     this.insertQueryParameters(requestId, url.searchParams);
+    this.insertCaptureGaps(
+      'request',
+      requestId,
+      transaction.request.meta.captureGaps,
+    );
 
     // Insert response
     const responseStmt = this.db.prepare(`
@@ -657,6 +669,11 @@ export class SqliteHttpTransactionRepository implements HttpTransactionRepositor
     // Insert response headers and trailers
     this.insertResponseHeaders(responseId, transaction.response.data.headers);
     this.insertResponseTrailers(responseId, transaction.response.data.trailers);
+    this.insertCaptureGaps(
+      'response',
+      responseId,
+      transaction.response.meta.captureGaps,
+    );
 
     // Insert transaction
     const transactionStmt = this.db.prepare(`
@@ -754,6 +771,61 @@ export class SqliteHttpTransactionRepository implements HttpTransactionRepositor
     for (const [name, value] of Object.entries(trailers)) {
       trailerStmt.run(responseId, name, value);
     }
+  }
+
+  private insertCaptureGaps(
+    messageKind: MessageKind,
+    messageId: number,
+    gaps: CaptureGap[] | undefined,
+  ): void {
+    if (!gaps?.length) {
+      return;
+    }
+
+    const gapStmt = this.db.prepare(`
+      INSERT INTO capture_gap (message_kind, message_id, kind, detail)
+      VALUES (?, ?, ?, ?)
+    `);
+
+    for (const { kind, ...detail } of gaps) {
+      gapStmt.run(
+        messageKind,
+        messageId,
+        kind,
+        Object.keys(detail).length > 0 ? JSON.stringify(detail) : null,
+      );
+    }
+  }
+
+  // Spread into a message's `meta`: leaves `captureGaps` unset when the
+  // message has no gap, as for every message stored before gaps existed.
+  private readCaptureGaps(
+    messageKind: MessageKind,
+    messageId: number,
+  ): { captureGaps?: CaptureGap[] } {
+    const rows = this.db
+      .prepare<[MessageKind, number], { kind: string; detail: string | null }>(
+        `
+        SELECT kind, detail FROM capture_gap
+        WHERE message_kind = ? AND message_id = ?
+        ORDER BY id ASC
+      `,
+      )
+      .all(messageKind, messageId);
+
+    if (rows.length === 0) {
+      return {};
+    }
+
+    return {
+      captureGaps: rows.map(
+        ({ kind, detail }) =>
+          ({
+            ...(detail === null ? {} : JSON.parse(detail)),
+            kind,
+          }) as CaptureGap,
+      ),
+    };
   }
 
   private getRoleId(roleName: string | undefined | null): number | null {
