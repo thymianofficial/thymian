@@ -190,6 +190,10 @@ export function malformedSelectorError(
   );
 }
 
+/** What `sampler show` prints for a `default` Selector instead of a sample. */
+export const DEFAULT_RESPONSE_NOT_TESTED =
+  'default response: not tested, no sample is derived';
+
 /**
  * Why a `default` Selector cannot be targeted, in the one sentence a hook
  * diagnostic and a seed error both print (ADR-0027).

@@ -339,12 +339,16 @@ export function malformedSelectorHints(value: string): string[] {
 /**
  * The grammar relaxed on exactly the four axes a hand-authored selector slips
  * on — method case, the leading slash, a zero-padded status and the casing of
- * `default`. Used ONLY to
- * turn a rejection into a "did you mean …?" suggestion; it never decides whether
- * a selector is valid.
+ * `default`. Used ONLY to turn a rejection into a "did you mean …?"
+ * suggestion; it never decides whether a selector is valid.
+ *
+ * Case-insensitive so `default` matches in any casing. Nothing else in it cares:
+ * the method class already holds both cases, and the rest is `\S`, `\d` and
+ * negated sets.
  */
 const LENIENT_SHAPE = new RegExp(
-  `^([${SELECTOR_METHOD_CHARS}]+) (\\S+)(?: \\(([^()]*)\\))? -> (\\d+|[dD][eE][fF][aA][uU][lL][tT])(?: \\(([^()]*)\\))?$`,
+  `^([${SELECTOR_METHOD_CHARS}]+) (\\S+)(?: \\(([^()]*)\\))? -> (\\d+|default)(?: \\(([^()]*)\\))?$`,
+  'i',
 );
 
 /**
@@ -426,8 +430,8 @@ function describeNormalizations(
 /**
  * Suggests the canonical spelling of a value that is *nearly* a selector:
  * lowercase method, missing leading slash, zero-padded status, `default` in
- * another casing. Returns nothing
- * when the value is not recognizable or already canonical.
+ * another casing. Returns nothing when the value is not recognizable or already
+ * canonical.
  */
 function canonicalFormHint(value: string): string[] {
   const match = LENIENT_SHAPE.exec(value);
