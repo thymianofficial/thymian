@@ -105,7 +105,7 @@ export type TransactionResolution =
       requestId: string;
       undocumented: 'media-type';
       /** The status whose media types were searched: concrete or `default`. */
-      statusCode: number | 'default';
+      statusCode: ThymianHttpResponse['statusCode'];
       documentedMediaTypes: string[];
     }
   | {
@@ -605,7 +605,7 @@ export class ThymianFormat {
     const responses = this.getHttpResponsesOf(requestId);
     // A documented concrete status is searched alone: OpenAPI selects the
     // response by status first, so a media-type miss there is not `default`'s.
-    const searchedStatus: number | 'default' = responses.some(
+    const searchedStatus: ThymianHttpResponse['statusCode'] = responses.some(
       ([, { statusCode }]) => statusCode === res.statusCode,
     )
       ? res.statusCode
@@ -685,13 +685,19 @@ export class ThymianFormat {
         return matches;
       }, [] as string[]);
 
-    const tiers: [(thymianReq: ThymianHttpRequest) => boolean, boolean][] = [
-      [(thymianReq) => equalsIgnoreCase(thymianReq.path, reqPath), false],
-      [matchesTemplate, false],
-      [matchesTemplate, true],
+    const tiers: {
+      matchesPath: (thymianReq: ThymianHttpRequest) => boolean;
+      ignoreOrigin: boolean;
+    }[] = [
+      {
+        matchesPath: (thymianReq) => equalsIgnoreCase(thymianReq.path, reqPath),
+        ignoreOrigin: false,
+      },
+      { matchesPath: matchesTemplate, ignoreOrigin: false },
+      { matchesPath: matchesTemplate, ignoreOrigin: true },
     ];
 
-    for (const [matchesPath, ignoreOrigin] of tiers) {
+    for (const { matchesPath, ignoreOrigin } of tiers) {
       const matches = matchingRequests(matchesPath, ignoreOrigin);
 
       if (matches.length > 0) {

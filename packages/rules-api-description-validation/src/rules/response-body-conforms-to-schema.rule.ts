@@ -14,8 +14,7 @@ import {
 
 import {
   missingElementMessage,
-  requestAt,
-  undocumentedResponseMessage,
+  undocumentedResponseSkip,
 } from './located-request.js';
 
 const NAME = 'thymian/response-body-must-conforms-to-schema';
@@ -52,22 +51,7 @@ export default httpRule(NAME)
         }
 
         if (location.elementType === 'node') {
-          const operation = requestAt(ctx.format, location);
-
-          return [
-            {
-              location,
-              findings: [
-                {
-                  title: NAME,
-                  kind: 'rule-skip',
-                  message: operation
-                    ? undocumentedResponseMessage(response, operation)
-                    : missingElementMessage(location),
-                },
-              ],
-            },
-          ];
+          return undocumentedResponseSkip(ctx.format, location, response, NAME);
         }
 
         const transaction = ctx.format.getThymianHttpTransactionById(
