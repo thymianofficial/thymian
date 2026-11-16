@@ -6,7 +6,7 @@ import type { Command } from '@oclif/core';
 import type { CommandError } from '@oclif/core/interfaces';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { ErrorCache } from '../src/error-cache.js';
+import { ErrorCache, RECORD_VERSION } from '../src/error-cache.js';
 import { REDACTED } from '../src/redact-argv.js';
 import { writeErrorRecord } from '../src/write-error-record.js';
 
@@ -79,6 +79,24 @@ describe('writeErrorRecord', () => {
     expect(record.cause).toEqual({
       input: `some-plugin.auth.token=${REDACTED}`,
     });
+  });
+
+  it('stamps the record with the record version, so the error cache can read it back', async () => {
+    process.argv = ['/usr/bin/node', '/usr/local/bin/thymian', 'lint'];
+    const errorCache = new ErrorCache(dir);
+
+    await writeErrorRecord(
+      command('lint'),
+      new Error('Boom') as CommandError,
+      undefined,
+      errorCache,
+    );
+
+    const record = JSON.parse(
+      await readFile(join(dir, 'last_error.json'), 'utf-8'),
+    );
+    expect(record.recordVersion).toBe(RECORD_VERSION);
+    expect((await errorCache.read())?.message).toBe('Boom');
   });
 
   it('scrubs the head of the stack and leaves its frames readable', async () => {

@@ -16,6 +16,7 @@ describe('createGithubIssueUrlForError', () => {
 
   it('should generate correct GitHub issue URL', () => {
     const error: CachedError = {
+      recordVersion: 1,
       name: 'TestError',
       message: 'Test error message',
       commandName: 'test:command',
@@ -39,6 +40,7 @@ describe('createGithubIssueUrlForError', () => {
 
   it('should include proper title with error name and command', () => {
     const error: CachedError = {
+      recordVersion: 1,
       name: 'ConfigurationError',
       message: 'Invalid config',
       commandName: 'init',
@@ -62,6 +64,7 @@ describe('createGithubIssueUrlForError', () => {
 
   it('should set labels parameter to bug', () => {
     const error: CachedError = {
+      recordVersion: 1,
       name: 'TestError',
       message: 'Test',
       commandName: 'test',
@@ -83,6 +86,7 @@ describe('createGithubIssueUrlForError', () => {
 
   it('should include environment details in body', () => {
     const error: CachedError = {
+      recordVersion: 1,
       name: 'TestError',
       message: 'Test',
       commandName: 'test',
@@ -109,6 +113,7 @@ describe('createGithubIssueUrlForError', () => {
 
   it('should render the command name with nothing after it', () => {
     const error: CachedError = {
+      recordVersion: 1,
       name: 'TestError',
       message: 'Test',
       commandName: 'lint',
@@ -161,6 +166,7 @@ describe('createGithubIssueUrlForError', () => {
 
   it('should include plugin table in collapsible section', () => {
     const error: CachedError = {
+      recordVersion: 1,
       name: 'TestError',
       message: 'Test',
       commandName: 'test',
@@ -188,6 +194,7 @@ describe('createGithubIssueUrlForError', () => {
 
   it('should show "none" when no plugins installed', () => {
     const error: CachedError = {
+      recordVersion: 1,
       name: 'TestError',
       message: 'Test',
       commandName: 'test',
@@ -210,6 +217,7 @@ describe('createGithubIssueUrlForError', () => {
 
   it('should include stack trace in collapsible code block', () => {
     const error: CachedError = {
+      recordVersion: 1,
       name: 'TestError',
       message: 'Test error',
       stack: 'Error: Test error\n  at test.ts:10\n  at run.ts:20',
@@ -236,6 +244,7 @@ describe('createGithubIssueUrlForError', () => {
 
   it('should handle missing stack trace gracefully', () => {
     const error: CachedError = {
+      recordVersion: 1,
       name: 'TestError',
       message: 'Test',
       commandName: 'test',
@@ -259,6 +268,7 @@ describe('createGithubIssueUrlForError', () => {
 
   it('should replace HOME directory with ~ in stack traces', () => {
     const error: CachedError = {
+      recordVersion: 1,
       name: 'TestError',
       message: 'Test',
       stack: `Error: Test\n  at /home/testuser/project/src/test.ts:10\n  at /home/testuser/.config/test.js:20`,
@@ -284,6 +294,7 @@ describe('createGithubIssueUrlForError', () => {
 
   it('should handle missing osVersion gracefully', () => {
     const error: CachedError = {
+      recordVersion: 1,
       name: 'TestError',
       message: 'Test',
       commandName: 'test',
@@ -307,6 +318,7 @@ describe('createGithubIssueUrlForError', () => {
   it('should format timestamp correctly', () => {
     const timestamp = 1234567890000;
     const error: CachedError = {
+      recordVersion: 1,
       name: 'TestError',
       message: 'Test',
       commandName: 'test',
@@ -330,6 +342,7 @@ describe('createGithubIssueUrlForError', () => {
 
   it('should include markdown formatting for body', () => {
     const error: CachedError = {
+      recordVersion: 1,
       name: 'TestError',
       message: 'Test',
       commandName: 'test',
@@ -355,6 +368,7 @@ describe('createGithubIssueUrlForError', () => {
 
   it('should include details tags for collapsible sections', () => {
     const error: CachedError = {
+      recordVersion: 1,
       name: 'TestError',
       message: 'Test',
       stack: 'Error: Test\n  at test.ts:10',

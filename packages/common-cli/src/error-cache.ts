@@ -6,7 +6,15 @@ import type { Command } from '@oclif/core';
 import type { BaseCliRunCommand } from './base-cli-run-command.js';
 import type { ThymianBaseCommand } from './thymian-base-command.js';
 
+/**
+ * The format of the error record this CLI writes. Only the error-record
+ * writer, which redacts what the user typed, stamps a record with it, so a
+ * record carrying it went through redaction. Bump it when the shape changes.
+ */
+export const RECORD_VERSION = 1;
+
 export type CachedError = {
+  recordVersion: typeof RECORD_VERSION;
   name: string;
   message: string;
   stack?: string | undefined;
@@ -46,16 +54,35 @@ export class ErrorCache {
     }
   }
 
+  /**
+   * Returns the record only if it carries exactly the record version this CLI
+   * writes. Anything else is deleted unread: a record without the version was
+   * written before redaction and may hold a typed secret in clear, one with
+   * another version was written by a newer CLI, and one that does not parse
+   * cannot be vouched for.
+   */
   async read(): Promise<CachedError | undefined> {
     const cacheFile = path.join(this.dir, 'last_error.json');
 
+    let content: string;
     try {
-      const error = await fs.readFile(cacheFile, 'utf-8');
-
-      return JSON.parse(error);
-    } catch (e) {
+      content = await fs.readFile(cacheFile, 'utf-8');
+    } catch {
       return undefined;
     }
+
+    try {
+      const record = JSON.parse(content);
+      if (record?.recordVersion === RECORD_VERSION) {
+        return record;
+      }
+    } catch {
+      /* fall through to deletion */
+    }
+
+    // Best effort: a file that cannot be deleted is still not returned.
+    await fs.rm(cacheFile, { force: true }).catch(() => undefined);
+    return undefined;
   }
 
   async reset(): Promise<void> {

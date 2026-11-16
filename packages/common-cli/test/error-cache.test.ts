@@ -11,7 +11,11 @@ import { join } from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { type CachedError, ErrorCache } from '../src/error-cache.js';
+import {
+  type CachedError,
+  ErrorCache,
+  RECORD_VERSION,
+} from '../src/error-cache.js';
 
 describe('ErrorCache', () => {
   let tempDir: string;
@@ -29,6 +33,7 @@ describe('ErrorCache', () => {
   describe('write', () => {
     it('should write error data to cache file', async () => {
       const error: CachedError = {
+        recordVersion: RECORD_VERSION,
         name: 'TestError',
         message: 'Test error message',
         commandName: 'test:command',
@@ -57,6 +62,7 @@ describe('ErrorCache', () => {
       const nestedCache = new ErrorCache(nestedDir);
 
       const error: CachedError = {
+        recordVersion: RECORD_VERSION,
         name: 'TestError',
         message: 'Test',
         commandName: 'test',
@@ -80,6 +86,7 @@ describe('ErrorCache', () => {
 
     it('should overwrite existing cache file', async () => {
       const error1: CachedError = {
+        recordVersion: RECORD_VERSION,
         name: 'FirstError',
         message: 'First',
         commandName: 'test1',
@@ -94,6 +101,7 @@ describe('ErrorCache', () => {
       };
 
       const error2: CachedError = {
+        recordVersion: RECORD_VERSION,
         name: 'SecondError',
         message: 'Second',
         commandName: 'test2',
@@ -125,6 +133,7 @@ describe('ErrorCache', () => {
         await chmod(cacheFile, 0o644);
 
         await errorCache.write({
+          recordVersion: RECORD_VERSION,
           name: 'TestError',
           message: 'Test',
           commandName: 'test',
@@ -148,6 +157,7 @@ describe('ErrorCache', () => {
       async () => {
         // The path of every fresh install: there is no file to chmod yet.
         await errorCache.write({
+          recordVersion: RECORD_VERSION,
           name: 'TestError',
           message: 'Test',
           commandName: 'test',
@@ -172,6 +182,7 @@ describe('ErrorCache', () => {
       // to the current drive root (for example, C:\invalid\...).
       const invalidCache = new ErrorCache('/invalid/\0/path');
       const error: CachedError = {
+        recordVersion: RECORD_VERSION,
         name: 'TestError',
         message: 'Test',
         commandName: 'test',
@@ -191,6 +202,7 @@ describe('ErrorCache', () => {
 
     it('should include optional fields', async () => {
       const error: CachedError = {
+        recordVersion: RECORD_VERSION,
         name: 'TestError',
         message: 'Test error',
         stack: 'Error: Test\n  at test.ts:10',
@@ -229,6 +241,7 @@ describe('ErrorCache', () => {
 
     it('should read and parse cached error', async () => {
       const error: CachedError = {
+        recordVersion: RECORD_VERSION,
         name: 'ReadTestError',
         message: 'Read test',
         commandName: 'read:test',
@@ -248,15 +261,58 @@ describe('ErrorCache', () => {
       expect(cached).toEqual(error);
     });
 
-    it('should return undefined on JSON parse errors', async () => {
-      const cacheFile = join(tempDir, 'last_error.json');
-      const { writeFile } = await import('node:fs/promises');
-      await writeFile(cacheFile, '{ invalid json }');
+    // Anything the CLI cannot vouch for as redacted is deleted on sight, so
+    // nothing from it can leave the machine through `thymian feedback`.
+    it.each([
+      [
+        'a record written before redaction, without a record version',
+        JSON.stringify({
+          name: 'OldError',
+          message: 'Invalid option: "some-plugin.auth.token=ghp_s3cr3t"',
+          commandName: 'lint',
+          timestamp: 1000,
+          argv: ['-o', 'some-plugin.auth.token=ghp_s3cr3t'],
+          version: {
+            architecture: 'x64',
+            cliVersion: '0.3.1',
+            nodeVersion: 'v22.0.0',
+          },
+          pluginVersions: [],
+        }),
+      ],
+      [
+        'a record with an unknown record version',
+        JSON.stringify({
+          recordVersion: RECORD_VERSION + 1,
+          name: 'NewerError',
+          message: 'From a newer CLI',
+          commandName: 'lint',
+          timestamp: 1000,
+          argv: [],
+          version: {
+            architecture: 'x64',
+            cliVersion: '9.0.0',
+            nodeVersion: 'v22.0.0',
+          },
+          pluginVersions: [],
+        }),
+      ],
+      ['a file that does not parse', '{ invalid json }'],
+      ['a file holding JSON null', 'null'],
+    ])(
+      'should return undefined and delete the file for %s',
+      async (_case, content) => {
+        const cacheFile = join(tempDir, 'last_error.json');
+        await writeFile(cacheFile, content);
 
-      const result = await errorCache.read();
+        const result = await errorCache.read();
 
-      expect(result).toBeUndefined();
-    });
+        expect(result).toBeUndefined();
+        await expect(stat(cacheFile)).rejects.toMatchObject({
+          code: 'ENOENT',
+        });
+      },
+    );
 
     it('should handle file read failures gracefully', async () => {
       // Use a null byte in the path to guarantee an invalid path on all OSes.
@@ -273,6 +329,7 @@ describe('ErrorCache', () => {
   describe('reset', () => {
     it('should delete cache file', async () => {
       const error: CachedError = {
+        recordVersion: RECORD_VERSION,
         name: 'TestError',
         message: 'Test',
         commandName: 'test',

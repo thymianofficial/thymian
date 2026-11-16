@@ -1,7 +1,11 @@
 import type { Command } from '@oclif/core';
 import type { CommandError } from '@oclif/core/interfaces';
 
-import type { CachedError, ErrorCache } from './error-cache.js';
+import {
+  type CachedError,
+  type ErrorCache,
+  RECORD_VERSION,
+} from './error-cache.js';
 import type { Feedback } from './feedback.js';
 import { redactArgv, scrubSecrets } from './redact-argv.js';
 
@@ -55,7 +59,10 @@ export async function writeErrorRecord(
     return;
   }
 
+  // Stamped only here, after redaction succeeded: the error cache reads back
+  // nothing else.
   await errorCache?.write({
+    recordVersion: RECORD_VERSION,
     name: err.name,
     commandName: command.id ?? 'unknown command',
     timestamp: Date.now(),
