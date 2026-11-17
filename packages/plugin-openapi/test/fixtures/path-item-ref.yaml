@@ -1,0 +1,14 @@
+openapi: 3.1.0
+info:
+  title: Path item $ref
+  version: '1'
+paths:
+  /u:
+    $ref: '#/components/pathItems/U'
+components:
+  pathItems:
+    U:
+      get:
+        responses:
+          '200':
+            description: ok
