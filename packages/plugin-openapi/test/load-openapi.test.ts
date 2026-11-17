@@ -1,9 +1,14 @@
 import * as http from 'node:http';
 import { join } from 'node:path';
 
-import { constant, NoopLogger, ThymianBaseError } from '@thymian/core';
+import {
+  constant,
+  NoopLogger,
+  ThymianBaseError,
+  type ThymianFormat,
+} from '@thymian/core';
 import type { OpenAPIV3_1 } from 'openapi-types';
-import { describe, expect, it, vitest } from 'vitest';
+import { beforeAll, describe, expect, it, vitest } from 'vitest';
 import yaml from 'yaml';
 
 import {
@@ -833,6 +838,114 @@ describe('load-openapi', () => {
       expect(
         format.graph.filterEdges((_, edge) => edge.type === 'http-link'),
       ).toHaveLength(1);
+    });
+  });
+
+  describe('split spec with cross-file $refs', () => {
+    let format: ThymianFormat;
+
+    const transactionsFor = (path: string, statusCode: number) =>
+      format
+        .getThymianHttpTransactions()
+        .filter(
+          (t) =>
+            t.thymianReq.path === path &&
+            t.thymianRes.statusCode === statusCode,
+        );
+
+    beforeAll(async () => {
+      const { document } = await loadAndUpgrade(
+        join(import.meta.dirname, 'fixtures/split/openapi.yaml'),
+        process.cwd(),
+        new NoopLogger(),
+      );
+
+      format = await openapiToThymianFormat(document, {
+        filter: constant(true),
+        serverInfo: {
+          basePath: '',
+          port: 8080,
+          host: 'localhost',
+          protocol: 'http',
+        },
+      });
+    });
+
+    it('resolves a path item $ref to another file', () => {
+      expect(transactionsFor('/users/{id}', 200)).toHaveLength(1);
+      expect(transactionsFor('/users/{id}', 404)).toHaveLength(1);
+    });
+
+    it('resolves a parameter $ref into another file', () => {
+      const [transaction] = transactionsFor('/users/{id}', 200);
+
+      expect(transaction?.thymianReq.pathParameters.id).toMatchObject({
+        required: true,
+        schema: { type: 'string' },
+      });
+    });
+
+    it('resolves a ref to a sibling schema within an external file', () => {
+      const [transaction] = transactionsFor('/users/{id}', 200);
+
+      expect(transaction?.thymianRes.schema).toMatchObject({
+        $defs: {
+          User: {
+            type: 'object',
+            properties: {
+              name: { type: 'string' },
+              address: { $ref: '#/$defs/Address' },
+            },
+          },
+          Address: {
+            type: 'object',
+            properties: { city: { type: 'string' } },
+          },
+        },
+      });
+    });
+
+    it('resolves a ref from an external file back into the root document', () => {
+      const [transaction] = transactionsFor('/users/{id}', 404);
+
+      expect(transaction?.thymianRes.schema).toMatchObject({
+        $ref: '#/$defs/Error',
+        $defs: {
+          Error: {
+            type: 'object',
+            properties: { msg: { type: 'string' } },
+          },
+        },
+      });
+    });
+
+    it('resolves a self-recursive schema in an external file', () => {
+      const [transaction] = transactionsFor('/nodes', 200);
+      const schema = transaction?.thymianRes.schema as {
+        $ref: string;
+        $defs: Record<string, { properties: { child: { $ref: string } } }>;
+      };
+      const key = schema.$ref.replace('#/$defs/', '');
+
+      expect(schema.$defs[key]?.properties.child.$ref).toBe(schema.$ref);
+    });
+
+    it('throws OpenAPIDereferenceError naming a missing external file', async () => {
+      try {
+        await loadAndUpgrade(
+          join(import.meta.dirname, 'fixtures/missing-ref.yaml'),
+          process.cwd(),
+          new NoopLogger(),
+        );
+        expect.fail('Error should have been thrown');
+      } catch (error) {
+        expect(error).toBeInstanceOf(ThymianBaseError);
+        const thymianError = error as ThymianBaseError;
+        expect(thymianError.options.name).toBe('OpenAPIDereferenceError');
+        expect((thymianError.cause as Error).message).toContain(
+          'schemas/missing.yaml',
+        );
+      }
     });
   });
 

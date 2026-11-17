@@ -1,0 +1,6 @@
+User:
+  type: object
+  properties:
+    name: { type: string }
+    address: { $ref: '#/Address' }
+Address: { type: object, properties: { city: { type: string } } }

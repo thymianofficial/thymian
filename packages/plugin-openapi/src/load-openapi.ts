@@ -1,5 +1,5 @@
 import { access } from 'node:fs/promises';
-import { isAbsolute, join, relative } from 'node:path';
+import { isAbsolute, join, relative, sep } from 'node:path';
 
 import { bundle } from '@scalar/json-magic/bundle';
 import {
@@ -117,11 +117,17 @@ export async function loadOpenApi(
 
   try {
     return {
+      // The bundler resolves relative $refs with a POSIX-only path helper, so on
+      // Windows it cannot find the directory of `D:\a\openapi.yaml` and looks up
+      // `./paths/user.yaml` from the process cwd instead. Node reads `D:/a/...` fine.
       // bundle() types its result as `object`, but a parsed JSON/YAML document is always a record
-      document: (await bundle(finalValue, {
-        plugins,
-        treeShake: false,
-      })) as Record<string, unknown>,
+      document: (await bundle(
+        isFileValue ? finalValue.split(sep).join('/') : finalValue,
+        {
+          plugins,
+          treeShake: false,
+        },
+      )) as Record<string, unknown>,
       filePath: isFileValue ? finalValue : undefined,
     };
   } catch (e) {
