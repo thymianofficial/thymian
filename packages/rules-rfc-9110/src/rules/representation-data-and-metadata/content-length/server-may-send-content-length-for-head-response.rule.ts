@@ -32,12 +32,17 @@ export default httpRule(
     await ctx.httpTest(
       singleTestCase()
         .forTransactionsWith(method('head'))
-        .run({ checkResponse: false })
+        .run({ checkResponse: false, checkStatusCode: false })
         .skipIf(
           not(responseHeader('content-length')),
           'Content-Length header is not present in HEAD response.',
         )
-        .replayStep((step) => step.set(method(), constant('get')).run().done())
+        .replayStep((step) =>
+          step
+            .set(method(), constant('get'))
+            .run({ checkStatusCode: false })
+            .done(),
+        )
         .transactions(([headTransaction, getTransaction]) => {
           const headContentLength = getHeader(
             headTransaction.response.headers,

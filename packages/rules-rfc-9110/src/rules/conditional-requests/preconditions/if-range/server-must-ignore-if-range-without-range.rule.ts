@@ -61,7 +61,7 @@ export default httpRule('rfc9110/server-must-ignore-if-range-without-range')
 
           return req;
         })
-        .run()
+        .run({ checkStatusCode: false })
         // With Range removed, the dangling If-Range must be ignored: the
         // response must not be a 206 Partial Content.
         .expectForTransactions(not(statusCode(206)))
