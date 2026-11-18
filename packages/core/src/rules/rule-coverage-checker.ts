@@ -278,16 +278,16 @@ export function checkCoverage(input: CoverageCheckInput): CoverageViolation[] {
     // tag, is not marked heuristic in any declared context, and has a
     // non-empty explanation. A promotion is any profile entry whose
     // severity is strictly above the rule's shipped severity — a convention
-    // rule turned on from `off`, or a rule raised from `warn` to `error`.
+    // rule turned on from `off`, or a rule promoted from `warn` to `error`.
     // An entry at or below the shipped severity, or one that overrides
     // only the rule's contexts, is not a promotion.
     if (profiles !== undefined) {
       const shippedSeverity = rule.meta.severity;
       for (const [profileName, config] of Object.entries(profiles)) {
-        const promotedSeverity = severityOfProfileEntry(config[rule.meta.name]);
+        const profileSeverity = severityOfProfileEntry(config[rule.meta.name]);
         if (
-          promotedSeverity === undefined ||
-          !isAbove(promotedSeverity, shippedSeverity)
+          profileSeverity === undefined ||
+          !isAbove(profileSeverity, shippedSeverity)
         ) {
           continue;
         }
@@ -311,7 +311,7 @@ export function checkCoverage(input: CoverageCheckInput): CoverageViolation[] {
           violations.push({
             code: 'undocumented-promoted-rule',
             rule: rule.meta.name,
-            message: `'${rule.meta.name}' is promoted from '${shippedSeverity}' to '${promotedSeverity}' by profile '${profileName}' but is missing: ${missing.join(', ')}.`,
+            message: `'${rule.meta.name}' is promoted from '${shippedSeverity}' to '${profileSeverity}' by profile '${profileName}' but is missing: ${missing.join(', ')}.`,
           });
         }
       }
