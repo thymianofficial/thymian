@@ -22,6 +22,12 @@ async function loadBaselineRules() {
   });
 }
 
+// Read as a plain string array: the informational and executable branches'
+// tuple types leave `includes` no argument type to accept.
+function isInformational(entry: CoverageEntry): boolean {
+  return (entry.declared.types as readonly string[]).includes('informational');
+}
+
 // The gate: the real loader against the real package, the same seam
 // `rules-rfc-6797`'s coverage meta-test uses. Unscoped from the first rule
 // on, so every rule that lands does so under it.
@@ -202,10 +208,8 @@ describe('coverage record', () => {
     // Only that one carries cells: `static` and `analytics` are impossible
     // for reasons of their own, and `test` keeps the tool limitation.
     it('has 8 informational entries, one carrying two cells', () => {
-      // Read as a plain string array: the informational and executable
-      // branches' tuple types leave `includes` no argument type to accept.
       const informational = Object.entries(coverage.rules).filter(([, entry]) =>
-        (entry.declared.types as readonly string[]).includes('informational'),
+        isInformational(entry),
       );
 
       expect(informational.map(([name]) => name).sort()).toEqual([
@@ -249,11 +253,7 @@ describe('coverage record', () => {
     function cellsWhere(keep: (cell: unknown) => boolean) {
       return Object.fromEntries(
         Object.entries(coverage.rules).flatMap(([name, entry]) => {
-          if (
-            (entry.declared.types as readonly string[]).includes(
-              'informational',
-            )
-          ) {
+          if (isInformational(entry)) {
             return [];
           }
           const cells = Object.entries(entry.contexts ?? {}).filter(
