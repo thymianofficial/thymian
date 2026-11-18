@@ -56,10 +56,11 @@ export class ErrorCache {
 
   /**
    * Returns the record only if it carries exactly the record version this CLI
-   * writes. Anything else is deleted unread: a record without the version was
-   * written before redaction and may hold a typed secret in clear, one with
-   * another version was written by a newer CLI, and one that does not parse
-   * cannot be vouched for.
+   * writes. A record from a newer CLI (a higher version) is left in place
+   * unread: that CLI redacted it, and it can still report it. Anything else is
+   * deleted unread: a record without the version was written before redaction
+   * and may hold a typed secret in clear, and one with a lower or malformed
+   * version, or that does not parse, cannot be vouched for.
    */
   async read(): Promise<CachedError | undefined> {
     const cacheFile = path.join(this.dir, 'last_error.json');
@@ -73,8 +74,12 @@ export class ErrorCache {
 
     try {
       const record = JSON.parse(content);
-      if (record?.recordVersion === RECORD_VERSION) {
+      const version = record?.recordVersion;
+      if (version === RECORD_VERSION) {
         return record;
+      }
+      if (Number.isInteger(version) && version > RECORD_VERSION) {
+        return undefined;
       }
     } catch {
       /* fall through to deletion */

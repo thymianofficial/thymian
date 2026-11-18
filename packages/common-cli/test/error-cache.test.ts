@@ -281,17 +281,51 @@ describe('ErrorCache', () => {
         }),
       ],
       [
-        'a record with an unknown record version',
+        'a record with a lower record version',
         JSON.stringify({
-          recordVersion: RECORD_VERSION + 1,
-          name: 'NewerError',
-          message: 'From a newer CLI',
+          recordVersion: 0,
+          name: 'OddError',
+          message: 'Odd',
           commandName: 'lint',
           timestamp: 1000,
           argv: [],
           version: {
             architecture: 'x64',
-            cliVersion: '9.0.0',
+            cliVersion: '1.0.0',
+            nodeVersion: 'v22.0.0',
+          },
+          pluginVersions: [],
+        }),
+      ],
+      [
+        'a record whose record version is a string',
+        JSON.stringify({
+          recordVersion: '1',
+          name: 'OddError',
+          message: 'Odd',
+          commandName: 'lint',
+          timestamp: 1000,
+          argv: [],
+          version: {
+            architecture: 'x64',
+            cliVersion: '1.0.0',
+            nodeVersion: 'v22.0.0',
+          },
+          pluginVersions: [],
+        }),
+      ],
+      [
+        'a record whose record version is not an integer',
+        JSON.stringify({
+          recordVersion: 1.5,
+          name: 'OddError',
+          message: 'Odd',
+          commandName: 'lint',
+          timestamp: 1000,
+          argv: [],
+          version: {
+            architecture: 'x64',
+            cliVersion: '1.0.0',
             nodeVersion: 'v22.0.0',
           },
           pluginVersions: [],
@@ -313,6 +347,29 @@ describe('ErrorCache', () => {
         });
       },
     );
+
+    it('should return undefined and keep the file for a record a newer CLI wrote', async () => {
+      const cacheFile = join(tempDir, 'last_error.json');
+      const content = JSON.stringify({
+        recordVersion: RECORD_VERSION + 1,
+        name: 'NewerError',
+        message: 'From a newer CLI',
+        commandName: 'lint',
+        timestamp: 1000,
+        argv: [],
+        version: {
+          architecture: 'x64',
+          cliVersion: '9.0.0',
+          nodeVersion: 'v22.0.0',
+        },
+        pluginVersions: [],
+      });
+      await writeFile(cacheFile, content);
+
+      const result = await errorCache.read();
+
+      expect(result).toBeUndefined();
+    });
 
     it.skipIf(process.platform === 'win32' || process.getuid?.() === 0)(
       'should make a record it cannot delete readable by its owner only',
