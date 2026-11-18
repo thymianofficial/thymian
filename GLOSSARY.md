@@ -185,7 +185,7 @@ _Avoid_: preset, variant, flavour
 **Promotion**:
 A `Profile` entry that sets a rule above the severity the rule ships at — a `Convention Rule`
 turned on from `off`, or a `SHOULD` promoted from its keyword's `warn` to `error`. Lowering a
-rule, or overriding only its contexts, is not a promotion. A heuristic rule is never promoted.
+rule, or overriding only its contexts, is not a promotion.
 _Avoid_: raise, escalation
 
 **Config**:
