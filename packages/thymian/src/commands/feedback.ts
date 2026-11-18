@@ -40,13 +40,14 @@ export class Feedback extends ThymianBaseCommand<typeof Feedback> {
       kind: 'email draft',
       headingLabel: 'Subject',
       draft: (error, options) =>
-        createEmailDraft(
-          Buffer.from(Feedback.CONTACT, 'base64').toString('utf-8'),
-          error,
-          options,
-        ),
+        createEmailDraft(this.recipient, error, options),
     },
   };
+
+  /** The support address, kept out of the source as plain text. */
+  private get recipient(): string {
+    return Buffer.from(Feedback.CONTACT, 'base64').toString('utf-8');
+  }
 
   override shouldSuppressFeedback(): boolean {
     return true;
@@ -227,13 +228,10 @@ export class Feedback extends ThymianBaseCommand<typeof Feedback> {
     if (choice === 'github') {
       await open('https://github.com/thymianofficial/thymian/issues/new');
     } else if (choice === 'email') {
-      const recipient = Buffer.from(Feedback.CONTACT, 'base64').toString(
-        'utf-8',
-      );
       const subject = 'Thymian CLI Feedback';
       const body = `Hi Support Team,\n\nI'd like to provide some feedback regarding the CLI.\n\n[Please enter your message here]\n\nBest regards,\n[Your Name]`;
       await open(
-        `mailto:${recipient}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`,
+        `mailto:${this.recipient}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`,
       );
     }
   }
