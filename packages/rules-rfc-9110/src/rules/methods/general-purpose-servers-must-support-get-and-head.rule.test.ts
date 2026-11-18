@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { runTestRuleCases } from '../../../test/run-test-rule.js';
 import rule from './general-purpose-servers-must-support-get-and-head.rule.js';
 
-// The description declares only a 200: it never documents the 501 the rule
+// The specification declares only a 200: it never documents the 501 the rule
 // forbids.
 const described = {
   req: createHttpRequest({ method: 'get', path: '/rockets' }),
