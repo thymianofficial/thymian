@@ -256,5 +256,6 @@ How loudly a failure is labelled — `error`, `warn`, `hint`, `info` — resolve
 `Execution` for display and for the report's summary counts. Presentational only: it does not
 decide whether a run passed, and a `hint` violation fails a run exactly as an `error` does.
 A rule also ships at a severity — `off`, `hint`, `warn`, `error` — which a run's
-`ruleSeverity` floor compares to decide whether the rule loads at all; a `Promotion` changes it.
+`ruleSeverity` floor compares to decide whether the rule loads at all; a `Promotion` sets a
+rule above it within a `Profile`.
 _Avoid_: level, priority, importance
