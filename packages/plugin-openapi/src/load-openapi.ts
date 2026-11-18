@@ -112,9 +112,14 @@ export async function loadOpenApi(
 
   const plugins = [parseJson(), parseYaml(), readFilesPlugin, fetchUrls()];
 
+  // The bundler resolves relative $refs with a POSIX-only path helper, which
+  // reads a Windows path `D:\a\b\openapi.yaml` as one segment. Forward slashes
+  // work for both that helper and Node's fs on Windows.
+  const bundleInput = isFileValue ? finalValue.replaceAll('\\', '/') : value;
+
   try {
     return {
-      document: await bundle(finalValue, {
+      document: await bundle(bundleInput, {
         plugins,
         treeShake: false,
       }),
