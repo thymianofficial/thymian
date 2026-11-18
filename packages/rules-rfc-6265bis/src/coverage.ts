@@ -408,14 +408,21 @@ export default defineCoverage({
         analytics: 'heuristic',
       },
     },
-    // Informational, so its three cells come from the rule's whole-rule
-    // reason: `tool-limitation`, citing the ticket that would let `test`
-    // send a split Cookie field. `static` and `analytics` are impossible
-    // regardless (not-representable, requires-controlled-input), which the
-    // rule's note says.
     'rfc-6265bis/server-must-be-tolerant-of-multiple-cookie-headers': {
       covers: ['4.2.1/2'],
       declared: { types: ['informational'], severity: 'error' },
+      contexts: {
+        static: {
+          verdict: 'impossible',
+          reason: 'not-representable',
+          note: "An API description declares a request's headers as a map keyed by name, so it cannot declare a request with two Cookie field lines.",
+        },
+        analytics: {
+          verdict: 'impossible',
+          reason: 'requires-controlled-input',
+          note: 'Recorded traffic with a split Cookie field cannot say how the server would have answered the same cookies in one field.',
+        },
+      },
     },
     'rfc-6265bis/server-should-not-rely-on-cookie-serialization-order': {
       covers: ['4.2.2/1'],

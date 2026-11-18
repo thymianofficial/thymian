@@ -1,12 +1,10 @@
 import { httpRule } from '@thymian/core';
 
-// Informational: no context can check it. Only `test` could, by sending one
+// Informational: no context can check it yet. `test` could, by sending one
 // request with its cookies split over two Cookie field lines and comparing
-// the answer with that to the unsplit request, and a test request cannot
-// carry a field twice yet. `static` cannot either, because an API
-// description declares a request's headers as a map keyed by name, and
-// neither can `analytics`, because recorded traffic with a split Cookie
-// field does not say what the answer to the unsplit one would have been.
+// the answer with that to the unsplit request, but a test request cannot
+// carry a field twice yet. Why `static` and `analytics` cannot is recorded
+// per context in `coverage.ts`.
 export default httpRule(
   'rfc-6265bis/server-must-be-tolerant-of-multiple-cookie-headers',
 )
@@ -15,7 +13,7 @@ export default httpRule(
     'informational',
     'tool-limitation',
     'thymianofficial/thymian-workspace#502',
-    'Checking this needs a test request that carries its cookies in two Cookie header fields, and the answer compared with the one to the same cookies in one field. Thymian cannot yet send a request with a repeated header field. An API description cannot declare a request with two Cookie field lines either, and recorded traffic with a split Cookie field cannot say how the server would have answered the unsplit one.',
+    'Checking this needs a test request that carries its cookies in two Cookie header fields, and the answer compared with the one to the same cookies in one field. Thymian cannot yet send a request with a repeated header field.',
   )
   .tags('security:cookies')
   .url(

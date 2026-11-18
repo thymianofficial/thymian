@@ -199,7 +199,9 @@ describe('coverage record', () => {
     // The units no context can check: one on the browser's store, four that
     // only the origin knows, two that the server's peer would have to show,
     // and one a tool limitation (thymianofficial/thymian-workspace#502).
-    it('has 8 informational entries, carrying no cells', () => {
+    // Only that one carries cells: `static` and `analytics` are impossible
+    // for reasons of their own, and `test` keeps the tool limitation.
+    it('has 8 informational entries, one carrying two cells', () => {
       // Read as a plain string array: the informational and executable
       // branches' tuple types leave `includes` no argument type to accept.
       const informational = Object.entries(coverage.rules).filter(([, entry]) =>
@@ -216,17 +218,44 @@ describe('coverage record', () => {
         'rfc-6265bis/server-should-not-share-sensitive-cookies-across-distrusting-ports',
         'rfc-6265bis/user-agent-must-not-let-insecure-cookie-overlay-secure-cookie',
       ]);
-      for (const [, entry] of informational) {
-        expect(entry.contexts).toBeUndefined();
-      }
+      const withCells = informational.filter(
+        ([, entry]) => entry.contexts !== undefined,
+      );
+      const note = expect.stringMatching(/\S/);
+      expect(Object.fromEntries(withCells)).toEqual({
+        'rfc-6265bis/server-must-be-tolerant-of-multiple-cookie-headers': {
+          covers: ['4.2.1/2'],
+          declared: { types: ['informational'], severity: 'error' },
+          contexts: {
+            static: {
+              verdict: 'impossible',
+              reason: 'not-representable',
+              note,
+            },
+            analytics: {
+              verdict: 'impossible',
+              reason: 'requires-controlled-input',
+              note,
+            },
+          },
+        },
+      });
     });
 
-    // The cells the record carries, keyed by rule and context, keeping the
-    // ones `keep` accepts: a heuristic cell marks a declared context no
-    // single exchange settles, an impossible cell an undeclared one.
+    // The cells the executable rules' entries carry, keyed by rule and
+    // context, keeping the ones `keep` accepts: a heuristic cell marks a
+    // declared context no single exchange settles, an impossible cell an
+    // undeclared one. The informational entry's cells are asserted above.
     function cellsWhere(keep: (cell: unknown) => boolean) {
       return Object.fromEntries(
         Object.entries(coverage.rules).flatMap(([name, entry]) => {
+          if (
+            (entry.declared.types as readonly string[]).includes(
+              'informational',
+            )
+          ) {
+            return [];
+          }
           const cells = Object.entries(entry.contexts ?? {}).filter(
             ([, cell]) => keep(cell),
           );
