@@ -80,8 +80,16 @@ export class ErrorCache {
       /* fall through to deletion */
     }
 
-    // Best effort: a file that cannot be deleted is still not returned.
-    await fs.rm(cacheFile, { force: true }).catch(() => undefined);
+    // Between the readFile above and this rm, a failing command may write a
+    // fresh, stamped record, and the rm then deletes it. That costs the report
+    // of one error, and only in a race between two thymian processes, so it is
+    // not worth a lock.
+    // Best effort. A file that cannot be deleted is still not returned, and is
+    // at least no longer readable by others.
+    await fs
+      .rm(cacheFile, { force: true })
+      .catch(() => fs.chmod(cacheFile, 0o600))
+      .catch(() => undefined);
     return undefined;
   }
 

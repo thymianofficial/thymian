@@ -314,6 +314,42 @@ describe('ErrorCache', () => {
       },
     );
 
+    it.skipIf(process.platform === 'win32' || process.getuid?.() === 0)(
+      'should make a record it cannot delete readable by its owner only',
+      async () => {
+        const cacheFile = join(tempDir, 'last_error.json');
+        // A record written before redaction, at the mode an older version left.
+        await writeFile(
+          cacheFile,
+          JSON.stringify({
+            name: 'OldError',
+            message: 'Invalid option: "some-plugin.auth.token=ghp_s3cr3t"',
+            commandName: 'lint',
+            timestamp: 1000,
+            argv: ['-o', 'some-plugin.auth.token=ghp_s3cr3t'],
+            version: {
+              architecture: 'x64',
+              cliVersion: '0.3.1',
+              nodeVersion: 'v22.0.0',
+            },
+            pluginVersions: [],
+          }),
+        );
+        await chmod(cacheFile, 0o644);
+        // Without write permission on the directory the file cannot be deleted.
+        await chmod(tempDir, 0o500);
+
+        try {
+          const result = await errorCache.read();
+
+          expect(result).toBeUndefined();
+          expect((await stat(cacheFile)).mode & 0o777).toBe(0o600);
+        } finally {
+          await chmod(tempDir, 0o700);
+        }
+      },
+    );
+
     it('should handle file read failures gracefully', async () => {
       // Use a null byte in the path to guarantee an invalid path on all OSes.
       // A plain '/invalid/...' path may resolve on Windows to the current drive root
