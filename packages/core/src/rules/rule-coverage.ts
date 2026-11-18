@@ -20,10 +20,10 @@ import type { RuleType } from './rule-meta.js';
 import type { RuleSeverity } from './rule-severity.js';
 
 // The three contexts a coverage record can speak about. 'informational' is
-// deliberately excluded: an informational rule's three cells all come from
-// the whole-rule reason slice 2 already made authoritative (see
-// `CoverageEntry` below), so a record cannot state a second claim here that
-// might disagree with it inside one release.
+// deliberately excluded: it is a whole-rule verdict, not a context a check
+// runs in. An informational rule's cells default to its whole-rule reason;
+// the record may only refine that per context, under the narrow terms
+// `InformationalCoverageCell` below sets.
 export type CoverageContext = Exclude<RuleType, 'informational'>;
 
 export const coverageContexts: readonly CoverageContext[] = [
@@ -64,6 +64,20 @@ export type CoverageCell =
       note: string;
     };
 
+// The only cell an informational entry may carry: the tier-2 reason that
+// holds in one context of a rule whose whole-rule reason is
+// `tool-limitation` (ADR-0021 §5). No bare 'observable'/'heuristic' — an
+// informational rule observes nothing — and no `tool-limitation`, which
+// would be a second, driftable copy of the rule's own tool gap and its
+// issue. What the type cannot see — the rule's actual whole-rule reason,
+// and that at least one context keeps it — the checker refuses
+// (`informational-cell-contradicts-reason`).
+type InformationalCoverageCell = {
+  verdict: 'impossible';
+  reason: Exclude<ContextReason, 'tool-limitation'>;
+  note: string;
+};
+
 // The declared denominator. A source with no denominator never refuses a
 // package — some documents have none — but an undeclared counting rule
 // does, because it is the difference between "this source cannot be
@@ -93,14 +107,15 @@ export type CoverageUnits = Record<string, string>;
 // One rule's entry. A **union**, not a single shape gated by a conditional
 // on an inferred type parameter: TypeScript's excess-property checking
 // across a plain union is lenient (a property known to *any* member is
-// never flagged as excess), so the only reliable way to refuse `contexts`
-// on an informational entry is to give that branch its own `contexts?:
-// never` — a real type mismatch, not a leniently-ignored excess key.
+// never flagged as excess), so the only reliable way to narrow `contexts`
+// on an informational entry is to give that branch its own `contexts`
+// type — a real type mismatch, not a leniently-ignored excess key.
 //
-// This also settles the acceptance criterion left open on purpose: the
-// refusal is type-level, not the checker's — the checker (a later ticket)
-// needs the record cross-checked against real rule files, which this
-// module never sees.
+// The informational branch's `contexts` takes only
+// `InformationalCoverageCell`, so a bare literal or a `tool-limitation`
+// cell there is refused at author time. Whether cells are allowed at all
+// depends on the rule's whole-rule reason, which lives in the rule file
+// this module never sees — that part is the checker's.
 //
 // The `declared.types` shape on the informational branch — exactly
 // `['informational']`, not `RuleType[]` — mirrors `.type()`'s own rule that
@@ -112,7 +127,7 @@ export type CoverageEntry<Units extends CoverageUnits = CoverageUnits> =
   | {
       covers: (keyof Units)[];
       declared: { types: readonly ['informational']; severity: RuleSeverity };
-      contexts?: never;
+      contexts?: Partial<Record<CoverageContext, InformationalCoverageCell>>;
     }
   | {
       covers: (keyof Units)[];

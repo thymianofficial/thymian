@@ -19,17 +19,20 @@
 // a reflow. Nobody should add a Prettier dependency to core looking for a
 // missing assertion here — there isn't one to add.
 //
-// Three codes below (`unknown-unit`, `informational-entry-has-cells`,
-// `malformed-tool-limitation-issue`) go past the numbered table: they
-// re-verify invariants `rule-coverage.ts`'s type system already guarantees
-// at *author* time, for a record this checker sees *loaded* — from a
-// package's built `dist`, or hand-edited, where that guarantee no longer
-// holds. Deliberate, not scope creep; the fixture tests for each simulate
-// exactly that drift by mutating past the compile-time guarantee.
+// Two codes below (`unknown-unit`, `malformed-tool-limitation-issue`) go
+// past the numbered table: they re-verify invariants `rule-coverage.ts`'s
+// type system already guarantees at *author* time, for a record this
+// checker sees *loaded* — from a package's built `dist`, or hand-edited,
+// where that guarantee no longer holds. Deliberate, not scope creep; the
+// fixture tests for each simulate exactly that drift by mutating past the
+// compile-time guarantee. A third, `informational-cell-contradicts-reason`,
+// does the same for a `tool-limitation` cell on an informational entry, and
+// also checks what the type cannot see: the rule's own whole-rule reason.
 
 import type { Rule } from './rule.js';
 import type { RulesConfiguration } from './rule-configuration.js';
 import type {
+  CoverageCell,
   CoverageContext,
   CoverageEntry,
   CoverageRecord,
@@ -43,7 +46,7 @@ export type CoverageViolationCode =
   | 'undeclared-context-cell-invalid'
   | 'stamp-mismatch'
   | 'unknown-unit'
-  | 'informational-entry-has-cells'
+  | 'informational-cell-contradicts-reason'
   | 'malformed-tool-limitation-issue'
   | 'uncited-error-severity-rule'
   | 'undocumented-promoted-rule'
@@ -96,6 +99,90 @@ function nonEmpty(value: string | undefined): boolean {
 
 function inScope(name: string, scope: readonly string[] | undefined): boolean {
   return scope === undefined || scope.includes(name);
+}
+
+// The shape every cell for a context a rule does not declare must have: an
+// object with a non-empty note, never a bare literal. Shared by executable
+// and informational entries — every context of an informational rule is
+// undeclared — so the same fault reads the same for every rule.
+function undeclaredCellShapeViolation(
+  ruleName: string,
+  context: CoverageContext,
+  cell: CoverageCell,
+): CoverageViolation | undefined {
+  if (typeof cell === 'string') {
+    return {
+      code: 'undeclared-context-cell-invalid',
+      rule: ruleName,
+      context,
+      message: `'${ruleName}' does not declare '${context}', but its cell is the bare literal '${cell}' rather than an impossible cell with a reason and a note.`,
+    };
+  }
+  if (!nonEmpty(cell.note)) {
+    return {
+      code: 'undeclared-context-cell-invalid',
+      rule: ruleName,
+      context,
+      message: `'${ruleName}''s cell for '${context}' has an empty note.`,
+    };
+  }
+  return undefined;
+}
+
+// Per-context cells on an informational entry refine a `tool-limitation`
+// rule only (ADR-0021 §5): each names the tier-2 reason that holds in its
+// context, and a context without one keeps the whole-rule reason. Each
+// refusal below would contradict the rule's own reason — a world claim
+// weakened per context, a tool gap stated twice, or a `tool-limitation`
+// claim that no context is left to carry.
+function informationalCellViolations(
+  rule: Rule,
+  entry: CoverageEntry,
+): CoverageViolation[] {
+  const name = rule.meta.name;
+  // Widened to the executable cell type on purpose: the record may have
+  // been loaded past the type that keeps these cells narrower.
+  const overridden = coverageContexts.flatMap((context) => {
+    const cell: CoverageCell | undefined = entry.contexts?.[context];
+    return cell === undefined ? [] : [{ context, cell }];
+  });
+  if (overridden.length === 0) {
+    return [];
+  }
+
+  const wholeRuleReason = rule.meta.impossibility?.reason;
+  if (wholeRuleReason !== 'tool-limitation') {
+    return [
+      {
+        code: 'informational-cell-contradicts-reason',
+        rule: name,
+        message: `'${name}' is informational because '${wholeRuleReason ?? 'unknown'}', which holds in every context; only a 'tool-limitation' rule may carry per-context cells.`,
+      },
+    ];
+  }
+
+  const violations: CoverageViolation[] = [];
+  if (overridden.length === coverageContexts.length) {
+    violations.push({
+      code: 'informational-cell-contradicts-reason',
+      rule: name,
+      message: `'${name}' is informational because of a 'tool-limitation', but its entry overrides every context; at least one must keep the whole-rule reason.`,
+    });
+  }
+  for (const { context, cell } of overridden) {
+    const shapeViolation = undeclaredCellShapeViolation(name, context, cell);
+    if (shapeViolation !== undefined) {
+      violations.push(shapeViolation);
+    } else if (typeof cell !== 'string' && cell.reason === 'tool-limitation') {
+      violations.push({
+        code: 'informational-cell-contradicts-reason',
+        rule: name,
+        context,
+        message: `'${name}''s cell for '${context}' restates 'tool-limitation', which is already the rule's whole-rule reason; omit the cell to keep it.`,
+      });
+    }
+  }
+  return violations;
 }
 
 function declaredTypeSet(entry: CoverageEntry): ReadonlySet<RuleType> {
@@ -185,18 +272,12 @@ export function checkCoverage(input: CoverageCheckInput): CoverageViolation[] {
       });
     }
 
-    // Assertion: an informational rule carries no cells — all three of its
-    // cells are derived from its whole-rule reason (`rule.meta.impossibility`,
-    // made authoritative by the executability gate), so a record cannot
-    // state a second, possibly disagreeing claim about it here.
+    // Assertion: an informational rule's cells default to its whole-rule
+    // reason (`rule.meta.impossibility`, made authoritative by the
+    // executability gate); any cell its entry carries may only refine a
+    // `tool-limitation`, never contradict it.
     if (rule.meta.type.includes('informational')) {
-      if (entry.contexts !== undefined) {
-        violations.push({
-          code: 'informational-entry-has-cells',
-          rule: rule.meta.name,
-          message: `'${rule.meta.name}' is informational; its cells all come from its whole-rule reason, so the entry must not carry 'contexts'.`,
-        });
-      }
+      violations.push(...informationalCellViolations(rule, entry));
       continue; // nothing else applies to an informational entry
     }
 
@@ -215,21 +296,17 @@ export function checkCoverage(input: CoverageCheckInput): CoverageViolation[] {
           context,
           message: `'${rule.meta.name}' does not declare '${context}' and carries no cell explaining why.`,
         });
-      } else if (typeof cell === 'string') {
-        violations.push({
-          code: 'undeclared-context-cell-invalid',
-          rule: rule.meta.name,
-          context,
-          message: `'${rule.meta.name}' does not declare '${context}', but its cell is the bare literal '${cell}' rather than an impossible cell with a reason and a note.`,
-        });
-      } else if (!nonEmpty(cell.note)) {
-        violations.push({
-          code: 'undeclared-context-cell-invalid',
-          rule: rule.meta.name,
-          context,
-          message: `'${rule.meta.name}''s cell for '${context}' has an empty note.`,
-        });
+        continue;
+      }
+      const shapeViolation = undeclaredCellShapeViolation(
+        rule.meta.name,
+        context,
+        cell,
+      );
+      if (shapeViolation !== undefined) {
+        violations.push(shapeViolation);
       } else if (
+        typeof cell !== 'string' &&
         cell.reason === 'tool-limitation' &&
         !isWellFormedIssueReference(cell.issue)
       ) {

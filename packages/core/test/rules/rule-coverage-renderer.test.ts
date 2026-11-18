@@ -208,7 +208,7 @@ describe('coverage renderer', () => {
     );
   });
 
-  it("derives an informational rule's row from its whole-rule reason, not from the record", () => {
+  it("derives an informational rule's row from its whole-rule reason when its entry carries no cells", () => {
     const informational = httpRule('pure-definition')
       .severity('off')
       .type(
@@ -234,7 +234,53 @@ describe('coverage renderer', () => {
       profiles: {},
     });
 
-    expect(output).toContain('impossible (nothing-to-check)');
+    expect(output).toContain(
+      '| pure-definition | impossible (nothing-to-check) | impossible (nothing-to-check) | impossible (nothing-to-check) |',
+    );
+  });
+
+  it("renders an informational rule's per-context cell from its own reason, and the rest from the whole-rule reason", () => {
+    const informational = httpRule('split-header')
+      .severity('error')
+      .type(
+        'informational',
+        'tool-limitation',
+        'thymianofficial/thymian#1',
+        'Thymian cannot yet send the request this needs.',
+      )
+      .done();
+    const record = defineCoverage({
+      source,
+      units: {},
+      rules: {
+        'split-header': {
+          covers: [],
+          declared: { types: ['informational'], severity: 'error' },
+          contexts: {
+            static: {
+              verdict: 'impossible',
+              reason: 'not-representable',
+              note: 'An API description cannot declare the request.',
+            },
+            analytics: {
+              verdict: 'impossible',
+              reason: 'requires-controlled-input',
+              note: 'Recorded traffic cannot say what the other answer would have been.',
+            },
+          },
+        },
+      },
+    });
+
+    const output = renderCoverage({
+      record,
+      rulesByTopic: { main: [informational] },
+      profiles: {},
+    });
+
+    expect(output).toContain(
+      '| split-header | impossible (not-representable) | impossible (requires-controlled-input) | impossible (tool-limitation) |',
+    );
   });
 
   // A plain word: `~text~` is GitHub-flavoured strikethrough, and the

@@ -161,14 +161,19 @@ function cellSymbol(
   rule: Rule,
   context: CoverageContext,
 ): string {
+  const entry = record.rules[rule.meta.name];
   if (rule.meta.type.includes('informational')) {
-    // Derived from the whole-rule reason, never from the record — #151/
-    // #152 both refuse a record that tries to state a second claim here.
-    const reason = rule.meta.impossibility?.reason ?? 'unknown';
+    // A cell names the tier-2 reason that holds in this context of a
+    // `tool-limitation` rule; a context without one keeps the whole-rule
+    // reason, as does a bare literal, which the checker refuses.
+    const cell = entry?.contexts?.[context];
+    const reason =
+      cell !== undefined && typeof cell !== 'string'
+        ? cell.reason
+        : (rule.meta.impossibility?.reason ?? 'unknown');
     return `impossible (${reason})`;
   }
 
-  const entry = record.rules[rule.meta.name];
   const declared = new Set(entry?.declared.types ?? []);
   if (declared.has(context)) {
     const cell = entry?.contexts?.[context];
