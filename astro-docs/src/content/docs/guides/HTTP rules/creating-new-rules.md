@@ -358,13 +358,13 @@ function hasValidDirectives(directives: any) {
      .done();
    ```
 
-4. **An override that selects by declared status states its applicability on the live response.** Pass `checkStatusCode: false` and skip with `skipIf(not(statusCode(…)), reason)`, so the skip reads like the rule-context calls' skip. The reason may be a function of the live response:
+4. **An override that selects by declared status states its applicability on the live response.** Pass `checkStatusCode: false` and skip with `skipIf(not(statusCode(…)), reason)`, so the skip reads like the rule-context calls' skip:
 
    ```typescript
    singleTestCase()
      .forTransactionsWith(statusCode(401))
      .run({ authorize: false, checkStatusCode: false })
-     .skipIf(not(statusCode(401)), (response) => `The rule does not apply to the live response: the specification declares 401, the server answered ${response.statusCode}.`)
+     .skipIf(not(statusCode(401)), 'The specification declares 401; the server answered another status.')
      .expectForTransactions(responseHeader('www-authenticate'))
      .done();
    ```
