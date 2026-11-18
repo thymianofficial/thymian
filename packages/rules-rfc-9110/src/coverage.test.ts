@@ -1,4 +1,4 @@
-import { checkCoverage, loadRules, severityLevelValues } from '@thymian/core';
+import { checkCoverage, loadRules } from '@thymian/core';
 import { describe, expect, it } from 'vitest';
 
 import coverage from './coverage.js';
@@ -91,28 +91,24 @@ describe('coverage record', () => {
     });
 
     // A promotion is a profile entry strictly above the rule's shipped
-    // severity. `recommended` only lowers rules -- convention rules stay
-    // `off`, and `etag` and `last-modified` go from `warn` to `hint` -- so
-    // nothing here is promoted.
+    // severity. rfc9110's profiles never set one: they turn rules off, lower
+    // them, or narrow their contexts. With every explanation taken away, any
+    // promotion would be reported as `undocumented-promoted-rule`, so none
+    // reported means none exists.
     it('has no promotion in any shipped profile', async () => {
-      const rules = await loadBaselineRules();
+      const rules = (await loadBaselineRules()).map((rule) => ({
+        ...rule,
+        meta: { ...rule.meta, explanation: undefined },
+      }));
+      const violations = checkCoverage({
+        record: coverage,
+        rules,
+        profiles: rfc9110.profiles,
+      });
 
-      for (const [, config] of Object.entries(rfc9110.profiles ?? {})) {
-        for (const rule of rules) {
-          const entry = config[rule.meta.name];
-          if (entry === undefined) {
-            continue;
-          }
-          const severity = typeof entry === 'string' ? entry : entry.severity;
-          if (severity === undefined) {
-            continue;
-          }
-          expect(
-            severityLevelValues[severity],
-            rule.meta.name,
-          ).toBeGreaterThanOrEqual(severityLevelValues[rule.meta.severity]);
-        }
-      }
+      expect(
+        violations.filter(({ code }) => code === 'undocumented-promoted-rule'),
+      ).toEqual([]);
     }, 30_000);
   });
 });
