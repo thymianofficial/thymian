@@ -60,7 +60,8 @@ export default httpRule(
               requestHeader('if-modified-since'),
               responseHeader('last-modified'),
             )
-            .run()
+            // The replay expects 304, not the declared status.
+            .run({ checkStatusCode: false })
             .done(),
         )
         .transactions(([, notModifiedTransaction]) => {

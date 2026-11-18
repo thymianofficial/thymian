@@ -34,7 +34,7 @@ export default httpRule(
         // Force the If-Range condition to evaluate to false with an entity-tag
         // value that is extremely unlikely to match the current representation.
         .set(requestHeader('if-range'), constant('"qupaya"'))
-        .run()
+        .run({ checkStatusCode: false })
         // If-Range is false, so the Range MUST be ignored: the response must
         // not be a 206 Partial Content.
         .expectForTransactions(not(statusCode(206)))

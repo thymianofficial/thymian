@@ -50,7 +50,7 @@ async function runTest(response: HttpResponse): Promise<RuleFnResult[]> {
 }
 
 describe('rfc9110/sender-should-indicate-complete-length-for-byte-ranges (test)', () => {
-  it('reports no violation when the server answers the full representation with 200', async () => {
+  it('skips, without a violation, when the server answers the full representation with 200', async () => {
     const results = await runTest({
       statusCode: 200,
       headers: { 'content-type': 'application/json' },
@@ -58,7 +58,13 @@ describe('rfc9110/sender-should-indicate-complete-length-for-byte-ranges (test)'
       duration: 0,
     });
 
-    expect(results).toEqual([]);
+    // Not applicable to the live pair: skipped, not passed (ADR-0026).
+    expect(results).toEqual([
+      expect.objectContaining({
+        findings: [expect.objectContaining({ kind: 'rule-skip' })],
+      }),
+    ]);
+    expect(results[0]?.violation).toBeUndefined();
   });
 
   it('reports no violation when the live 206 response indicates the complete length', async () => {

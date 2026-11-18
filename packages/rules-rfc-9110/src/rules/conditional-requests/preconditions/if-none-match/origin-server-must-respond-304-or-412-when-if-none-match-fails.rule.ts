@@ -66,7 +66,8 @@ export default httpRule(
         .replayStep((step) =>
           step
             .set(requestHeader('if-none-match'), responseHeader('etag'))
-            .run()
+            // The replay expects 304 or 412, not the declared status.
+            .run({ checkStatusCode: false })
             .done(),
         )
         .transactions(([, notModifiedTransaction]) => {
