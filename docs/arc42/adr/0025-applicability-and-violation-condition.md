@@ -124,7 +124,7 @@ deprecated overload would keep the trap open for exactly the users this protects
 
 ## Status History
 
-| Date       | Status   | Notes                                                                                                                            |
-| ---------- | -------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| 2026-09-24 | Accepted | Initial draft                                                                                                                    |
-| 2026-11-18 | Amended  | Neutral note on the status-code gate: relaxed for the named form by [ADR-0026](0026-rule-context-calls-judge-the-live-status.md) |
+| Date       | Status   | Notes                                                                                                                                                                              |
+| ---------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-09-24 | Accepted | Initial draft                                                                                                                                                                      |
+| 2026-11-18 | Amended  | Neutral: the status-code gate, "untouched" here, is relaxed for the named form by [ADR-0026](0026-rule-context-calls-judge-the-live-status.md), which relies on this live re-check |
