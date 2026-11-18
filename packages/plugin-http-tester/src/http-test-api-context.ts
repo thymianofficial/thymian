@@ -74,7 +74,7 @@ type LivePair = {
 
 type LiveApplicability = ReturnType<typeof httpFilterToTransactionValidationFn>;
 
-function statusMismatchReason({ source, response }: LivePair): string {
+function declaredVersusLiveStatus({ source, response }: LivePair): string {
   return `the specification declares ${source.thymianRes.statusCode}, the server answered ${response.statusCode}`;
 }
 
@@ -98,7 +98,7 @@ function statusDriftResult(
       {
         kind: 'informational',
         title: 'Status drift',
-        message: `The live status differs from the declared one: ${statusMismatchReason(pair)}.`,
+        message: `The live status differs from the declared one: ${declaredVersusLiveStatus(pair)}.`,
         transactionIndex,
       },
     ],
@@ -208,7 +208,10 @@ export class HttpTestApiContext<
     if (!liveAppliesTo(pair.request, pair.response, pair.source)) {
       return {
         judge: false,
-        result: this.notApplicableResult(location, statusMismatchReason(pair)),
+        result: this.notApplicableResult(
+          location,
+          declaredVersusLiveStatus(pair),
+        ),
       };
     }
 
@@ -306,7 +309,7 @@ export class HttpTestApiContext<
           .flatMap(({ source, response }) =>
             response
               ? [
-                  `${thymianHttpTransactionToString(source.thymianReq, source.thymianRes)}: ${statusMismatchReason({ source, response })}`,
+                  `${thymianHttpTransactionToString(source.thymianReq, source.thymianRes)}: ${declaredVersusLiveStatus({ source, response })}`,
                 ]
               : [],
           );
