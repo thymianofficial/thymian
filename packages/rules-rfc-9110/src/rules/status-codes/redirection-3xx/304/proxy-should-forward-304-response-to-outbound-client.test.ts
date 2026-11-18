@@ -1,11 +1,7 @@
-import type {
-  CapturedTrace,
-  CapturedTransaction,
-  HttpParticipantRole,
-  RuleFnResult,
-} from '@thymian/core';
+import type { CapturedTrace, RuleFnResult } from '@thymian/core';
 import { describe, expect, it } from 'vitest';
 
+import { hop } from '../../../../../test/captured-hop.js';
 import proxyShouldForward304 from './proxy-should-forward-304-response-to-outbound-client.rule.js';
 
 type AnalyzeOnlyRule = {
@@ -33,40 +29,6 @@ function runOnTrace(
   return analyze(ctx);
 }
 
-/**
- * Builds one hop of a captured trace. meta.role identifies the PRODUCER of
- * each message: on the client-facing hop the request is produced by the
- * user agent and the response by the proxy; on the origin-facing hop the
- * request is produced by the proxy and the response by the origin server.
- */
-function hop(opts: {
-  requestRole: HttpParticipantRole;
-  responseRole: HttpParticipantRole;
-  requestHeaders?: Record<string, string | string[] | undefined>;
-  statusCode: number;
-}): CapturedTransaction {
-  return {
-    request: {
-      data: {
-        method: 'get',
-        origin: 'https://example.com',
-        path: '/',
-        headers: opts.requestHeaders ?? {},
-      },
-      meta: { role: opts.requestRole },
-    },
-    response: {
-      data: {
-        statusCode: opts.statusCode,
-        headers: {},
-        trailers: {},
-        duration: 1,
-      },
-      meta: { role: opts.responseRole },
-    },
-  };
-}
-
 const rule = proxyShouldForward304 as unknown as AnalyzeOnlyRule;
 
 function proxiedTrace(opts: {
@@ -75,16 +37,10 @@ function proxiedTrace(opts: {
   originFacingStatusCode: number;
 }): CapturedTrace {
   return [
-    hop({
-      requestRole: 'user-agent',
-      responseRole: 'proxy',
-      requestHeaders: opts.conditionalHeaders,
+    hop('user-agent', 'proxy', opts.conditionalHeaders ?? {}, {
       statusCode: opts.clientFacingStatusCode,
     }),
-    hop({
-      requestRole: 'proxy',
-      responseRole: 'origin server',
-      requestHeaders: opts.conditionalHeaders,
+    hop('proxy', 'origin server', opts.conditionalHeaders ?? {}, {
       statusCode: opts.originFacingStatusCode,
     }),
   ];
@@ -138,12 +94,14 @@ describe('proxy-should-forward-304-response-to-outbound-client', () => {
 
   it('does not flag an unproxied trace (single client-origin transaction)', () => {
     const trace: CapturedTrace = [
-      hop({
-        requestRole: 'user-agent',
-        responseRole: 'origin server',
-        requestHeaders: { 'if-none-match': '"abc"' },
-        statusCode: 304,
-      }),
+      hop(
+        'user-agent',
+        'origin server',
+        { 'if-none-match': '"abc"' },
+        {
+          statusCode: 304,
+        },
+      ),
     ];
 
     expect(runOnTrace(rule, trace)).toHaveLength(0);

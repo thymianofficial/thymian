@@ -1,13 +1,7 @@
-import type {
-  CapturedTrace,
-  CapturedTransaction,
-  CaptureGap,
-  HttpParticipantRole,
-  Rule,
-  RuleFnResult,
-} from '@thymian/core';
+import type { CapturedTrace, Rule, RuleFnResult } from '@thymian/core';
 import { describe, expect, it } from 'vitest';
 
+import { hop, NOT_CAPTURED } from '../../../test/captured-hop.js';
 import { runAnalyticsRule } from '../../../test/run-analytics-rule.js';
 import proxyMustForwardUnrecognizedHeaderFields from './field-names/proxy-must-forward-unrecognized-header-fields.rule.js';
 import proxyMustNotChangeFieldLineOrder from './field-order/proxy-must-not-change-field-line-order.rule.js';
@@ -20,36 +14,6 @@ const runOnTrace = (
   rule: Rule,
   trace: CapturedTrace,
 ): Promise<RuleFnResult[]> => runAnalyticsRule(rule, [], [trace]);
-
-const NOT_CAPTURED: CaptureGap[] = [{ kind: 'headers-not-captured' }];
-
-/**
- * Builds one captured hop from `from` to `to`. `meta.role` names the
- * participant that sent each message, so the request carries `from` and the
- * response `to`, as in recorded traffic.
- */
-function hop(
-  from: HttpParticipantRole,
-  to: HttpParticipantRole,
-  headers: Record<string, string | string[] | undefined>,
-  captureGaps?: CaptureGap[],
-): CapturedTransaction {
-  return {
-    request: {
-      data: {
-        method: 'get',
-        origin: 'https://example.com',
-        path: '/',
-        headers,
-      },
-      meta: { role: from, ...(captureGaps && { captureGaps }) },
-    },
-    response: {
-      data: { statusCode: 200, headers: {}, trailers: {}, duration: 1 },
-      meta: { role: to },
-    },
-  };
-}
 
 const orderRule = proxyMustNotChangeFieldLineOrder;
 const forwardRule = proxyMustForwardUnrecognizedHeaderFields;
@@ -180,7 +144,9 @@ describe('proxy-must-forward-unrecognized-header-fields', () => {
     async (_, forwardedHeaders) => {
       const trace: CapturedTrace = [
         hop('user-agent', 'proxy', { 'x-custom': 'v' }),
-        hop('proxy', 'origin server', forwardedHeaders, NOT_CAPTURED),
+        hop('proxy', 'origin server', forwardedHeaders, {
+          captureGaps: NOT_CAPTURED,
+        }),
       ];
 
       expect(await runOnTrace(forwardRule, trace)).toHaveLength(0);

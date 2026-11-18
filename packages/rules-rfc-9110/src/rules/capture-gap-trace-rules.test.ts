@@ -1,12 +1,7 @@
-import type {
-  CapturedTrace,
-  CapturedTransaction,
-  CaptureGap,
-  HttpParticipantRole,
-  Rule,
-} from '@thymian/core';
+import type { CapturedTrace, Rule } from '@thymian/core';
 import { describe, expect, it } from 'vitest';
 
+import { hop, NOT_CAPTURED } from '../../test/captured-hop.js';
 import { runAnalyticsRule } from '../../test/run-analytics-rule.js';
 import proxyMustNotModifyAuthenticationInfo from './authentication/origin-server/authentication-info/proxy-must-not-modify-authentication-info.rule.js';
 import proxyMustNotModifyAuthorization from './authentication/origin-server/authorization/proxy-must-not-modify-authorization.rule.js';
@@ -34,8 +29,6 @@ type GuardedRule = {
   compliant: Pair;
   recordedEmpty: Pair;
 };
-
-const NOT_CAPTURED: CaptureGap[] = [{ kind: 'headers-not-captured' }];
 
 const guardedRules: GuardedRule[] = [
   {
@@ -109,67 +102,23 @@ const guardedRules: GuardedRule[] = [
   },
 ];
 
-/**
- * One recorded hop from `from` to `to`: the request carries role `from`, the
- * response role `to`, as in recorded traffic. `headers` and `gaps` go on the
- * message side the rule compares.
- */
-function hop(
-  from: HttpParticipantRole,
-  to: HttpParticipantRole,
-  {
-    side,
-    method = 'get',
-    body,
-  }: { side: 'request' | 'response'; method?: string; body?: string },
-  headers: Headers,
-  gaps?: CaptureGap[],
-): CapturedTransaction {
-  const gapMeta = gaps && { captureGaps: gaps };
-  return {
-    request: {
-      data: {
-        origin: 'https://example.com',
-        path: '/',
-        method,
-        headers: side === 'request' ? headers : {},
-      },
-      meta: { role: from, ...(side === 'request' && gapMeta) },
-    },
-    response: {
-      data: {
-        statusCode: 200,
-        headers: side === 'response' ? headers : {},
-        body,
-        trailers: {},
-        duration: 1,
-      },
-      meta: { role: to, ...(side === 'response' && gapMeta) },
-    },
-  };
-}
-
 /** A trace through one proxy: user agent to proxy, then proxy to origin. */
 function trace(
-  guarded: GuardedRule,
+  { side, method }: GuardedRule,
   [proxyHop, nextHop]: Pair,
   marked?: 'proxy hop' | 'next hop',
 ): CapturedTrace {
   return [
-    hop(
-      'user-agent',
-      'proxy',
-      guarded,
-      proxyHop,
-      marked === 'proxy hop' ? NOT_CAPTURED : undefined,
-    ),
-    hop(
-      'proxy',
-      'origin server',
-      guarded,
-      nextHop,
-      marked === 'next hop' ? NOT_CAPTURED : undefined,
-    ),
+    hop('user-agent', 'proxy', proxyHop, {
+      side,
+      method,
+      captureGaps: marked === 'proxy hop' ? NOT_CAPTURED : undefined,
+    }),
+    hop('proxy', 'origin server', nextHop, {
+      side,
+      method,
+      captureGaps: marked === 'next hop' ? NOT_CAPTURED : undefined,
+    }),
   ];
 }
 
@@ -220,16 +169,22 @@ describe('rfc9110/proxy-may-transform-content-without-no-transform-directive on 
     hop(
       'user-agent',
       'proxy',
-      { side: 'response', body: 'transformed' },
       {},
-      marked === 'proxy hop' ? NOT_CAPTURED : undefined,
+      {
+        side: 'response',
+        body: 'transformed',
+        captureGaps: marked === 'proxy hop' ? NOT_CAPTURED : undefined,
+      },
     ),
     hop(
       'proxy',
       'origin server',
-      { side: 'response', body: 'original' },
       {},
-      marked === 'next hop' ? NOT_CAPTURED : undefined,
+      {
+        side: 'response',
+        body: 'original',
+        captureGaps: marked === 'next hop' ? NOT_CAPTURED : undefined,
+      },
     ),
   ];
   const rule = proxyMayTransformContentWithoutNoTransformDirective;
