@@ -474,34 +474,130 @@ describe('coverage checker', () => {
     expect(violations[0]!.message).toContain('explanation');
   });
 
-  it('does not flag a rule already enforced at baseline, even under a profile', () => {
-    const rule = staticTestRule('already-enforced'); // baseline severity 'warn', not 'off'
-    const record = defineCoverage({
-      source,
-      units,
-      rules: {
-        'already-enforced': {
-          covers: ['1.1'],
-          declared: { types: ['static', 'test'], severity: 'warn' },
-          contexts: {
-            static: 'heuristic', // would fail the promoted check if it applied
-            analytics: {
-              verdict: 'impossible',
-              reason: 'not-representable',
-              note: 'n',
+  describe('a profile raising a rule that ships enforced', () => {
+    // A rule shipping `warn` that a profile raises to `error`, with every
+    // gate item met unless the test drops one.
+    function raisedRule(
+      gaps: { tag?: false; explanation?: false; heuristic?: true } = {},
+    ) {
+      let builder = httpRule('raised-rule')
+        .severity('warn')
+        .type('static', 'test');
+      if (gaps.tag !== false) {
+        builder = builder.tags('security:cookies');
+      }
+      if (gaps.explanation !== false) {
+        builder = builder.explanation('Raised because the concern is real.');
+      }
+      const rule = builder.rule(() => []).done();
+      const record = defineCoverage({
+        source,
+        units,
+        rules: {
+          'raised-rule': {
+            covers: ['1.1'],
+            declared: { types: ['static', 'test'], severity: 'warn' },
+            contexts: {
+              ...(gaps.heuristic ? { static: 'heuristic' as const } : {}),
+              analytics: {
+                verdict: 'impossible',
+                reason: 'not-representable',
+                note: 'n',
+              },
             },
           },
         },
+      });
+      return { rule, record };
+    }
+
+    function checkRaised(
+      gaps: Parameters<typeof raisedRule>[0],
+      profileSeverity: 'off' | 'hint' | 'warn' | 'error' = 'error',
+    ) {
+      const { rule, record } = raisedRule(gaps);
+      return checkCoverage({
+        record,
+        rules: [rule],
+        profiles: { strict: { 'raised-rule': profileSeverity } },
+      });
+    }
+
+    it('passes a promotion that meets the gate', () => {
+      expect(checkRaised({})).toEqual([]);
+    });
+
+    it('catches a promotion of a rule without a concern tag', () => {
+      const violations = checkRaised({ tag: false });
+
+      expect(violations).toEqual([
+        expect.objectContaining({
+          code: 'undocumented-promoted-rule',
+          rule: 'raised-rule',
+          message: expect.stringContaining('concern tag'),
+        }),
+      ]);
+    });
+
+    it('catches a promotion of a rule marked heuristic in a declared context', () => {
+      const violations = checkRaised({ heuristic: true });
+
+      expect(violations).toEqual([
+        expect.objectContaining({
+          code: 'undocumented-promoted-rule',
+          rule: 'raised-rule',
+          message: expect.stringContaining("not marked heuristic in 'static'"),
+        }),
+      ]);
+    });
+
+    it('catches a promotion of a rule without an explanation', () => {
+      const violations = checkRaised({ explanation: false });
+
+      expect(violations).toEqual([
+        expect.objectContaining({
+          code: 'undocumented-promoted-rule',
+          rule: 'raised-rule',
+          message: expect.stringContaining('explanation'),
+        }),
+      ]);
+    });
+
+    it('names the shipped and the profile severity in the message', () => {
+      const [violation] = checkRaised({ explanation: false });
+
+      expect(violation!.message).toBe(
+        "'raised-rule' is promoted from 'warn' to 'error' by profile 'strict' but is missing: a non-empty explanation.",
+      );
+    });
+
+    it.each(['warn', 'hint', 'off'] as const)(
+      'does not treat an entry at %s, not above the shipped warn, as a promotion',
+      (profileSeverity) => {
+        expect(
+          checkRaised(
+            { tag: false, explanation: false, heuristic: true },
+            profileSeverity,
+          ),
+        ).toEqual([]);
       },
-    });
+    );
 
-    const violations = checkCoverage({
-      record,
-      rules: [rule],
-      profiles: { strict: { 'already-enforced': 'error' } },
-    });
+    it('does not treat an entry that only overrides contexts as a promotion', () => {
+      const { rule, record } = raisedRule({
+        tag: false,
+        explanation: false,
+        heuristic: true,
+      });
 
-    expect(violations).toEqual([]);
+      const violations = checkCoverage({
+        record,
+        rules: [rule],
+        profiles: { strict: { 'raised-rule': { type: ['test'] } } },
+      });
+
+      expect(violations).toEqual([]);
+    });
   });
 
   it('does not flag a convention rule no shipped profile promotes', () => {

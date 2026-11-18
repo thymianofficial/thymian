@@ -36,6 +36,7 @@ import type {
 } from './rule-coverage.js';
 import { coverageContexts } from './rule-coverage.js';
 import type { RuleType } from './rule-meta.js';
+import { type RuleSeverity, severityLevelValues } from './rule-severity.js';
 
 export type CoverageViolationCode =
   | 'missing-entry'
@@ -65,13 +66,15 @@ export type CoverageCheckInput = {
   record: CoverageRecord;
   // The package's rules loaded at baseline — no profile or user config
   // applied. That baseline is what a record's `declared` stamp and
-  // `error`-severity citation requirement are checked against; a profile
-  // only ever *promotes*, checked separately via `profiles` below.
+  // `error`-severity citation requirement are checked against, and what a
+  // profile entry is compared to: an entry above a rule's shipped severity
+  // is a promotion, checked separately via `profiles` below.
   rules: readonly Rule[];
   // The package's own shipped profiles, exactly as `RuleSet.profiles`
   // carries them — not pre-loaded/merged rule sets. Promotion (assertion 8)
-  // is read directly off a profile's own declared severity for a rule, so
-  // there is nothing here for the caller to resolve first.
+  // is read directly off a profile's own declared severity for a rule,
+  // compared to the rule's shipped severity, so there is nothing here for
+  // the caller to resolve first.
   profiles?: Record<string, RulesConfiguration>;
   // A subset of rule names. Loaded rules outside it, and record entries
   // outside it, are ignored entirely — neither a missing-entry nor an
@@ -104,11 +107,16 @@ function declaredTypeSet(entry: CoverageEntry): ReadonlySet<RuleType> {
 
 function severityOfProfileEntry(
   entry: RulesConfiguration[string] | undefined,
-): string | undefined {
+): RuleSeverity | undefined {
   if (entry === undefined) {
     return undefined;
   }
   return typeof entry === 'string' ? entry : entry.severity;
+}
+
+// `severityLevelValues` counts down: `error` is 1, `off` is 4.
+function isAbove(severity: RuleSeverity, than: RuleSeverity): boolean {
+  return severityLevelValues[severity] < severityLevelValues[than];
 }
 
 export function checkCoverage(input: CoverageCheckInput): CoverageViolation[] {
@@ -268,13 +276,19 @@ export function checkCoverage(input: CoverageCheckInput): CoverageViolation[] {
 
     // Assertion: a rule promoted by a shipped profile carries a concern
     // tag, is not marked heuristic in any declared context, and has a
-    // non-empty explanation. "Promoted" means a convention rule (shipping
-    // `off` by default) that a profile's own config turns on — an
-    // already-enforced rule needs no second check here.
-    if (rule.meta.severity === 'off' && profiles !== undefined) {
+    // non-empty explanation. A promotion is any profile entry whose
+    // severity is strictly above the rule's shipped severity — a convention
+    // rule turned on from `off`, or a rule raised from `warn` to `error`.
+    // An entry at or below the shipped severity, or one that overrides
+    // only the rule's contexts, is not a promotion.
+    if (profiles !== undefined) {
+      const shippedSeverity = rule.meta.severity;
       for (const [profileName, config] of Object.entries(profiles)) {
         const promotedSeverity = severityOfProfileEntry(config[rule.meta.name]);
-        if (promotedSeverity === undefined || promotedSeverity === 'off') {
+        if (
+          promotedSeverity === undefined ||
+          !isAbove(promotedSeverity, shippedSeverity)
+        ) {
           continue;
         }
 
@@ -297,7 +311,7 @@ export function checkCoverage(input: CoverageCheckInput): CoverageViolation[] {
           violations.push({
             code: 'undocumented-promoted-rule',
             rule: rule.meta.name,
-            message: `'${rule.meta.name}' is promoted to '${promotedSeverity}' by profile '${profileName}' but is missing: ${missing.join(', ')}.`,
+            message: `'${rule.meta.name}' is promoted from '${shippedSeverity}' to '${promotedSeverity}' by profile '${profileName}' but is missing: ${missing.join(', ')}.`,
           });
         }
       }
