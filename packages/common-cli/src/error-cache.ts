@@ -74,11 +74,14 @@ export class ErrorCache {
 
     try {
       const record = JSON.parse(content);
-      const version = record?.recordVersion;
-      if (version === ERROR_RECORD_VERSION) {
+      const recordVersion = record?.recordVersion;
+      if (recordVersion === ERROR_RECORD_VERSION) {
         return record;
       }
-      if (Number.isInteger(version) && version > ERROR_RECORD_VERSION) {
+      if (
+        Number.isInteger(recordVersion) &&
+        recordVersion > ERROR_RECORD_VERSION
+      ) {
         return undefined;
       }
     } catch {
