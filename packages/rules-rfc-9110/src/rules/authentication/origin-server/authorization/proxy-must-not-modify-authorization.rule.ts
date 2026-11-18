@@ -30,7 +30,7 @@ export default httpRule('rfc9110/proxy-must-not-modify-authorization')
       const results: RuleFnResult[] = [];
       for (const { inbound, outbound } of forwardingHops(trace, ['proxy'])) {
         // The proxy received `inbound.request` and forwarded `outbound.request`.
-        // A hop whose field was not captured cannot show a modification.
+        // A message whose field was not captured cannot show a modification.
         if (
           !isHeaderCapturedOnBoth(
             inbound.request,

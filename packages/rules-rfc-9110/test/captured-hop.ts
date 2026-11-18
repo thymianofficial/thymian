@@ -33,7 +33,7 @@ export function hop(
     captureGaps,
   }: HopOptions = {},
 ): CapturedTransaction {
-  const on = (s: 'request' | 'response') => side === s;
+  const isSide = (s: 'request' | 'response') => side === s;
   const gaps = captureGaps && { captureGaps };
   return {
     request: {
@@ -41,20 +41,20 @@ export function hop(
         method,
         origin: 'https://example.com',
         path: '/',
-        headers: on('request') ? headers : {},
-        body: on('request') ? body : undefined,
+        headers: isSide('request') ? headers : {},
+        body: isSide('request') ? body : undefined,
       },
-      meta: { role: from, ...(on('request') && gaps) },
+      meta: { role: from, ...(isSide('request') && gaps) },
     },
     response: {
       data: {
         statusCode,
-        headers: on('response') ? headers : {},
-        body: on('response') ? body : undefined,
+        headers: isSide('response') ? headers : {},
+        body: isSide('response') ? body : undefined,
         trailers: {},
         duration: 1,
       },
-      meta: { role: to, ...(on('response') && gaps) },
+      meta: { role: to, ...(isSide('response') && gaps) },
     },
   };
 }

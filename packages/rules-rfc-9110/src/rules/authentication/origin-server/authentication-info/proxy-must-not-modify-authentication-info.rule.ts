@@ -36,7 +36,7 @@ export default httpRule('rfc9110/proxy-must-not-modify-authentication-info')
           continue;
         }
 
-        // A hop whose field was not captured cannot show a modification.
+        // A message whose field was not captured cannot show a modification.
         if (
           !isHeaderCapturedOnBoth(
             prev.response,
