@@ -98,8 +98,9 @@ We will mark Capture Gaps on the captured message, not in its data.
 - Trace rules that only stay silent when a field is missing
   (`intermediary-must-check-and-update-max-forwards`,
   `intermediary-should-remove-known-hop-by-hop-fields`,
-  `intermediary-must-parse-and-remove-connection-fields`) can miss a violation on a gap but
-  never invent one. They carry a note saying so, not a guard.
+  `intermediary-must-parse-and-remove-connection-fields`,
+  `proxy-must-not-change-field-line-order`) can miss a violation on a gap but never invent
+  one. They carry a note saying so, not a guard.
 - Trailers and bodies are out of scope. Trailers wait until a tap delivers them (thymianofficial/thymian-workspace#590). The
   body kinds are thymianofficial/thymian-workspace#611's.
 
