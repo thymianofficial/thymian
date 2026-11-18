@@ -1,10 +1,4 @@
-import {
-  checkCoverage,
-  type CoverageEntry,
-  type CoverageViolation,
-  loadRules,
-  type Rule,
-} from '@thymian/core';
+import { checkCoverage, type CoverageEntry, loadRules } from '@thymian/core';
 import { describe, expect, it } from 'vitest';
 
 import coverage from './coverage.js';
@@ -357,55 +351,26 @@ describe('coverage record', () => {
   });
 
   // `recommended` promotes §8.3's Secure clause from its keyword's `warn` to
-  // `error`. The checker reads a promotion only off a rule that ships `off`,
-  // so the clause is held to the same assertion by handing the checker the
-  // rule and its entry as if both shipped `off`: a concern tag, no heuristic
-  // cell in a declared context, and an explanation. The workaround lasts
-  // until the checker reads every promotion above a rule's shipped severity
-  // (thymianofficial/thymian-workspace#614).
+  // `error`, and the zero-violation run above passes the checker's promotion
+  // assertion on it; this proves the assertion read the real `warn` rule
+  // rather than skipped it: take the explanation away and the clause is
+  // reported.
   describe('the promoted Secure clause', () => {
     const SET_SECURE =
       'rfc-6265bis/server-should-set-secure-on-every-cookie-over-secure-channel';
 
-    async function promotionViolations(
-      meta: Partial<Rule['meta']> = {},
-    ): Promise<CoverageViolation[]> {
+    it('is reported without its explanation, so the assertion read it', async () => {
       const rules = (await loadBaselineRules()).map((rule) =>
         rule.meta.name === SET_SECURE
-          ? {
-              ...rule,
-              meta: { ...rule.meta, severity: 'off' as const, ...meta },
-            }
+          ? { ...rule, meta: { ...rule.meta, explanation: undefined } }
           : rule,
       );
-      const entries: Record<string, CoverageEntry> = coverage.rules;
-      const entry = entries[SET_SECURE];
-      if (entry === undefined) {
-        throw new Error(`no coverage entry for ${SET_SECURE}`);
-      }
 
-      return checkCoverage({
-        record: {
-          ...coverage,
-          rules: {
-            ...entries,
-            [SET_SECURE]: {
-              ...entry,
-              declared: { ...entry.declared, severity: 'off' },
-            } as CoverageEntry,
-          },
-        },
+      const violations = checkCoverage({
+        record: coverage,
         rules,
         profiles: rfc6265bis.profiles,
       });
-    }
-
-    it('passes the checker’s promotion assertion', async () => {
-      expect(await promotionViolations()).toEqual([]);
-    }, 30_000);
-
-    it('is reported without its explanation, so the assertion read it', async () => {
-      const violations = await promotionViolations({ explanation: undefined });
 
       expect(violations.map(({ rule, code }) => [rule, code])).toEqual([
         [SET_SECURE, 'undocumented-promoted-rule'],
