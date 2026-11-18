@@ -138,10 +138,11 @@ describe('thymian test', () => {
       'dynamic-test',
       getTempDir(),
       (s) => {
-        // Return 501 Not Implemented — rules skip when the initial response
-        // does not match the expected status from the OpenAPI spec.
+        // Return 404 where the OpenAPI spec declares 200 — rules that do not
+        // apply to the live response skip it. (A 501 would now be judged:
+        // general-purpose servers must support GET.)
         s.get('/api/hello', async (_req, reply) => {
-          await reply.status(501).send({ error: 'Not Implemented' });
+          await reply.status(404).send({ error: 'Not Found' });
         });
       },
     );
