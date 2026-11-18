@@ -82,8 +82,8 @@ We will mark Capture Gaps on the captured message, not in its data.
 **Negative:**
 
 - The compiler does not force a rule to ask. A rule that reads `data.headers` without
-  `isHeaderCaptured` still reads a gap as absence. The guard is a convention, held by review
-  and by this record.
+  `isHeaderCaptured` still reads a gap as absence. The guard is a convention, held by review,
+  by this record, by the `add-http-rule-set` skill and by arc42 §8.4.3.
 - The marker covers only trace rules. SQL header filters (`requestHeader`, `responseHeader`,
   `not(...)`) and single-transaction rules do not consult it. A rule like "a 3xx must carry
   `Location`" would still flag a message whose headers were not captured. No traffic source
