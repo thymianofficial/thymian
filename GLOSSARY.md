@@ -182,6 +182,12 @@ scoped to its own rule set: it names only the rules that deviate from shipped de
 the user's `Config` still wins over it.
 _Avoid_: preset, variant, flavour
 
+**Promotion**:
+A `Profile` entry that sets a rule above the severity the rule ships at — a `Convention Rule`
+turned on from `off`, or a `SHOULD` raised from its keyword's `warn` to `error`. Lowering a
+rule, or overriding only its contexts, is not a promotion. A heuristic rule is never promoted.
+_Avoid_: raise, escalation
+
 **Config**:
 The declarative file that selects the API specification, rules, and plugins for a run.
 Optional; Thymian runs without one.
@@ -249,4 +255,6 @@ _Avoid_: message, note, diagnostic
 How loudly a failure is labelled — `error`, `warn`, `hint`, `info` — resolved per failed
 `Execution` for display and for the report's summary counts. Presentational only: it does not
 decide whether a run passed, and a `hint` violation fails a run exactly as an `error` does.
+A rule also ships at a severity — `off`, `hint`, `warn`, `error` — which a run's
+`ruleSeverity` floor compares to decide whether the rule loads at all; a `Promotion` changes it.
 _Avoid_: level, priority, importance

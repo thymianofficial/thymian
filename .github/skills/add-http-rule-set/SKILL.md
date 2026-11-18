@@ -341,13 +341,10 @@ user config, and the `ruleSeverity: 'error'` floor filter runs **after** the pro
   keyword that binds its algorithm otherwise, so a step without one, of an algorithm the user
   agent MUST follow, is `error`, unless step 3 judged it heuristic.
 - **`recommended`** — convention rules on, plus promotions **gated on a concern tag and
-  non-heuristic status**. State the promotion's reason in `explanation`. The coverage checker
-  reads a promotion only off a rule that ships `off`, so a profile that raises a shipped rule,
-  `warn` to `error`, is not checked by the gate. Until the checker reads every promotion,
-  assert it in the coverage meta-test: hand the checker that rule and its entry as if both
-  shipped `off`, expect zero violations, and expect `undocumented-promoted-rule` once its
-  explanation is removed. Cite the tracker issue on that checker gap beside the assertion, so
-  the workaround goes when the checker is fixed.
+  non-heuristic status**. State the promotion's reason in `explanation`. A promotion is any
+  profile entry above the rule's shipped severity — a convention rule turned on, or a
+  `SHOULD` raised from `warn` to `error` — and the coverage checker holds every one to that
+  gate (`undocumented-promoted-rule`).
 - **`minimal`** — `error` + non-heuristic + exactly-observable, **derived from `coverage.ts`**
   by core's `deriveMinimalProfile`, never transcribed.
 
