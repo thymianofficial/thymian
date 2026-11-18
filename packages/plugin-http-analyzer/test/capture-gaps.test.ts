@@ -153,13 +153,14 @@ describe('Capture Gaps on a database file created before them', () => {
     await rm(dir, { recursive: true, force: true });
   });
 
-  it('gains the table on init and reads old messages back with no gap', async () => {
+  it('gains the tables on init and reads old messages back with no gap', async () => {
     const path = join(dir, 'traffic.db');
 
-    // A database file as the previous init SQL left it: no capture_gap table.
+    // A database file as the previous init SQL left it: no capture-gap tables.
     const old = new SqliteHttpTransactionRepository(path, logger);
     await old.init();
-    old.db.exec('DROP TABLE capture_gap');
+    old.db.exec('DROP TABLE request_capture_gap');
+    old.db.exec('DROP TABLE response_capture_gap');
     const oldId = old.insertHttpTransaction(transaction({}));
     old.close();
 

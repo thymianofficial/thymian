@@ -27,6 +27,13 @@ import type { HttpTransactionRepository } from './http-transaction-repository.js
 
 type MessageKind = 'request' | 'response';
 
+// Where each message kind keeps its Capture Gaps. Fixed names only, so they
+// are safe to place in SQL text.
+const CAPTURE_GAP_TABLE = {
+  request: { table: 'request_capture_gap', column: 'request_id' },
+  response: { table: 'response_capture_gap', column: 'response_id' },
+} as const satisfies Record<MessageKind, { table: string; column: string }>;
+
 type TransactionIdDb = {
   id: number;
   parent_transaction_id: number | null;
@@ -782,14 +789,14 @@ export class SqliteHttpTransactionRepository implements HttpTransactionRepositor
       return;
     }
 
+    const { table, column } = CAPTURE_GAP_TABLE[messageKind];
     const gapStmt = this.db.prepare(`
-      INSERT INTO capture_gap (message_kind, message_id, kind, detail)
-      VALUES (?, ?, ?, ?)
+      INSERT INTO ${table} (${column}, kind, detail)
+      VALUES (?, ?, ?)
     `);
 
     for (const { kind, ...detail } of gaps) {
       gapStmt.run(
-        messageKind,
         messageId,
         kind,
         Object.keys(detail).length > 0 ? JSON.stringify(detail) : null,
@@ -803,15 +810,16 @@ export class SqliteHttpTransactionRepository implements HttpTransactionRepositor
     messageKind: MessageKind,
     messageId: number,
   ): { captureGaps?: CaptureGap[] } {
+    const { table, column } = CAPTURE_GAP_TABLE[messageKind];
     const rows = this.db
-      .prepare<[MessageKind, number], { kind: string; detail: string | null }>(
+      .prepare<[number], { kind: string; detail: string | null }>(
         `
-        SELECT kind, detail FROM capture_gap
-        WHERE message_kind = ? AND message_id = ?
+        SELECT kind, detail FROM ${table}
+        WHERE ${column} = ?
         ORDER BY id ASC
       `,
       )
-      .all(messageKind, messageId);
+      .all(messageId);
 
     if (rows.length === 0) {
       return {};
