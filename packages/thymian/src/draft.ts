@@ -52,14 +52,14 @@ export function shortenHomeDir(
 
   const fileUrl = `file://${pathToFileURL(home, { windows }).pathname}`;
   const alternatives = [
-    `${escape(fileUrl)}(?=/)`,
-    `${escape(home)}(?=[\\\\/])`,
-    ...(windows ? [`${escape(home.replaceAll('\\', '/'))}(?=/)`] : []),
+    `${escapeRegExp(fileUrl)}(?=/)`,
+    `${escapeRegExp(home)}(?=[\\\\/])`,
+    ...(windows ? [`${escapeRegExp(home.replaceAll('\\', '/'))}(?=/)`] : []),
   ];
 
   return stack.replaceAll(new RegExp(alternatives.join('|'), 'g'), '~');
 }
 
-function escape(literal: string): string {
+function escapeRegExp(literal: string): string {
   return literal.replaceAll(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }

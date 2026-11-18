@@ -34,7 +34,7 @@ export class Feedback extends ThymianBaseCommand<typeof Feedback> {
     github: {
       kind: 'issue draft',
       headingLabel: 'Title',
-      draft: (error, options) => createGithubIssueDraft(error, options),
+      draft: createGithubIssueDraft,
     },
     email: {
       kind: 'email draft',
@@ -154,11 +154,11 @@ export class Feedback extends ThymianBaseCommand<typeof Feedback> {
     channel: Channel,
     error: CachedError,
   ): Promise<string | undefined> {
-    const { kind, headingLabel } = this.channels[channel];
+    const { kind, headingLabel, draft: build } = this.channels[channel];
     let withoutStack = false;
 
     for (;;) {
-      const draft = this.channels[channel].draft(error, { withoutStack });
+      const draft = build(error, { withoutStack });
 
       this.log(`This ${kind} is what would be sent:`);
       this.log();
