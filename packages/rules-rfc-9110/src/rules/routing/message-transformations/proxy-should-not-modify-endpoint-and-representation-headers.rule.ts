@@ -37,8 +37,8 @@ export default httpRule(
       const results: RuleFnResult[] = [];
       for (const { inbound, outbound } of forwardingHops(trace, ['proxy'])) {
         // For responses the direction reverses: the proxy receives the
-        // outbound leg's response from upstream and forwards it downstream
-        // as the inbound leg's response.
+        // outbound hop's response from upstream and forwards it downstream
+        // as the inbound hop's response.
         const modified = REPRESENTATION_HEADERS.filter((name) => {
           // A field not captured on either side cannot show a modification.
           if (

@@ -23,7 +23,7 @@ export default httpRule(
     ctx.validateCapturedHttpTraces((trace, location) => {
       const results: RuleFnResult[] = [];
       // Max-Forwards 0 means this intermediary is the final recipient and must
-      // answer directly; an outbound leg at this hop means it did not.
+      // answer directly; an outbound hop past it means it did not.
       for (const { inbound } of forwardingHops(trace)) {
         const method = inbound.request.data.method.toUpperCase();
         if (method !== 'TRACE' && method !== 'OPTIONS') {

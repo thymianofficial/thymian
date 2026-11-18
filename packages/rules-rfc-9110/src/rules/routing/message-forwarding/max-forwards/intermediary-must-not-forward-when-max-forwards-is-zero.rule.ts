@@ -20,7 +20,7 @@ export default httpRule(
   .rule((ctx) =>
     ctx.validateCapturedHttpTraces((trace, location) => {
       const results: RuleFnResult[] = [];
-      // The existence of an outbound leg means the intermediary forwarded the
+      // The existence of an outbound hop means the intermediary forwarded the
       // request; if the inbound Max-Forwards was 0, forwarding is forbidden.
       for (const { inbound } of forwardingHops(trace)) {
         const method = inbound.request.data.method.toUpperCase();
