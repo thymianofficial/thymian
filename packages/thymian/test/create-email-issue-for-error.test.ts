@@ -1,7 +1,7 @@
-import { type CachedError, RECORD_VERSION } from '@thymian/common-cli';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { createEmailReport } from '../src/create-email-issue-for-error.js';
+import { aCachedError } from './support/cached-error.js';
 
 describe('createEmailReport', () => {
   const originalHome = process.env.HOME;
@@ -16,12 +16,9 @@ describe('createEmailReport', () => {
   });
 
   it('should generate proper mailto URL', () => {
-    const error: CachedError = {
-      recordVersion: RECORD_VERSION,
-      name: 'TestError',
+    const error = aCachedError({
       message: 'Test error message',
       commandName: 'test:command',
-      timestamp: Date.now(),
       argv: ['node', 'thymian', 'test'],
       version: {
         architecture: 'x64',
@@ -29,8 +26,7 @@ describe('createEmailReport', () => {
         nodeVersion: 'v18.0.0',
         osVersion: 'Linux',
       },
-      pluginVersions: [],
-    };
+    });
 
     const url = createEmailReport(testRecipient, error);
 
@@ -38,20 +34,9 @@ describe('createEmailReport', () => {
   });
 
   it('should URL-encode subject', () => {
-    const error: CachedError = {
-      recordVersion: RECORD_VERSION,
-      name: 'TestError',
-      message: 'Test',
+    const error = aCachedError({
       commandName: 'test:command',
-      timestamp: Date.now(),
-      argv: [],
-      version: {
-        architecture: 'x64',
-        cliVersion: '1.0.0',
-        nodeVersion: 'v18.0.0',
-      },
-      pluginVersions: [],
-    };
+    });
 
     const url = createEmailReport(testRecipient, error);
 
@@ -59,20 +44,7 @@ describe('createEmailReport', () => {
   });
 
   it('should URL-encode body', () => {
-    const error: CachedError = {
-      recordVersion: RECORD_VERSION,
-      name: 'TestError',
-      message: 'Test',
-      commandName: 'test',
-      timestamp: Date.now(),
-      argv: [],
-      version: {
-        architecture: 'x64',
-        cliVersion: '1.0.0',
-        nodeVersion: 'v18.0.0',
-      },
-      pluginVersions: [],
-    };
+    const error = aCachedError();
 
     const url = createEmailReport(testRecipient, error);
     const decodedUrl = decodeURIComponent(url);
@@ -81,12 +53,9 @@ describe('createEmailReport', () => {
   });
 
   it('should include error details when errorData provided', () => {
-    const error: CachedError = {
-      recordVersion: RECORD_VERSION,
-      name: 'TestError',
+    const error = aCachedError({
       message: 'Test error',
       commandName: 'test:command',
-      timestamp: 1234567890000,
       argv: ['node', 'thymian'],
       version: {
         architecture: 'x64',
@@ -94,8 +63,7 @@ describe('createEmailReport', () => {
         nodeVersion: 'v18.0.0',
         osVersion: 'Linux',
       },
-      pluginVersions: [],
-    };
+    });
 
     const url = createEmailReport(testRecipient, error);
     const decodedUrl = decodeURIComponent(url);
@@ -105,21 +73,14 @@ describe('createEmailReport', () => {
   });
 
   it('should include environment information', () => {
-    const error: CachedError = {
-      recordVersion: RECORD_VERSION,
-      name: 'TestError',
-      message: 'Test',
-      commandName: 'test',
-      timestamp: Date.now(),
-      argv: [],
+    const error = aCachedError({
       version: {
         architecture: 'arm64',
         cliVersion: '2.0.0',
         nodeVersion: 'v20.0.0',
         osVersion: 'Darwin 23.0.0',
       },
-      pluginVersions: [],
-    };
+    });
 
     const url = createEmailReport(testRecipient, error);
     const decodedUrl = decodeURIComponent(url);
@@ -131,23 +92,12 @@ describe('createEmailReport', () => {
   });
 
   it('should include plugin versions', () => {
-    const error: CachedError = {
-      recordVersion: RECORD_VERSION,
-      name: 'TestError',
-      message: 'Test',
-      commandName: 'test',
-      timestamp: Date.now(),
-      argv: [],
-      version: {
-        architecture: 'x64',
-        cliVersion: '1.0.0',
-        nodeVersion: 'v18.0.0',
-      },
+    const error = aCachedError({
       pluginVersions: [
         { name: '@thymian/plugin-openapi', version: '1.0.0' },
         { name: '@thymian/plugin-http-linter', version: '2.0.0' },
       ],
-    };
+    });
 
     const url = createEmailReport(testRecipient, error);
     const decodedUrl = decodeURIComponent(url);
@@ -158,21 +108,9 @@ describe('createEmailReport', () => {
   });
 
   it('should include stack trace with HOME replaced by ~', () => {
-    const error: CachedError = {
-      recordVersion: RECORD_VERSION,
-      name: 'TestError',
-      message: 'Test',
+    const error = aCachedError({
       stack: `Error: Test\n  at /home/testuser/project/src/test.ts:10\n  at /home/testuser/.config/test.js:20`,
-      commandName: 'test',
-      timestamp: Date.now(),
-      argv: [],
-      version: {
-        architecture: 'x64',
-        cliVersion: '1.0.0',
-        nodeVersion: 'v18.0.0',
-      },
-      pluginVersions: [],
-    };
+    });
 
     const url = createEmailReport(testRecipient, error);
     const decodedUrl = decodeURIComponent(url);
@@ -184,20 +122,7 @@ describe('createEmailReport', () => {
   });
 
   it('should handle missing stack trace', () => {
-    const error: CachedError = {
-      recordVersion: RECORD_VERSION,
-      name: 'TestError',
-      message: 'Test',
-      commandName: 'test',
-      timestamp: Date.now(),
-      argv: [],
-      version: {
-        architecture: 'x64',
-        cliVersion: '1.0.0',
-        nodeVersion: 'v18.0.0',
-      },
-      pluginVersions: [],
-    };
+    const error = aCachedError();
 
     const url = createEmailReport(testRecipient, error);
     const decodedUrl = decodeURIComponent(url);
@@ -208,20 +133,9 @@ describe('createEmailReport', () => {
 
   it('should format timestamp correctly', () => {
     const timestamp = 1234567890000;
-    const error: CachedError = {
-      recordVersion: RECORD_VERSION,
-      name: 'TestError',
-      message: 'Test',
-      commandName: 'test',
+    const error = aCachedError({
       timestamp,
-      argv: [],
-      version: {
-        architecture: 'x64',
-        cliVersion: '1.0.0',
-        nodeVersion: 'v18.0.0',
-      },
-      pluginVersions: [],
-    };
+    });
 
     const url = createEmailReport(testRecipient, error);
     const decodedUrl = decodeURIComponent(url);
@@ -231,20 +145,7 @@ describe('createEmailReport', () => {
   });
 
   it('should include feedback message header', () => {
-    const error: CachedError = {
-      recordVersion: RECORD_VERSION,
-      name: 'TestError',
-      message: 'Test',
-      commandName: 'test',
-      timestamp: Date.now(),
-      argv: [],
-      version: {
-        architecture: 'x64',
-        cliVersion: '1.0.0',
-        nodeVersion: 'v18.0.0',
-      },
-      pluginVersions: [],
-    };
+    const error = aCachedError();
 
     const url = createEmailReport(testRecipient, error);
     const decodedUrl = decodeURIComponent(url);
@@ -256,20 +157,7 @@ describe('createEmailReport', () => {
   });
 
   it('should include footer with signature placeholder', () => {
-    const error: CachedError = {
-      recordVersion: RECORD_VERSION,
-      name: 'TestError',
-      message: 'Test',
-      commandName: 'test',
-      timestamp: Date.now(),
-      argv: [],
-      version: {
-        architecture: 'x64',
-        cliVersion: '1.0.0',
-        nodeVersion: 'v18.0.0',
-      },
-      pluginVersions: [],
-    };
+    const error = aCachedError();
 
     const url = createEmailReport(testRecipient, error);
     const decodedUrl = decodeURIComponent(url);
@@ -279,20 +167,7 @@ describe('createEmailReport', () => {
   });
 
   it('should handle empty plugin list', () => {
-    const error: CachedError = {
-      recordVersion: RECORD_VERSION,
-      name: 'TestError',
-      message: 'Test',
-      commandName: 'test',
-      timestamp: Date.now(),
-      argv: [],
-      version: {
-        architecture: 'x64',
-        cliVersion: '1.0.0',
-        nodeVersion: 'v18.0.0',
-      },
-      pluginVersions: [],
-    };
+    const error = aCachedError();
 
     const url = createEmailReport(testRecipient, error);
     const decodedUrl = decodeURIComponent(url);
@@ -303,20 +178,9 @@ describe('createEmailReport', () => {
   });
 
   it('should use correct subject format', () => {
-    const error: CachedError = {
-      recordVersion: RECORD_VERSION,
-      name: 'TestError',
-      message: 'Test',
+    const error = aCachedError({
       commandName: 'custom:command',
-      timestamp: Date.now(),
-      argv: [],
-      version: {
-        architecture: 'x64',
-        cliVersion: '1.0.0',
-        nodeVersion: 'v18.0.0',
-      },
-      pluginVersions: [],
-    };
+    });
 
     const url = createEmailReport(testRecipient, error);
 
@@ -325,20 +189,7 @@ describe('createEmailReport', () => {
 
   it('should include recipient in mailto URL', () => {
     const customRecipient = 'custom@support.com';
-    const error: CachedError = {
-      recordVersion: RECORD_VERSION,
-      name: 'TestError',
-      message: 'Test',
-      commandName: 'test',
-      timestamp: Date.now(),
-      argv: [],
-      version: {
-        architecture: 'x64',
-        cliVersion: '1.0.0',
-        nodeVersion: 'v18.0.0',
-      },
-      pluginVersions: [],
-    };
+    const error = aCachedError();
 
     const url = createEmailReport(customRecipient, error);
 
@@ -346,20 +197,7 @@ describe('createEmailReport', () => {
   });
 
   it('should trim body content', () => {
-    const error: CachedError = {
-      recordVersion: RECORD_VERSION,
-      name: 'TestError',
-      message: 'Test',
-      commandName: 'test',
-      timestamp: Date.now(),
-      argv: [],
-      version: {
-        architecture: 'x64',
-        cliVersion: '1.0.0',
-        nodeVersion: 'v18.0.0',
-      },
-      pluginVersions: [],
-    };
+    const error = aCachedError();
 
     const url = createEmailReport(testRecipient, error);
     const decodedUrl = decodeURIComponent(url);
