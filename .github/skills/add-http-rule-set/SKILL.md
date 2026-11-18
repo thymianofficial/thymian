@@ -343,7 +343,7 @@ user config, and the `ruleSeverity: 'error'` floor filter runs **after** the pro
 - **`recommended`** — convention rules on, plus promotions **gated on a concern tag and
   non-heuristic status**. State the promotion's reason in `explanation`. A promotion is any
   profile entry above the rule's shipped severity — a convention rule turned on, or a
-  `SHOULD` raised from `warn` to `error` — and the coverage checker holds every one to that
+  `SHOULD` promoted from `warn` to `error` — and the coverage checker holds every one to that
   gate (`undocumented-promoted-rule`).
 - **`minimal`** — `error` + non-heuristic + exactly-observable, **derived from `coverage.ts`**
   by core's `deriveMinimalProfile`, never transcribed.
