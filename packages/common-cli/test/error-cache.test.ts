@@ -259,6 +259,10 @@ describe('ErrorCache', () => {
       const cached = await errorCache.read();
 
       expect(cached).toEqual(error);
+      await expect(
+        stat(join(tempDir, 'last_error.json')),
+      ).resolves.toBeDefined();
+      expect(await errorCache.read()).toEqual(error);
     });
 
     // Anything the CLI cannot vouch for as redacted is deleted on sight, so
@@ -369,6 +373,7 @@ describe('ErrorCache', () => {
       const result = await errorCache.read();
 
       expect(result).toBeUndefined();
+      expect(await readFile(cacheFile, 'utf-8')).toBe(content);
     });
 
     it.skipIf(process.platform === 'win32' || process.getuid?.() === 0)(
