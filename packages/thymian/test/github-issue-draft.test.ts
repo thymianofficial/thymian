@@ -398,8 +398,8 @@ describe('createGithubIssueDraft', () => {
       const draft = createGithubIssueDraft(error);
       const params = new URL(draft.url).searchParams;
 
-      expect(draft.title).toBe('TestError while running in command `lint`');
-      expect(params.get('title')).toBe(draft.title);
+      expect(draft.heading).toBe('TestError while running in command `lint`');
+      expect(params.get('title')).toBe(draft.heading);
       expect(params.get('body')).toBe(draft.body);
     });
 

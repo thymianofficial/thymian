@@ -1,6 +1,17 @@
 import os from 'node:os';
 import path from 'node:path';
 
+/**
+ * A draft for `thymian feedback`: what the user reviews — its heading (an
+ * issue title or an email subject) and body — and the URL that sends exactly
+ * that.
+ */
+export type Draft = {
+  heading: string;
+  body: string;
+  url: string;
+};
+
 /** How a draft for `thymian feedback` is built. */
 export type DraftOptions = {
   /** Leave the stack out, with a placeholder line where it was. */

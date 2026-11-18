@@ -7,19 +7,21 @@ import {
 } from '@thymian/common-cli';
 import open from 'open';
 
+import type { Draft, DraftOptions } from '../draft.js';
 import { createEmailDraft } from '../email-draft.js';
 import { createGithubIssueDraft } from '../github-issue-draft.js';
 
 const NOT_INTERACTIVE =
   'thymian feedback needs an interactive terminal, so you can review what it would send. Run it again from a terminal.';
 
-/** What the review shows, and the URL that sends exactly that. */
-type Draft = {
+/** Where an error report can be sent. */
+type Channel = 'github' | 'email';
+
+/** How the review names a channel's draft, and how that draft is built. */
+type ChannelDraft = {
   kind: 'issue draft' | 'email draft';
   headingLabel: 'Title' | 'Subject';
-  heading: string;
-  body: string;
-  url: string;
+  draft(error: CachedError, options: DraftOptions): Draft;
 };
 
 export class Feedback extends ThymianBaseCommand<typeof Feedback> {
@@ -27,6 +29,24 @@ export class Feedback extends ThymianBaseCommand<typeof Feedback> {
 
   static override description =
     'Share CLI feedback or report the most recent command error. Needs an interactive terminal, so you can review what would be sent before anything opens.';
+
+  private readonly channels: Record<Channel, ChannelDraft> = {
+    github: {
+      kind: 'issue draft',
+      headingLabel: 'Title',
+      draft: (error, options) => createGithubIssueDraft(error, options),
+    },
+    email: {
+      kind: 'email draft',
+      headingLabel: 'Subject',
+      draft: (error, options) =>
+        createEmailDraft(
+          Buffer.from(Feedback.CONTACT, 'base64').toString('utf-8'),
+          error,
+          options,
+        ),
+    },
+  };
 
   override shouldSuppressFeedback(): boolean {
     return true;
@@ -136,23 +156,24 @@ export class Feedback extends ThymianBaseCommand<typeof Feedback> {
    * @returns the URL to open, or `undefined` when the user cancelled
    */
   private async review(
-    channel: 'github' | 'email',
+    channel: Channel,
     error: CachedError,
   ): Promise<string | undefined> {
+    const { kind, headingLabel } = this.channels[channel];
     let withoutStack = false;
 
     for (;;) {
-      const draft = this.draftFor(channel, error, withoutStack);
+      const draft = this.channels[channel].draft(error, { withoutStack });
 
-      this.log(`This ${draft.kind} is what would be sent:`);
+      this.log(`This ${kind} is what would be sent:`);
       this.log();
-      this.log(`${draft.headingLabel}: ${draft.heading}`);
+      this.log(`${headingLabel}: ${draft.heading}`);
       this.log();
       this.log(draft.body);
       this.log();
 
       const action = await prompts.select({
-        message: `Send this ${draft.kind}?`,
+        message: `Send this ${kind}?`,
         choices: [
           { name: 'Send', value: 'send' },
           ...(withoutStack || !error.stack
@@ -177,38 +198,6 @@ export class Feedback extends ThymianBaseCommand<typeof Feedback> {
       }
       withoutStack = true;
     }
-  }
-
-  private draftFor(
-    channel: 'github' | 'email',
-    error: CachedError,
-    withoutStack: boolean,
-  ): Draft {
-    if (channel === 'github') {
-      const { title, body, url } = createGithubIssueDraft(error, {
-        withoutStack,
-      });
-      return {
-        kind: 'issue draft',
-        headingLabel: 'Title',
-        heading: title,
-        body,
-        url,
-      };
-    }
-
-    const { subject, body, url } = createEmailDraft(
-      Buffer.from(Feedback.CONTACT, 'base64').toString('utf-8'),
-      error,
-      { withoutStack },
-    );
-    return {
-      kind: 'email draft',
-      headingLabel: 'Subject',
-      heading: subject,
-      body,
-      url,
-    };
   }
 
   private async provideFeedback(): Promise<void> {

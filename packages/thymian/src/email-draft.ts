@@ -1,19 +1,12 @@
 import type { CachedError } from '@thymian/common-cli';
 
-import { type DraftOptions, shortenHomeDir } from './draft.js';
-
-/** A prefilled email: what the user reviews and the mailto that opens it. */
-export type EmailDraft = {
-  subject: string;
-  body: string;
-  url: string;
-};
+import { type Draft, type DraftOptions, shortenHomeDir } from './draft.js';
 
 export function createEmailDraft(
   recipient: string,
   errorData: CachedError,
   { withoutStack = false }: DraftOptions = {},
-): EmailDraft {
+): Draft {
   const subject = `CLI error in ${errorData.commandName}`;
 
   const stack = withoutStack
@@ -47,7 +40,7 @@ Best regards,
 `.trim();
 
   return {
-    subject,
+    heading: subject,
     body,
     url: `mailto:${recipient}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`,
   };

@@ -1,18 +1,11 @@
 import type { CachedError } from '@thymian/common-cli';
 
-import { type DraftOptions, shortenHomeDir } from './draft.js';
-
-/** A prefilled GitHub issue: what the user reviews and the URL that opens it. */
-export type IssueDraft = {
-  title: string;
-  body: string;
-  url: string;
-};
+import { type Draft, type DraftOptions, shortenHomeDir } from './draft.js';
 
 export function createGithubIssueDraft(
   error: CachedError,
   { withoutStack = false }: DraftOptions = {},
-): IssueDraft {
+): Draft {
   const baseUrl = 'https://github.com/thymianofficial/thymian/issues/new';
 
   const title = error.commandName
@@ -53,7 +46,7 @@ ${stackMarkdown(error.stack, withoutStack)}
   url.searchParams.set('body', body);
   url.searchParams.set('labels', 'bug');
 
-  return { title, body, url: url.toString() };
+  return { heading: title, body, url: url.toString() };
 }
 
 function stackMarkdown(

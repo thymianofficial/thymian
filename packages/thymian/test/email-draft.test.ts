@@ -376,8 +376,8 @@ describe('createEmailDraft', () => {
       const draft = createEmailDraft(testRecipient, error);
       const params = openedParams(draft.url);
 
-      expect(draft.subject).toBe('CLI error in lint');
-      expect(params.get('subject')).toBe(draft.subject);
+      expect(draft.heading).toBe('CLI error in lint');
+      expect(params.get('subject')).toBe(draft.heading);
       expect(params.get('body')).toBe(draft.body);
     });
 
@@ -386,7 +386,7 @@ describe('createEmailDraft', () => {
 
       expect(draft.body).toContain('email draft');
       expect(draft.body).not.toContain('ERROR REPORT');
-      expect(draft.subject).not.toMatch(/report/i);
+      expect(draft.heading).not.toMatch(/report/i);
     });
 
     it('leaves the stack out, with a placeholder line in its place', () => {
