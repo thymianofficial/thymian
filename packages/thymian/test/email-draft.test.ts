@@ -3,7 +3,7 @@ import os from 'node:os';
 import { type CachedError } from '@thymian/common-cli';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { createEmailDraft } from '../src/create-email-issue-for-error.js';
+import { createEmailDraft } from '../src/email-draft.js';
 
 describe('createEmailDraft', () => {
   const testRecipient = 'support@example.com';

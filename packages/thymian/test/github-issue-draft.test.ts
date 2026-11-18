@@ -3,7 +3,7 @@ import os from 'node:os';
 import { type CachedError } from '@thymian/common-cli';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { createGithubIssueDraft } from '../src/create-github-issue-url-for-error.js';
+import { createGithubIssueDraft } from '../src/github-issue-draft.js';
 
 describe('createGithubIssueDraft', () => {
   beforeEach(() => {

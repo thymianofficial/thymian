@@ -7,8 +7,8 @@ import {
 } from '@thymian/common-cli';
 import open from 'open';
 
-import { createEmailDraft } from '../create-email-issue-for-error.js';
-import { createGithubIssueDraft } from '../create-github-issue-url-for-error.js';
+import { createEmailDraft } from '../email-draft.js';
+import { createGithubIssueDraft } from '../github-issue-draft.js';
 
 const NOT_INTERACTIVE =
   'thymian feedback needs an interactive terminal, so you can review what it would send. Run it again from a terminal.';
