@@ -231,7 +231,7 @@ describe('undocumented response (node location on the request node)', () => {
   );
 
   it.each(responseRules)(
-    '$ruleName skips naming the undocumented response and its operation',
+    '$ruleName skips naming the undocumented response',
     async ({ rule, ruleTitle }) => {
       const results = await run(rule, nodeLocation);
 
@@ -243,7 +243,7 @@ describe('undocumented response (node location on the request node)', () => {
               kind: 'rule-skip',
               title: ruleTitle,
               message:
-                'Skipped: the response 418 (application/json) is not documented in the API specification for POST /v2/clock/{id} (application/json).',
+                'Skipped: the response 418 (application/json) is not documented in the API specification.',
             },
           ],
         },
