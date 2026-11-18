@@ -1,4 +1,4 @@
-import { checkCoverage, loadRules } from '@thymian/core';
+import { checkCoverage, loadRules, severityLevelValues } from '@thymian/core';
 import { describe, expect, it } from 'vitest';
 
 import coverage from './coverage.js';
@@ -82,26 +82,35 @@ describe('coverage record', () => {
   // Two of the checker's eight properties have no applicable rows in this
   // corpus -- proven here rather than left looking like coverage. Both are
   // exercised by core's own fixtures (a document-agnostic source with no
-  // keyword basis; a profile that promotes a baseline-off rule), so the
-  // assertions themselves are real; RFC 9110 and rfc9110's own profiles
-  // just never trigger them.
+  // keyword basis; a profile that sets a rule above its shipped severity),
+  // so the assertions themselves are real; RFC 9110 and rfc9110's own
+  // profiles just never trigger them.
   describe('two assertions with nothing to bite on here', () => {
     it('never needs a cited source: RFC 9110 is keyword-bearing', () => {
       expect(coverage.source.hasKeywordBasis).toBe(true);
     });
 
+    // A promotion is a profile entry strictly above the rule's shipped
+    // severity. `recommended` only lowers rules -- convention rules stay
+    // `off`, and `etag` and `last-modified` go from `warn` to `hint` -- so
+    // nothing here is promoted.
     it('has no promotion in any shipped profile', async () => {
       const rules = await loadBaselineRules();
-      const baselineOff = rules.filter((rule) => rule.meta.severity === 'off');
 
       for (const [, config] of Object.entries(rfc9110.profiles ?? {})) {
-        for (const rule of baselineOff) {
+        for (const rule of rules) {
           const entry = config[rule.meta.name];
           if (entry === undefined) {
             continue;
           }
           const severity = typeof entry === 'string' ? entry : entry.severity;
-          expect(severity === undefined || severity === 'off').toBe(true);
+          if (severity === undefined) {
+            continue;
+          }
+          expect(
+            severityLevelValues[severity],
+            rule.meta.name,
+          ).toBeGreaterThanOrEqual(severityLevelValues[rule.meta.severity]);
         }
       }
     }, 30_000);
