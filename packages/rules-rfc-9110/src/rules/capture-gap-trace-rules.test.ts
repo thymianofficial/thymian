@@ -14,6 +14,7 @@ import proxyMustNotModifyWwwAuthenticate from './authentication/origin-server/ww
 import proxyMustForwardUnrecognizedHeaderFields from './fields/field-names/proxy-must-forward-unrecognized-header-fields.rule.js';
 import proxyMustNotGenerateNewMaxForwardsHeader from './methods/method-definitions/options/proxy-must-not-generate-new-max-forwards-header.rule.js';
 import intermediaryMustGenerateUpdatedMaxForwardsWhenForwarding from './routing/message-forwarding/max-forwards/intermediary-must-generate-updated-max-forwards-when-forwarding.rule.js';
+import proxyMayTransformContentWithoutNoTransformDirective from './routing/message-transformations/proxy-may-transform-content-without-no-transform-directive.rule.js';
 import proxyShouldNotModifyEndpointAndRepresentationHeaders from './routing/message-transformations/proxy-should-not-modify-endpoint-and-representation-headers.rule.js';
 
 type Headers = Record<string, string>;
@@ -116,7 +117,11 @@ const guardedRules: GuardedRule[] = [
 function hop(
   from: HttpParticipantRole,
   to: HttpParticipantRole,
-  { side, method = 'get' }: GuardedRule,
+  {
+    side,
+    method = 'get',
+    body,
+  }: { side: 'request' | 'response'; method?: string; body?: string },
   headers: Headers,
   gaps?: CaptureGap[],
 ): CapturedTransaction {
@@ -135,6 +140,7 @@ function hop(
       data: {
         statusCode: 200,
         headers: side === 'response' ? headers : {},
+        body,
         trailers: {},
         duration: 1,
       },
@@ -205,3 +211,42 @@ describe.each(guardedRules.map((g) => [g.rule.meta.name, g] as const))(
     );
   },
 );
+
+describe('rfc9110/proxy-may-transform-content-without-no-transform-directive on a trace through the analyzer', () => {
+  // The proxy forwards a body that differs from the one it received, and
+  // neither response carries Cache-Control. The rule reads Cache-Control only
+  // on the response the proxy received, so only a gap there silences it.
+  const transformed = (marked?: 'proxy hop' | 'next hop'): CapturedTrace => [
+    hop(
+      'user-agent',
+      'proxy',
+      { side: 'response', body: 'transformed' },
+      {},
+      marked === 'proxy hop' ? NOT_CAPTURED : undefined,
+    ),
+    hop(
+      'proxy',
+      'origin server',
+      { side: 'response', body: 'original' },
+      {},
+      marked === 'next hop' ? NOT_CAPTURED : undefined,
+    ),
+  ];
+  const rule = proxyMayTransformContentWithoutNoTransformDirective;
+
+  it('reports a transformation when no hop is marked', async () => {
+    expect(await runAnalyticsRule(rule, [], [transformed()])).toHaveLength(1);
+  });
+
+  it("stays silent when the next hop's response has its headers not captured", async () => {
+    expect(await runAnalyticsRule(rule, [], [transformed('next hop')])).toEqual(
+      [],
+    );
+  });
+
+  it("still reports when only the proxy hop's response has its headers not captured", async () => {
+    expect(
+      await runAnalyticsRule(rule, [], [transformed('proxy hop')]),
+    ).toHaveLength(1);
+  });
+});

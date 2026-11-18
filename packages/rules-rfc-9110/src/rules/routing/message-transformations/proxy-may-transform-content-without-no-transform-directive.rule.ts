@@ -1,4 +1,9 @@
-import { getHeader, httpRule, type RuleFnResult } from '@thymian/core';
+import {
+  getHeader,
+  httpRule,
+  isHeaderCaptured,
+  type RuleFnResult,
+} from '@thymian/core';
 
 import { forwardingHops, headerValues } from '../utils/forwarding.js';
 
@@ -34,6 +39,10 @@ export default httpRule(
         const received = outbound.response.data;
         const forwarded = inbound.response.data;
         if (received.body === undefined || forwarded.body === undefined) {
+          continue;
+        }
+        // An uncaptured Cache-Control cannot show that no-transform was absent.
+        if (!isHeaderCaptured(outbound.response, 'cache-control')) {
           continue;
         }
         const noTransform = headerValues(
