@@ -58,8 +58,8 @@ We will mark Capture Gaps on the captured message, not in its data.
   database to a file across runs. `init.sql` only creates what is missing, so a new column
   would never reach an existing file, while a new table does. Rows written before this
   change read back with no gap, which is correct. Later kinds need no schema change.
-- **Rule behaviour.** A trace rule skips a pair silently when a field it compares was not
-  captured on either side. It reports neither a violation nor a finding for that pair.
+- **Rule behaviour.** A trace rule skips a pair silently when a field it reads was not
+  captured on a message it reads it from. It reports neither a violation nor a finding for that pair.
   thymianofficial/thymian-workspace#683's heuristic is removed, and that rule uses the helper like the others.
 
 ## Consequences
@@ -68,13 +68,14 @@ We will mark Capture Gaps on the captured message, not in its data.
 
 - A rule can tell a hop recorded without headers from one that carried none, through the
   real analyzer.
-- The trace rules that compare a field across a proxy (`proxy-must-not-modify-authorization`,
-  `-www-authenticate`, `-authentication-info`,
+- The trace rules that read a field on either side of a proxy
+  (`proxy-must-not-modify-authorization`, `-www-authenticate`, `-authentication-info`,
   `proxy-should-not-modify-endpoint-and-representation-headers`,
   `intermediary-must-generate-updated-max-forwards-when-forwarding`,
   `proxy-must-not-generate-new-max-forwards-header`,
-  `proxy-must-forward-unrecognized-header-fields`) no longer report a finding that rests only
-  on a gap.
+  `proxy-must-forward-unrecognized-header-fields`,
+  `proxy-may-transform-content-without-no-transform-directive`) no longer report a finding
+  that rests only on a gap.
 - thymianofficial/thymian-workspace#611's kinds have a place to go that rules already consult.
 
 **Negative:**
