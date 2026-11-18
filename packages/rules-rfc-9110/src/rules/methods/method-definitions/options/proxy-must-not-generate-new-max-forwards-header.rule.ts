@@ -35,7 +35,7 @@ export default httpRule(
           continue;
         }
 
-        // A hop whose field was not captured cannot show a generated field.
+        // A message whose field was not captured cannot show a generated field.
         if (
           !isHeaderCapturedOnBoth(prev.request, curr.request, 'max-forwards')
         ) {

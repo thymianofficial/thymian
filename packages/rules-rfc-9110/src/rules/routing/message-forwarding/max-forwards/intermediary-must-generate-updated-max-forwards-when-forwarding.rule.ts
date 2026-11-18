@@ -29,7 +29,7 @@ export default httpRule(
         if (method !== 'TRACE' && method !== 'OPTIONS') {
           continue;
         }
-        // A hop whose field was not captured cannot show what was forwarded.
+        // A message whose field was not captured cannot show what was forwarded.
         if (
           !isHeaderCapturedOnBoth(
             inbound.request,
