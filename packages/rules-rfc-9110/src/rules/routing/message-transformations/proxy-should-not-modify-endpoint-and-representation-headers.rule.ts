@@ -1,11 +1,10 @@
-import {
-  getHeader,
-  httpRule,
-  isHeaderCaptured,
-  type RuleFnResult,
-} from '@thymian/core';
+import { getHeader, httpRule, type RuleFnResult } from '@thymian/core';
 
-import { equalHeaderValues, forwardingHops } from '../utils/forwarding.js';
+import {
+  equalHeaderValues,
+  forwardingHops,
+  isHeaderCapturedOnBoth,
+} from '../utils/forwarding.js';
 
 const REPRESENTATION_HEADERS = [
   'content-type',
@@ -43,8 +42,7 @@ export default httpRule(
         const modified = REPRESENTATION_HEADERS.filter((name) => {
           // A field not captured on either side cannot show a modification.
           if (
-            !isHeaderCaptured(outbound.response, name) ||
-            !isHeaderCaptured(inbound.response, name)
+            !isHeaderCapturedOnBoth(outbound.response, inbound.response, name)
           ) {
             return false;
           }

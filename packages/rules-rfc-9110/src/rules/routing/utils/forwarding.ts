@@ -1,8 +1,11 @@
 import {
+  type CapturedHttpRequest,
+  type CapturedHttpResponse,
   type CapturedTrace,
   type CapturedTransaction,
   expandHttpParticipantRoles,
   type HttpParticipantRole,
+  isHeaderCaptured,
 } from '@thymian/core';
 
 type HeaderValue = string | string[] | undefined;
@@ -63,6 +66,20 @@ export function forwardingHops(
     }
   }
   return hops;
+}
+
+/**
+ * Whether the header field `name` was captured on both messages a trace rule
+ * compares, so its absence from either one means that message did not carry
+ * it. A rule skips the pair when this answers `false`. See ADR-0026
+ * (`docs/arc42/adr/0026-capture-gaps-are-marked-on-the-captured-message.md`).
+ */
+export function isHeaderCapturedOnBoth(
+  a: CapturedHttpRequest | CapturedHttpResponse,
+  b: CapturedHttpRequest | CapturedHttpResponse,
+  name: string,
+): boolean {
+  return isHeaderCaptured(a, name) && isHeaderCaptured(b, name);
 }
 
 export function headerValues(value: HeaderValue): string[] {

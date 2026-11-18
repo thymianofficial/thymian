@@ -1,10 +1,6 @@
-import {
-  getHeader,
-  httpRule,
-  isHeaderCaptured,
-  type RuleFnResult,
-} from '@thymian/core';
+import { getHeader, httpRule, type RuleFnResult } from '@thymian/core';
 
+import { isHeaderCapturedOnBoth } from '../../../routing/utils/forwarding.js';
 import { equalHeaderValues } from '../../utils/header-value-equality.js';
 
 export default httpRule('rfc9110/proxy-must-not-modify-www-authenticate')
@@ -41,8 +37,11 @@ export default httpRule('rfc9110/proxy-must-not-modify-www-authenticate')
 
         // A hop whose field was not captured cannot show a modification.
         if (
-          !isHeaderCaptured(prev.response, 'www-authenticate') ||
-          !isHeaderCaptured(curr.response, 'www-authenticate')
+          !isHeaderCapturedOnBoth(
+            prev.response,
+            curr.response,
+            'www-authenticate',
+          )
         ) {
           continue;
         }
