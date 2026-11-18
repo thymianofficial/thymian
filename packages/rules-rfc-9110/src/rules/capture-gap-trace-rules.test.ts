@@ -109,16 +109,18 @@ const guardedRules: GuardedRule[] = [
 ];
 
 /**
- * One recorded hop whose request and response were both produced by `role`.
- * `headers` and `gaps` go on the message side the rule compares.
+ * One recorded hop from `from` to `to`: the request carries role `from`, the
+ * response role `to`, as in recorded traffic. `headers` and `gaps` go on the
+ * message side the rule compares.
  */
 function hop(
-  role: HttpParticipantRole,
+  from: HttpParticipantRole,
+  to: HttpParticipantRole,
   { side, method = 'get' }: GuardedRule,
   headers: Headers,
   gaps?: CaptureGap[],
 ): CapturedTransaction {
-  const meta = { role, ...(gaps && { captureGaps: gaps }) };
+  const gapMeta = gaps && { captureGaps: gaps };
   return {
     request: {
       data: {
@@ -127,7 +129,7 @@ function hop(
         method,
         headers: side === 'request' ? headers : {},
       },
-      meta: side === 'request' ? meta : { role },
+      meta: { role: from, ...(side === 'request' && gapMeta) },
     },
     response: {
       data: {
@@ -136,12 +138,12 @@ function hop(
         trailers: {},
         duration: 1,
       },
-      meta: side === 'response' ? meta : { role },
+      meta: { role: to, ...(side === 'response' && gapMeta) },
     },
   };
 }
 
-/** A trace through one proxy: the proxy's own hop, then the next one. */
+/** A trace through one proxy: user agent to proxy, then proxy to origin. */
 function trace(
   guarded: GuardedRule,
   [proxyHop, nextHop]: Pair,
@@ -149,12 +151,14 @@ function trace(
 ): CapturedTrace {
   return [
     hop(
+      'user-agent',
       'proxy',
       guarded,
       proxyHop,
       marked === 'proxy hop' ? NOT_CAPTURED : undefined,
     ),
     hop(
+      'proxy',
       'origin server',
       guarded,
       nextHop,

@@ -5,6 +5,8 @@ import {
   type RuleFnResult,
 } from '@thymian/core';
 
+import { forwardingHops } from '../../routing/utils/forwarding.js';
+
 // Fields a proxy may legitimately drop, so they are never treated as a
 // non-forwarded end-to-end field: hop-by-hop controls plus routing metadata a
 // proxy manages on its own hop.
@@ -42,20 +44,15 @@ export default httpRule('rfc9110/proxy-must-forward-unrecognized-header-fields')
   .rule((ctx) =>
     ctx.validateCapturedHttpTraces((trace, location) => {
       const results: RuleFnResult[] = [];
-      for (let i = 1; i < trace.length; i++) {
-        // In a captured trace the proxy's own leg carries meta.role === 'proxy';
-        // `received` is that leg (the request the proxy got) and `forwarded` is
-        // the next hop (the request the proxy sent onward).
-        const received = trace[i - 1];
-        const forwarded = trace[i];
-        if (!received || !forwarded || received.request.meta.role !== 'proxy') {
-          continue;
-        }
-        const receivedHeaders = received.request.data.headers ?? {};
-        const forwardedHeaders = forwarded.request.data.headers;
+      for (const { inbound, outbound } of forwardingHops(trace, ['proxy'])) {
+        // The proxy received `inbound.request` and forwarded `outbound.request`.
+        const received = inbound.request;
+        const forwarded = outbound.request;
+        const receivedHeaders = received.data.headers ?? {};
+        const forwardedHeaders = forwarded.data.headers;
         // Without the received Connection field the excepted names are
         // unknown, so nothing on this pair can be judged.
-        if (!isHeaderCaptured(received.request, 'connection')) {
+        if (!isHeaderCaptured(received, 'connection')) {
           continue;
         }
         const excepted = new Set([
@@ -68,8 +65,8 @@ export default httpRule('rfc9110/proxy-must-forward-unrecognized-header-fields')
             (name) =>
               !excepted.has(name) &&
               // A field not captured on either side cannot show a drop.
-              isHeaderCaptured(received.request, name) &&
-              isHeaderCaptured(forwarded.request, name) &&
+              isHeaderCaptured(received, name) &&
+              isHeaderCaptured(forwarded, name) &&
               getHeader(forwardedHeaders, name) === undefined,
           );
         if (dropped.length > 0) {
