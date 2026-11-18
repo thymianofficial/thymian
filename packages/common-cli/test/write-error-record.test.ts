@@ -6,7 +6,7 @@ import type { Command } from '@oclif/core';
 import type { CommandError } from '@oclif/core/interfaces';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { ErrorCache, RECORD_VERSION } from '../src/error-cache.js';
+import { ERROR_RECORD_VERSION, ErrorCache } from '../src/error-cache.js';
 import { REDACTED } from '../src/redact-argv.js';
 import { writeErrorRecord } from '../src/write-error-record.js';
 
@@ -95,7 +95,7 @@ describe('writeErrorRecord', () => {
     const record = JSON.parse(
       await readFile(join(dir, 'last_error.json'), 'utf-8'),
     );
-    expect(record.recordVersion).toBe(RECORD_VERSION);
+    expect(record.recordVersion).toBe(ERROR_RECORD_VERSION);
     expect((await errorCache.read())?.message).toBe('Boom');
   });
 

@@ -11,7 +11,7 @@ import { join } from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { ErrorCache, RECORD_VERSION } from '../src/error-cache.js';
+import { ERROR_RECORD_VERSION, ErrorCache } from '../src/error-cache.js';
 import { aCachedError } from './support/cached-error.js';
 
 describe('ErrorCache', () => {
@@ -269,7 +269,7 @@ describe('ErrorCache', () => {
     it('should return undefined and keep the file for a record a newer CLI wrote', async () => {
       const cacheFile = join(tempDir, 'last_error.json');
       const content = JSON.stringify({
-        recordVersion: RECORD_VERSION + 1,
+        recordVersion: ERROR_RECORD_VERSION + 1,
         name: 'NewerError',
         message: 'From a newer CLI',
         commandName: 'lint',

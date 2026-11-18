@@ -1,4 +1,7 @@
-import { type CachedError, RECORD_VERSION } from '../../src/error-cache.js';
+import {
+  type CachedError,
+  ERROR_RECORD_VERSION,
+} from '../../src/error-cache.js';
 
 /**
  * A current-version error record with plain defaults. A test overrides only
@@ -9,7 +12,7 @@ export function aCachedError(
   overrides: Partial<CachedError> = {},
 ): CachedError {
   return {
-    recordVersion: RECORD_VERSION,
+    recordVersion: ERROR_RECORD_VERSION,
     name: 'TestError',
     message: 'Test',
     commandName: 'test',

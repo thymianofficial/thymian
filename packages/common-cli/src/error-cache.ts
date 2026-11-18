@@ -11,10 +11,10 @@ import type { ThymianBaseCommand } from './thymian-base-command.js';
  * writer, which redacts what the user typed, stamps a record with it, so a
  * record carrying it went through redaction. Bump it when the shape changes.
  */
-export const RECORD_VERSION = 1;
+export const ERROR_RECORD_VERSION = 1;
 
 export type CachedError = {
-  recordVersion: typeof RECORD_VERSION;
+  recordVersion: typeof ERROR_RECORD_VERSION;
   name: string;
   message: string;
   stack?: string | undefined;
@@ -75,10 +75,10 @@ export class ErrorCache {
     try {
       const record = JSON.parse(content);
       const version = record?.recordVersion;
-      if (version === RECORD_VERSION) {
+      if (version === ERROR_RECORD_VERSION) {
         return record;
       }
-      if (Number.isInteger(version) && version > RECORD_VERSION) {
+      if (Number.isInteger(version) && version > ERROR_RECORD_VERSION) {
         return undefined;
       }
     } catch {
