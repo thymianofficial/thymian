@@ -42,8 +42,7 @@ export default httpRule(
         .run({ authorize: false, checkStatusCode: false })
         .skipIf(
           not(statusCode(401)),
-          (response) =>
-            `The rule does not apply to the live response: the specification declares 401, the server answered ${response.statusCode}.`,
+          'The specification declares 401; the server answered another status.',
         )
         .expectForTransactions(responseHeader('www-authenticate'))
         .done(),
