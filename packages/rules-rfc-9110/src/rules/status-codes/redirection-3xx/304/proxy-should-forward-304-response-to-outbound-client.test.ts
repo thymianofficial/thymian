@@ -34,12 +34,12 @@ function runOnTrace(
 }
 
 /**
- * Builds one leg of a captured trace. meta.role identifies the PRODUCER of
- * each message: on the client-facing leg the request is produced by the
- * user agent and the response by the proxy; on the origin-facing leg the
+ * Builds one hop of a captured trace. meta.role identifies the PRODUCER of
+ * each message: on the client-facing hop the request is produced by the
+ * user agent and the response by the proxy; on the origin-facing hop the
  * request is produced by the proxy and the response by the origin server.
  */
-function leg(opts: {
+function hop(opts: {
   requestRole: HttpParticipantRole;
   responseRole: HttpParticipantRole;
   requestHeaders?: Record<string, string | string[] | undefined>;
@@ -75,13 +75,13 @@ function proxiedTrace(opts: {
   originFacingStatusCode: number;
 }): CapturedTrace {
   return [
-    leg({
+    hop({
       requestRole: 'user-agent',
       responseRole: 'proxy',
       requestHeaders: opts.conditionalHeaders,
       statusCode: opts.clientFacingStatusCode,
     }),
-    leg({
+    hop({
       requestRole: 'proxy',
       responseRole: 'origin server',
       requestHeaders: opts.conditionalHeaders,
@@ -127,7 +127,7 @@ describe('proxy-should-forward-304-response-to-outbound-client', () => {
     expect(runOnTrace(rule, trace)).toHaveLength(0);
   });
 
-  it('does not flag a non-conditional request even when the upstream leg is a 304', () => {
+  it('does not flag a non-conditional request even when the upstream hop is a 304', () => {
     const trace = proxiedTrace({
       clientFacingStatusCode: 200,
       originFacingStatusCode: 304,
@@ -138,7 +138,7 @@ describe('proxy-should-forward-304-response-to-outbound-client', () => {
 
   it('does not flag an unproxied trace (single client-origin transaction)', () => {
     const trace: CapturedTrace = [
-      leg({
+      hop({
         requestRole: 'user-agent',
         responseRole: 'origin server',
         requestHeaders: { 'if-none-match': '"abc"' },
