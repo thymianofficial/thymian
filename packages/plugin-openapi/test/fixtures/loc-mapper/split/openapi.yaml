@@ -1,0 +1,7 @@
+openapi: 3.1.0
+info:
+  title: Split spec
+  version: 1.0.0
+paths:
+  /users/{id}:
+    $ref: ./paths/user.yaml
