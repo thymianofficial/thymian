@@ -18,6 +18,7 @@ import {
   ThymianBaseError,
   ThymianFormat,
   type ThymianHttpTransaction,
+  thymianHttpTransactionToString,
   thymianRequestToOrigin,
   type ValidationFn,
 } from '@thymian/core';
@@ -57,6 +58,45 @@ function isSameLocation(
     return a === b;
   }
   return a.elementType === b.elementType && a.elementId === b.elementId;
+}
+
+/** A sent pair next to the transaction the specification declares for it. */
+type LivePair = {
+  source: ThymianHttpTransaction;
+  response: HttpResponse;
+};
+
+type LiveApplicability = ReturnType<typeof httpFilterToTransactionValidationFn>;
+
+function declaredVersusLiveStatus({ source, response }: LivePair): string {
+  return `the specification declares ${source.thymianRes.statusCode}, the server answered ${response.statusCode}`;
+}
+
+/**
+ * The informational finding a named-form call adds to a pair it judged although
+ * the live status differs from the declared one (ADR-0026), or `undefined` when
+ * the status is the declared one. It neither skips nor fails the execution.
+ */
+function statusDriftResult(
+  location: RuleViolationLocation,
+  pair: LivePair,
+  transactionIndex: number,
+): RuleFnResult | undefined {
+  if (pair.source.thymianRes.statusCode === pair.response.statusCode) {
+    return undefined;
+  }
+
+  return {
+    location,
+    findings: [
+      {
+        kind: 'informational',
+        title: 'Status drift',
+        message: `The live status differs from the declared one: ${declaredVersusLiveStatus(pair)}.`,
+        transactionIndex,
+      },
+    ],
+  };
 }
 
 type EdgeLocation = {
@@ -121,6 +161,60 @@ export class HttpTestApiContext<
     return httpFilterToTransactionValidationFn(appliesTo, this.format);
   }
 
+  /**
+   * A pair the live re-check rejects was not judged: it is reported as a
+   * `rule-skip` naming the declared and the live status (ADR-0026), not as a
+   * pass.
+   */
+  private notApplicableResult(
+    location: RuleViolationLocation,
+    reason: string,
+  ): RuleFnResult {
+    return {
+      location,
+      findings: [
+        {
+          kind: 'rule-skip',
+          title: this.name,
+          message: `The rule does not apply to the live response: ${reason}.`,
+        },
+      ],
+    };
+  }
+
+  /**
+   * The named form's live check of one sent pair (ADR-0026): whether
+   * `violatedWhen` judges it, and the result to report alongside — a
+   * `rule-skip` when `appliesTo` rejects the pair, a status-drift note when it
+   * is judged with a status the specification does not declare for it. The
+   * positional form (`liveAppliesTo` undefined) judges every pair, without note.
+   */
+  private checkLivePair(
+    liveAppliesTo: LiveApplicability | undefined,
+    pair: LivePair & { request: HttpRequest },
+    location: RuleViolationLocation,
+    transactionIndex: number,
+  ): { judge: boolean; result?: RuleFnResult } {
+    if (!liveAppliesTo) {
+      return { judge: true };
+    }
+
+    if (!liveAppliesTo(pair.request, pair.response, pair.source)) {
+      return {
+        judge: false,
+        result: this.notApplicableResult(
+          location,
+          declaredVersusLiveStatus(pair),
+        ),
+      };
+    }
+
+    return {
+      judge: true,
+      result: statusDriftResult(location, pair, transactionIndex),
+    };
+  }
+
   getRuleExecutionDiagnostics(): HttpTesterRuleDiagnostics | undefined {
     return this.diagnosticEntries.length > 0
       ? this.diagnosticEntries
@@ -163,7 +257,9 @@ export class HttpTestApiContext<
         groupBy(({ current, ctx }) => groupByFn(current, ctx.format)),
         mapToGroupedTestCase(),
         generateRequests(),
-        runRequests(),
+        // The named form re-checks `appliesTo` on every live pair, which
+        // replaces the status-code gate (ADR-0026).
+        runRequests({ checkStatusCode: !liveAppliesTo }),
       ),
     );
 
@@ -179,15 +275,41 @@ export class HttpTestApiContext<
       const testCase = value as HttpTestCase<[GroupedHttpTestCaseStep]>;
       const { source, transactions } = testCase.steps[0];
 
-      const transactionsToValidate = transactions
-        .filter(hasSource)
-        .filter(
-          ({ request, response, source }) =>
-            !liveAppliesTo ||
-            (!!request &&
-              !!response &&
-              liveAppliesTo(request, response, source)),
-        )
+      const isLiveApplicable = ({
+        request,
+        response,
+        source,
+      }: HttpTestCaseStepTransaction & { source: ThymianHttpTransaction }) =>
+        !liveAppliesTo ||
+        (!!request && !!response && liveAppliesTo(request, response, source));
+      const applicable = transactions.flatMap(
+        (transaction, transactionIndex) =>
+          hasSource(transaction) && isLiveApplicable(transaction)
+            ? [{ transaction, transactionIndex }]
+            : [],
+      );
+
+      if (liveAppliesTo && applicable.length === 0) {
+        const reasons = transactions
+          .filter(hasSource)
+          .flatMap(({ source, response }) =>
+            response
+              ? [
+                  `${thymianHttpTransactionToString(source.thymianReq, source.thymianRes)}: ${declaredVersusLiveStatus({ source, response })}`,
+                ]
+              : [],
+          );
+        const result = this.notApplicableResult(
+          `${this.name}:${testCase.name}`,
+          `none of the group's pairs matches (${reasons.join('; ')})`,
+        );
+        callViolations.push(result);
+        placements.push({ result, testCaseIndex, stepIndex: 0 });
+        return;
+      }
+
+      const transactionsToValidate = applicable
+        .map(({ transaction }) => transaction)
         .map<[CommonHttpRequest, CommonHttpResponse, RuleViolationLocation]>(
           (transaction) => [
             httpRequestToCommonHttpRequest(
@@ -213,11 +335,27 @@ export class HttpTestApiContext<
           ],
         );
 
-      if (liveAppliesTo && transactionsToValidate.length === 0) {
-        return;
+      const results = violatedWhen(source.key, transactionsToValidate);
+
+      if (liveAppliesTo) {
+        for (const { transaction, transactionIndex } of applicable) {
+          const { response } = transaction;
+          const drift =
+            response &&
+            statusDriftResult(
+              {
+                elementId: transaction.source.transactionId,
+                elementType: 'edge',
+              },
+              { source: transaction.source, response },
+              transactionIndex,
+            );
+          if (drift) {
+            results.push(drift);
+          }
+        }
       }
 
-      const results = violatedWhen(source.key, transactionsToValidate);
       callViolations.push(...results);
       for (const result of results) {
         placements.push({ result, testCaseIndex, stepIndex: 0 });
@@ -264,7 +402,12 @@ export class HttpTestApiContext<
 
     const test = httpTest(
       this.name,
-      singleTestCase().forTransactionsWith(appliesTo).run().done(),
+      singleTestCase()
+        .forTransactionsWith(appliesTo)
+        // The named form re-checks `appliesTo` on the live pair, which
+        // replaces the status-code gate (ADR-0026).
+        .run({ checkStatusCode: !liveAppliesTo })
+        .done(),
     );
 
     const testResult = await test(this.ctx);
@@ -277,21 +420,42 @@ export class HttpTestApiContext<
         return;
       }
       testCase.steps.forEach((step, stepIndex) => {
-        for (const transaction of step.transactions) {
+        for (const [
+          transactionIndex,
+          transaction,
+        ] of step.transactions.entries()) {
           const { request, response, source } = transaction;
 
           if (!request || !response || !source) {
             throw new Error('Invalid HTTP test case transaction.');
           }
 
-          if (liveAppliesTo && !liveAppliesTo(request, response, source)) {
-            continue;
-          }
-
           const location: RuleViolationLocation = {
             elementType: 'edge',
             elementId: source.transactionId,
           };
+
+          const live = this.checkLivePair(
+            liveAppliesTo,
+            { request, response, source },
+            location,
+            transactionIndex,
+          );
+          const placeLiveResult = () => {
+            if (live.result) {
+              callViolations.push(live.result);
+              placements.push({
+                result: live.result,
+                testCaseIndex,
+                stepIndex,
+              });
+            }
+          };
+
+          if (!live.judge) {
+            placeLiveResult();
+            continue;
+          }
 
           const results: RuleFnResult[] = [];
           if (typeof violatedWhen === 'function') {
@@ -330,6 +494,8 @@ export class HttpTestApiContext<
               placements.push({ result, testCaseIndex, stepIndex });
             }
           }
+
+          placeLiveResult();
         }
       });
     });
@@ -447,7 +613,12 @@ export class HttpTestApiContext<
 
     const test = httpTest(
       this.name,
-      singleTestCase().forTransactionsWith(appliesTo).run().done(),
+      singleTestCase()
+        .forTransactionsWith(appliesTo)
+        // The named form re-checks `appliesTo` on the live pair, which
+        // replaces the status-code gate (ADR-0026).
+        .run({ checkStatusCode: !liveAppliesTo })
+        .done(),
     );
 
     const testResult = await test(this.ctx);
@@ -460,7 +631,10 @@ export class HttpTestApiContext<
         return;
       }
       testCase.steps.forEach((step, stepIndex) => {
-        for (const transaction of step.transactions) {
+        for (const [
+          transactionIndex,
+          transaction,
+        ] of step.transactions.entries()) {
           const { request, response, source } = transaction;
 
           if (!request || !response || !source) {
@@ -469,15 +643,33 @@ export class HttpTestApiContext<
             );
           }
 
-          if (liveAppliesTo && !liveAppliesTo(request, response, source)) {
-            continue;
-          }
-
           const location: RuleViolationLocation = {
             elementType: 'edge',
             elementId: source.transactionId,
             pointer: '',
           };
+
+          const live = this.checkLivePair(
+            liveAppliesTo,
+            { request, response, source },
+            location,
+            transactionIndex,
+          );
+          const placeLiveResult = () => {
+            if (live.result) {
+              callViolations.push(live.result);
+              placements.push({
+                result: live.result,
+                testCaseIndex,
+                stepIndex,
+              });
+            }
+          };
+
+          if (!live.judge) {
+            placeLiveResult();
+            continue;
+          }
 
           const results: RuleFnResult[] = [];
           if (typeof violatedWhen === 'function') {
@@ -500,6 +692,8 @@ export class HttpTestApiContext<
               placements.push({ result, testCaseIndex, stepIndex });
             }
           }
+
+          placeLiveResult();
         }
       });
     });

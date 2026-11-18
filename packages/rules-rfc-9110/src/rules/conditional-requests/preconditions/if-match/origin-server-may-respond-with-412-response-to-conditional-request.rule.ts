@@ -36,7 +36,7 @@ export default httpRule(
         .forTransactionsWith(requestHeader('if-match'))
         // we must set any value that would fail the If-Match condition. Let's use "qupaya" for this as it is very unlikely to be an used ETag value
         .set(requestHeader('if-match'), constant('"qupaya"'))
-        .run()
+        .run({ checkStatusCode: false })
         .expectForTransactions(statusCode(412))
         .done(),
     ),

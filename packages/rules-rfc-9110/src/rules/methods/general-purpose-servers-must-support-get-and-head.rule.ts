@@ -25,7 +25,7 @@ export default httpRule(
     ctx.httpTest(
       singleTestCase()
         .forTransactionsWith(or(method('get'), method('head')))
-        .run({ checkResponse: false })
+        .run({ checkResponse: false, checkStatusCode: false })
         .expectForTransactions(not(statusCode(501)))
         .done(),
     ),

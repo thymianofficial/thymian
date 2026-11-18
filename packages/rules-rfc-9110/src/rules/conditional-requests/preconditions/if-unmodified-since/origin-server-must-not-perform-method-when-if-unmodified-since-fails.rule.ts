@@ -65,7 +65,8 @@ export default httpRule(
 
               return lastModifiedHeader;
             })
-            .run()
+            // The replay expects a 4xx, not the declared status.
+            .run({ checkStatusCode: false })
             .done(),
         )
         .expectForTransactions(statusCodeRange(400, 499))

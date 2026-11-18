@@ -1,4 +1,5 @@
 import {
+  createHttpTestContext,
   httpRule,
   type HttpTestCase,
   type HttpTestCaseStep,
@@ -8,10 +9,13 @@ import {
   ThymianFormat,
   type ThymianHttpTransaction,
 } from '@thymian/core';
+import { method, NoopLogger, responseHeader, statusCode } from '@thymian/core';
+import { createHttpRequest, createHttpResponse } from '@thymian/core-testing';
 import { describe, expect, it, vi } from 'vitest';
 
 import {
   createRuns,
+  HttpTestApiContext,
   type HttpTesterRuleDiagnostics,
   type RuleFnResultPlacement,
 } from '../src/index.js';
@@ -770,6 +774,113 @@ describe('createRuns', () => {
         type: 'custom',
         value: 'my-primitive-source',
       });
+    });
+  });
+
+  describe('a named-form rule-context call whose live status differs from the declared one', () => {
+    async function runContext(
+      liveStatus: number,
+      call: (context: HttpTestApiContext) => Promise<RuleFnResult[]>,
+    ): Promise<TestCaseExecution> {
+      const format = new ThymianFormat();
+      format.addHttpTransaction(
+        createHttpRequest({ method: 'GET', path: '/users' }),
+        createHttpResponse({ statusCode: 401 }),
+        'test-source',
+      );
+      const context = new HttpTestApiContext(
+        rule.meta.name,
+        createHttpTestContext({
+          format,
+          logger: new NoopLogger(),
+          locals: {},
+          sampleRequest: async () => ({
+            method: 'GET',
+            origin: 'https://api.example.com',
+            path: '/users',
+            headers: {},
+            pathParameters: {},
+            query: {},
+            cookies: {},
+            authorize: false,
+          }),
+          runRequest: async () => ({
+            statusCode: liveStatus,
+            headers: {},
+            trailers: {},
+            duration: 0,
+          }),
+          runHook: async (_name, hook) => ({ result: hook.value }),
+        }),
+      );
+
+      const ruleFnResult = await call(context);
+      const [run] = createRuns(
+        PLUGIN,
+        ruleResults(ruleFnResult, context.getRuleExecutionDiagnostics()),
+        [rule],
+        format,
+        makeLogger(),
+      );
+
+      expect(testCases(run!.executions)).toHaveLength(1);
+      return testCases(run!.executions)[0]!;
+    }
+
+    it('reports a pair the live re-check rejects as skipped, with a reason naming both statuses', async () => {
+      const execution = await runContext(200, (context) =>
+        context.validateCommonHttpTransactions({
+          appliesTo: statusCode(401),
+          violatedWhen: responseHeader('www-authenticate'),
+        }),
+      );
+
+      expect(execution.status).toMatchObject({
+        kind: 'skipped',
+        reason: expect.stringContaining(
+          'the specification declares 401, the server answered 200',
+        ),
+      });
+    });
+
+    it('reports a judged pair with an informational status-drift finding that does not fail it', async () => {
+      const execution = await runContext(501, (context) =>
+        context.validateCommonHttpTransactions({
+          appliesTo: method('GET'),
+          violatedWhen: responseHeader('www-authenticate'),
+        }),
+      );
+
+      expect(execution.status.kind).toBe('passed');
+      expect(execution.steps[0]!.findings).toEqual([
+        expect.objectContaining({
+          kind: 'informational',
+          title: 'Status drift',
+          message: {
+            text: expect.stringContaining(
+              'the specification declares 401, the server answered 501',
+            ),
+          },
+          transactionIndex: 0,
+        }),
+      ]);
+    });
+
+    it('keeps the status-drift finding next to a violation', async () => {
+      const execution = await runContext(501, (context) =>
+        context.validateCommonHttpTransactions({
+          appliesTo: method('GET'),
+          violatedWhen: statusCode(501),
+        }),
+      );
+
+      expect(execution.status.kind).toBe('failed');
+      expect(execution.steps[0]!.findings).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ kind: 'rule-violation' }),
+          expect.objectContaining({ kind: 'informational' }),
+        ]),
+      );
     });
   });
 });

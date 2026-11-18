@@ -83,7 +83,7 @@ type TransactionOptions = {
 
 type ActualOverrides = Pick<
   TransactionOptions,
-  'path' | 'method' | 'requestHeaders' | 'responseHeaders'
+  'path' | 'method' | 'statusCode' | 'requestHeaders' | 'responseHeaders'
 >;
 
 function transaction(
@@ -102,6 +102,7 @@ function transaction(
   const actual = {
     path,
     method,
+    statusCode,
     requestHeaders,
     responseHeaders,
     ...actualOverrides,
@@ -137,7 +138,7 @@ function transaction(
         ),
       },
       response: {
-        statusCode,
+        statusCode: actual.statusCode,
         headers: {
           // As described: the response factory declares a JSON body.
           'content-type': 'application/json',
@@ -224,6 +225,37 @@ const scenarios: RuleContextScenario[] = [
       ),
     ],
     appliesTo: responseHeader('x-rate-limit'),
+    applicable: [0],
+    actualDiffersFromDescribed: true,
+  },
+  {
+    name: 'a live status the description does not declare is still judged',
+    transactions: [
+      transaction({ responseHeaders: [VIOLATING_HEADER] }, { statusCode: 501 }),
+    ],
+    appliesTo: method('GET'),
+    applicable: [0],
+    actualDiffersFromDescribed: true,
+  },
+  {
+    name: 'a live status that does not match appliesTo is not judged',
+    transactions: [
+      transaction({ responseHeaders: [VIOLATING_HEADER] }, { statusCode: 500 }),
+    ],
+    appliesTo: statusCode(200),
+    applicable: [],
+    actualDiffersFromDescribed: true,
+  },
+  {
+    name: 'one live status that does not match appliesTo leaves the others judged',
+    transactions: [
+      transaction({ path: '/a', responseHeaders: [VIOLATING_HEADER] }),
+      transaction(
+        { path: '/b', responseHeaders: [VIOLATING_HEADER] },
+        { statusCode: 500 },
+      ),
+    ],
+    appliesTo: statusCode(200),
     applicable: [0],
     actualDiffersFromDescribed: true,
   },
@@ -475,13 +507,17 @@ export function describeRuleContextScenarios(driver: RuleContextDriver): void {
               );
               const reached: RuleViolationLocation[] = [];
 
-              const results = await validate(
-                context,
-                contextMethod,
-                form,
-                scenario.appliesTo,
-                reached,
-              );
+              // Only violations are compared: a context may also return
+              // results that skip or annotate a pair.
+              const results = (
+                await validate(
+                  context,
+                  contextMethod,
+                  form,
+                  scenario.appliesTo,
+                  reached,
+                )
+              ).filter((result) => result.violation !== undefined);
 
               const violated = scenario.transactions.flatMap(
                 (transaction, index) =>
