@@ -1110,7 +1110,7 @@ describe('HttpTestApiContext', () => {
                 kind: 'rule-skip',
                 title: 'test-rule',
                 message: expect.stringContaining(
-                  'the description declares 401, the server answered 200',
+                  'the specification declares 401, the server answered 200',
                 ),
               }),
             ],
@@ -1145,7 +1145,7 @@ describe('HttpTestApiContext', () => {
               expect.objectContaining({
                 kind: 'informational',
                 message: expect.stringContaining(
-                  'the description declares 401, the server answered 501',
+                  'the specification declares 401, the server answered 501',
                 ),
               }),
             ],
@@ -1200,7 +1200,7 @@ describe('HttpTestApiContext', () => {
               expect.objectContaining({
                 kind: 'rule-skip',
                 message: expect.stringMatching(
-                  /the description declares 401, the server answered 200.*the description declares 401, the server answered 500/,
+                  /the specification declares 401, the server answered 200.*the specification declares 401, the server answered 500/,
                 ),
               }),
             ],
@@ -1256,7 +1256,7 @@ describe('HttpTestApiContext', () => {
                 kind: 'informational',
                 transactionIndex: 1,
                 message: expect.stringContaining(
-                  'the description declares 401, the server answered 501',
+                  'the specification declares 401, the server answered 501',
                 ),
               }),
             ],
