@@ -399,15 +399,5 @@ describe('createEmailDraft', () => {
       expect(draft.body).not.toContain('project/src/test.ts');
       expect(draft.body).toContain('Command: lint');
     });
-
-    it('leaves the stack untouched when there is no home directory', () => {
-      vi.spyOn(os, 'homedir').mockReturnValue('');
-
-      const draft = createEmailDraft(testRecipient, error);
-
-      expect(draft.body).toContain(
-        'Error: Test\n  at /home/testuser/project/src/test.ts:10',
-      );
-    });
   });
 });

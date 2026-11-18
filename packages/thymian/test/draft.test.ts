@@ -14,6 +14,27 @@ describe('shortenHomeDir', () => {
         ),
       ).toBe('Error: x\n    at ~/project/src/a.js:1:2');
     });
+
+    it('shortens only the home directory, not a longer one it prefixes', () => {
+      expect(
+        shortenHomeDir(
+          'Error: x\n    at /home/alice/a.js:1\n    at /home/alicex/b.js:2',
+          options,
+        ),
+      ).toBe('Error: x\n    at ~/a.js:1\n    at /home/alicex/b.js:2');
+    });
+
+    it('leaves the stack untouched when the home directory is the root', () => {
+      const stack = 'Error: x\n    at /project/a.js:1:2';
+
+      expect(shortenHomeDir(stack, { ...options, home: '/' })).toBe(stack);
+    });
+
+    it('leaves the stack untouched when there is no home directory', () => {
+      const stack = 'Error: x\n    at /home/alice/a.js:1:2';
+
+      expect(shortenHomeDir(stack, { ...options, home: '' })).toBe(stack);
+    });
   });
 
   describe('on Windows', () => {
