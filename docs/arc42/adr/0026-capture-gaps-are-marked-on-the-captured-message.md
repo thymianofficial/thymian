@@ -52,9 +52,10 @@ We will mark Capture Gaps on the captured message, not in its data.
 - **The marker wins.** A message marked `headers-not-captured` answers `false` for every
   name, whatever headers it also carries. The repository stores the headers as given and
   does not reconcile the two.
-- **Storage.** The analyzer stores gaps in a separate `capture_gap` table with
-  `message_kind` (request or response), `message_id`, `kind` and a JSON `detail`, created
-  `IF NOT EXISTS`. A table rather than a column, because the analyzer can persist its
+- **Storage.** The analyzer stores gaps in `request_capture_gap` and
+  `response_capture_gap`, mirroring `http_request_header` and `http_response_header`: a
+  foreign key to the message, a `kind` and a JSON `detail`, created `IF NOT EXISTS`. Tables
+  rather than columns, because the analyzer can persist its
   database to a file across runs. `init.sql` only creates what is missing, so a new column
   would never reach an existing file, while a new table does. Rows written before this
   change read back with no gap, which is correct. Later kinds need no schema change.

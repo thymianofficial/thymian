@@ -77,17 +77,28 @@ CREATE TABLE IF NOT EXISTS http_request_query_parameter (
 );
 
 -- Parts of a captured message the traffic source did not record (ADR-0026).
--- A table, not a column, so a database file created before it gains it here.
-CREATE TABLE IF NOT EXISTS capture_gap (
+-- Tables, not columns, so a database file created before them gains them here.
+CREATE TABLE IF NOT EXISTS request_capture_gap (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    message_kind TEXT NOT NULL CHECK (message_kind IN ('request', 'response')),
-    message_id INTEGER NOT NULL,
+    request_id INTEGER NOT NULL,
     kind TEXT NOT NULL,
-    detail TEXT
+    detail TEXT,
+    FOREIGN KEY (request_id) REFERENCES http_request(id)
 );
 
-CREATE INDEX IF NOT EXISTS capture_gap_message
-    ON capture_gap (message_kind, message_id);
+CREATE INDEX IF NOT EXISTS request_capture_gap_request
+    ON request_capture_gap (request_id);
+
+CREATE TABLE IF NOT EXISTS response_capture_gap (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    response_id INTEGER NOT NULL,
+    kind TEXT NOT NULL,
+    detail TEXT,
+    FOREIGN KEY (response_id) REFERENCES http_response(id)
+);
+
+CREATE INDEX IF NOT EXISTS response_capture_gap_response
+    ON response_capture_gap (response_id);
 
 INSERT OR IGNORE INTO communication_role (name) VALUES
   ('intermediary'),
