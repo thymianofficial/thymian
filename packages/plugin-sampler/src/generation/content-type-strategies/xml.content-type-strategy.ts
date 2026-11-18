@@ -13,12 +13,16 @@ export class XmlContentTypeStrategy implements ContentTypeStrategy {
   }
 
   async generate(schema: ThymianSchema): Promise<ContentSource> {
-    const closed = forbiddingSubschemasToBoolean(schema) as SamplerSchema;
+    const samplerSchema = forbiddingSubschemasToBoolean(
+      schema,
+    ) as SamplerSchema;
 
     return {
       $encoding: 'utf-8',
       $ext: 'xml',
-      $buffer: Buffer.from(sample(closed, { format: 'xml' }, closed) as string),
+      $buffer: Buffer.from(
+        sample(samplerSchema, { format: 'xml' }, samplerSchema) as string,
+      ),
     };
   }
 }

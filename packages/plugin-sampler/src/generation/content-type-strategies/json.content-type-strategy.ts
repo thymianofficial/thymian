@@ -13,10 +13,12 @@ export class JsonContentTypeStrategy implements ContentTypeStrategy {
   }
 
   async generate(schema: ThymianSchema): Promise<ContentSource> {
-    const closed = forbiddingSubschemasToBoolean(schema) as SamplerSchema;
+    const samplerSchema = forbiddingSubschemasToBoolean(
+      schema,
+    ) as SamplerSchema;
 
     return {
-      $content: sample(closed, {}, closed),
+      $content: sample(samplerSchema, {}, samplerSchema),
     };
   }
 }
