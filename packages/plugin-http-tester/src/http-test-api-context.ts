@@ -60,39 +60,39 @@ function isSameLocation(
   return a.elementType === b.elementType && a.elementId === b.elementId;
 }
 
-function declaredAndLive(
-  transaction: Pick<HttpTestCaseStepTransaction, 'source' | 'response'>,
-): string {
-  return `the description declares ${transaction.source?.thymianRes.statusCode}, the server answered ${transaction.response?.statusCode}`;
-}
+/** A sent pair next to the transaction the specification declares for it. */
+type LivePair = {
+  source: ThymianHttpTransaction;
+  response: HttpResponse;
+};
 
-function hasStatusDrift(
-  transaction: Pick<HttpTestCaseStepTransaction, 'source' | 'response'>,
-): boolean {
-  return (
-    !!transaction.source &&
-    !!transaction.response &&
-    transaction.source.thymianRes.statusCode !== transaction.response.statusCode
-  );
+type LiveApplicability = ReturnType<typeof httpFilterToTransactionValidationFn>;
+
+function statusMismatchReason({ source, response }: LivePair): string {
+  return `the specification declares ${source.thymianRes.statusCode}, the server answered ${response.statusCode}`;
 }
 
 /**
  * The informational finding a named-form call adds to a pair it judged although
- * the live status differs from the declared one (ADR-0026). It neither skips nor
- * fails the execution.
+ * the live status differs from the declared one (ADR-0026), or `undefined` when
+ * the status is the declared one. It neither skips nor fails the execution.
  */
 function statusDriftResult(
   location: RuleViolationLocation,
-  transaction: Pick<HttpTestCaseStepTransaction, 'source' | 'response'>,
+  pair: LivePair,
   transactionIndex: number,
-): RuleFnResult {
+): RuleFnResult | undefined {
+  if (pair.source.thymianRes.statusCode === pair.response.statusCode) {
+    return undefined;
+  }
+
   return {
     location,
     findings: [
       {
         kind: 'informational',
         title: 'Status drift',
-        message: `The live status differs from the declared one: ${declaredAndLive(transaction)}.`,
+        message: `The live status differs from the declared one: ${statusMismatchReason(pair)}.`,
         transactionIndex,
       },
     ],
@@ -182,6 +182,36 @@ export class HttpTestApiContext<
     };
   }
 
+  /**
+   * The named form's live check of one sent pair (ADR-0026): whether
+   * `violatedWhen` judges it, and the result to report alongside — a
+   * `rule-skip` when `appliesTo` rejects the pair, a status-drift note when it
+   * is judged with a status the specification does not declare for it. The
+   * positional form (`liveAppliesTo` undefined) judges every pair, without note.
+   */
+  private checkLivePair(
+    liveAppliesTo: LiveApplicability | undefined,
+    pair: LivePair & { request: HttpRequest },
+    location: RuleViolationLocation,
+    transactionIndex: number,
+  ): { judge: boolean; result?: RuleFnResult } {
+    if (!liveAppliesTo) {
+      return { judge: true };
+    }
+
+    if (!liveAppliesTo(pair.request, pair.response, pair.source)) {
+      return {
+        judge: false,
+        result: this.notApplicableResult(location, statusMismatchReason(pair)),
+      };
+    }
+
+    return {
+      judge: true,
+      result: statusDriftResult(location, pair, transactionIndex),
+    };
+  }
+
   getRuleExecutionDiagnostics(): HttpTesterRuleDiagnostics | undefined {
     return this.diagnosticEntries.length > 0
       ? this.diagnosticEntries
@@ -242,17 +272,16 @@ export class HttpTestApiContext<
       const testCase = value as HttpTestCase<[GroupedHttpTestCaseStep]>;
       const { source, transactions } = testCase.steps[0];
 
+      const isLiveApplicable = ({
+        request,
+        response,
+        source,
+      }: HttpTestCaseStepTransaction & { source: ThymianHttpTransaction }) =>
+        !liveAppliesTo ||
+        (!!request && !!response && liveAppliesTo(request, response, source));
       const applicable = transactions.flatMap(
         (transaction, transactionIndex) =>
-          hasSource(transaction) &&
-          (!liveAppliesTo ||
-            (!!transaction.request &&
-              !!transaction.response &&
-              liveAppliesTo(
-                transaction.request,
-                transaction.response,
-                transaction.source,
-              )))
+          hasSource(transaction) && isLiveApplicable(transaction)
             ? [{ transaction, transactionIndex }]
             : [],
       );
@@ -260,9 +289,12 @@ export class HttpTestApiContext<
       if (liveAppliesTo && applicable.length === 0) {
         const reasons = transactions
           .filter(hasSource)
-          .map(
-            (transaction) =>
-              `${thymianHttpTransactionToString(transaction.source.thymianReq, transaction.source.thymianRes)}: ${declaredAndLive(transaction)}`,
+          .flatMap(({ source, response }) =>
+            response
+              ? [
+                  `${thymianHttpTransactionToString(source.thymianReq, source.thymianRes)}: ${statusMismatchReason({ source, response })}`,
+                ]
+              : [],
           );
         const result = this.notApplicableResult(
           `${this.name}:${testCase.name}`,
@@ -304,17 +336,19 @@ export class HttpTestApiContext<
 
       if (liveAppliesTo) {
         for (const { transaction, transactionIndex } of applicable) {
-          if (hasStatusDrift(transaction)) {
-            results.push(
-              statusDriftResult(
-                {
-                  elementId: transaction.source.transactionId,
-                  elementType: 'edge',
-                },
-                transaction,
-                transactionIndex,
-              ),
+          const { response } = transaction;
+          const drift =
+            response &&
+            statusDriftResult(
+              {
+                elementId: transaction.source.transactionId,
+                elementType: 'edge',
+              },
+              { source: transaction.source, response },
+              transactionIndex,
             );
+          if (drift) {
+            results.push(drift);
           }
         }
       }
@@ -398,13 +432,25 @@ export class HttpTestApiContext<
             elementId: source.transactionId,
           };
 
-          if (liveAppliesTo && !liveAppliesTo(request, response, source)) {
-            const result = this.notApplicableResult(
-              location,
-              declaredAndLive(transaction),
-            );
-            callViolations.push(result);
-            placements.push({ result, testCaseIndex, stepIndex });
+          const live = this.checkLivePair(
+            liveAppliesTo,
+            { request, response, source },
+            location,
+            transactionIndex,
+          );
+          const placeLiveResult = () => {
+            if (live.result) {
+              callViolations.push(live.result);
+              placements.push({
+                result: live.result,
+                testCaseIndex,
+                stepIndex,
+              });
+            }
+          };
+
+          if (!live.judge) {
+            placeLiveResult();
             continue;
           }
 
@@ -446,15 +492,7 @@ export class HttpTestApiContext<
             }
           }
 
-          if (liveAppliesTo && hasStatusDrift(transaction)) {
-            const result = statusDriftResult(
-              location,
-              transaction,
-              transactionIndex,
-            );
-            callViolations.push(result);
-            placements.push({ result, testCaseIndex, stepIndex });
-          }
+          placeLiveResult();
         }
       });
     });
@@ -608,13 +646,25 @@ export class HttpTestApiContext<
             pointer: '',
           };
 
-          if (liveAppliesTo && !liveAppliesTo(request, response, source)) {
-            const result = this.notApplicableResult(
-              location,
-              declaredAndLive(transaction),
-            );
-            callViolations.push(result);
-            placements.push({ result, testCaseIndex, stepIndex });
+          const live = this.checkLivePair(
+            liveAppliesTo,
+            { request, response, source },
+            location,
+            transactionIndex,
+          );
+          const placeLiveResult = () => {
+            if (live.result) {
+              callViolations.push(live.result);
+              placements.push({
+                result: live.result,
+                testCaseIndex,
+                stepIndex,
+              });
+            }
+          };
+
+          if (!live.judge) {
+            placeLiveResult();
             continue;
           }
 
@@ -640,15 +690,7 @@ export class HttpTestApiContext<
             }
           }
 
-          if (liveAppliesTo && hasStatusDrift(transaction)) {
-            const result = statusDriftResult(
-              location,
-              transaction,
-              transactionIndex,
-            );
-            callViolations.push(result);
-            placements.push({ result, testCaseIndex, stepIndex });
-          }
+          placeLiveResult();
         }
       });
     });

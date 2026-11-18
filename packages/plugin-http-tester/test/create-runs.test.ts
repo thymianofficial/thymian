@@ -838,7 +838,7 @@ describe('createRuns', () => {
       expect(execution.status).toMatchObject({
         kind: 'skipped',
         reason: expect.stringContaining(
-          'the description declares 401, the server answered 200',
+          'the specification declares 401, the server answered 200',
         ),
       });
     });
@@ -858,7 +858,7 @@ describe('createRuns', () => {
           title: 'Status drift',
           message: {
             text: expect.stringContaining(
-              'the description declares 401, the server answered 501',
+              'the specification declares 401, the server answered 501',
             ),
           },
           transactionIndex: 0,
