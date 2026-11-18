@@ -10,6 +10,18 @@ const FORBIDDING_SUBSCHEMA_KEYWORDS = new Set([
 ]);
 
 /**
+ * The keywords holding a name-to-schema map, where a member's name is not a
+ * keyword. Keep in step with `NESTED_SCHEMA.map` in `types/schema-type.ts`.
+ */
+const NAME_MAP_KEYWORDS = new Set([
+  '$defs',
+  'definitions',
+  'dependentSchemas',
+  'patternProperties',
+  'properties',
+]);
+
+/**
  * Restores the boolean form of a forbidding subschema where consumers misread
  * its object form.
  *
@@ -31,6 +43,10 @@ const FORBIDDING_SUBSCHEMA_KEYWORDS = new Set([
  * root, which the emitter cannot take as a boolean. A forbidding subschema
  * elsewhere means `never`, which the emitter is free to render however it
  * likes.
+ *
+ * The walk matches on names, except that a member of a name map (`$defs`,
+ * `properties`, …) is never taken for a keyword: a property or definition
+ * named `items` keeps its schema, and only its value is walked.
  */
 export function forbiddingSubschemasToBoolean(input: unknown): unknown {
   if (Array.isArray(input)) {
@@ -44,10 +60,19 @@ export function forbiddingSubschemasToBoolean(input: unknown): unknown {
   const out: Record<string, unknown> = {};
 
   for (const [key, value] of Object.entries(input)) {
-    out[key] =
-      FORBIDDING_SUBSCHEMA_KEYWORDS.has(key) && forbidsEverything(value)
-        ? false
-        : forbiddingSubschemasToBoolean(value);
+    if (NAME_MAP_KEYWORDS.has(key) && isRecord(value)) {
+      out[key] = Object.fromEntries(
+        Object.entries(value).map(([name, member]) => [
+          name,
+          forbiddingSubschemasToBoolean(member),
+        ]),
+      );
+    } else {
+      out[key] =
+        FORBIDDING_SUBSCHEMA_KEYWORDS.has(key) && forbidsEverything(value)
+          ? false
+          : forbiddingSubschemasToBoolean(value);
+    }
   }
 
   return out;

@@ -53,17 +53,37 @@ describe('forbiddingSubschemasToBoolean', () => {
     },
   );
 
-  it('should rewrite a key named additionalProperties or items wherever it sits', () => {
-    // Known and accepted: the walk is keyed on the name, not on the position,
-    // and only fires on exactly `{ not: {} }`.
+  describe.each([
+    '$defs',
+    'definitions',
+    'properties',
+    'patternProperties',
+    'dependentSchemas',
+  ])('in %s', (nameMap) => {
+    it.each(['additionalProperties', 'items'])(
+      'should never treat a member named %s as a forbidding subschema keyword',
+      (keyword) => {
+        const schema = { [nameMap]: { [keyword]: { not: {} } } };
+
+        expect(forbiddingSubschemasToBoolean(schema)).toEqual(schema);
+      },
+    );
+  });
+
+  it('should still walk the members of a name map', () => {
     expect(
       forbiddingSubschemasToBoolean({
         properties: {
-          additionalProperties: { not: {} },
-          items: { not: {} },
+          items: { type: 'array', items: { not: {} } },
+          properties: { additionalProperties: { not: {} } },
         },
       }),
-    ).toEqual({ properties: { additionalProperties: false, items: false } });
+    ).toEqual({
+      properties: {
+        items: { type: 'array', items: false },
+        properties: { additionalProperties: false },
+      },
+    });
   });
 
   it('should not mutate its input', () => {
