@@ -13,22 +13,22 @@ import type { HttpParticipantRole } from './rule-meta.js';
  */
 export type CaptureGap = { kind: 'headers-not-captured' };
 
+/** What a traffic source recorded about a captured message besides its data. */
+export type CapturedMessageMeta = {
+  /** The participant that sent this message. */
+  role?: HttpParticipantRole;
+  /** Parts of this message the traffic source did not record (ADR-0026). */
+  captureGaps?: CaptureGap[];
+};
+
 export type CapturedHttpRequest = {
   data: HttpRequest;
-  meta: {
-    role?: HttpParticipantRole;
-    /** Parts of this message the traffic source did not record (ADR-0026). */
-    captureGaps?: CaptureGap[];
-  };
+  meta: CapturedMessageMeta;
 };
 
 export type CapturedHttpResponse = {
   data: HttpResponse;
-  meta: {
-    role?: HttpParticipantRole;
-    /** Parts of this message the traffic source did not record (ADR-0026). */
-    captureGaps?: CaptureGap[];
-  };
+  meta: CapturedMessageMeta;
 };
 
 export type CapturedTransaction = {
