@@ -2,7 +2,6 @@ import { filter, map, type MonoTypeOperatorFunction, tap } from 'rxjs';
 
 import type {
   HttpRequestTemplate,
-  HttpResponse,
   ThymianHttpTransaction,
 } from '../../index.js';
 import {
@@ -65,13 +64,9 @@ export interface ExpectOrStep<
     step: (step: ReplyStepBuilder) => BuilderPipeline,
   ): ExpectOrStep<[...Transactions, Required<HttpTestCaseStepTransaction>]>;
 
-  /**
-   * Skips the test case when the last step's response matches `expression`.
-   * `message` may be built from that response, e.g. to name the live status.
-   */
   skipIf(
     expression: HttpFilterExpression,
-    message?: string | ((response: HttpResponse) => string),
+    message?: string,
   ): ExpectOrStep<Transactions>;
 
   done(): HttpTestPipeline<Record<PropertyKey, unknown>>;
@@ -165,7 +160,7 @@ export class SingleStepTestBuilder<
 
   skipIf(
     expression: HttpFilterExpression,
-    message?: string | ((response: HttpResponse) => string),
+    message?: string,
   ): ExpectOrStep<Transactions> {
     const operator: MonoTypeOperatorFunction<PipelineItem<HttpTestCase>> = map(
       ({ current, ctx }) => {
@@ -182,10 +177,7 @@ export class SingleStepTestBuilder<
             response &&
             compileResponseScopedToResponseChecker(expression, response)
           ) {
-            return ctx.skip(
-              current,
-              typeof message === 'function' ? message(response) : message,
-            );
+            return ctx.skip(current, message);
           }
         }
 
