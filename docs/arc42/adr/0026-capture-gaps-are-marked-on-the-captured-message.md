@@ -42,8 +42,10 @@ We will mark Capture Gaps on the captured message, not in its data.
 - **Shape.** `CapturedHttpRequest.meta` and `CapturedHttpResponse.meta` carry an optional
   `captureGaps?: CaptureGap[]`. `CaptureGap` is a closed union of variants tagged by `kind`.
   Today it has one member, `{ kind: 'headers-not-captured' }`. A further kind is added by
-  widening the union, the same discipline as `Rule Tag` and `Impossibility Reason`. thymianofficial/thymian-workspace#611
-  decides the shape of its kinds, including _header set filtered_. `HttpRequest` and
+  widening the union, the same discipline as `Rule Tag` and `Impossibility Reason`. The
+  shapes of the other three kinds, including what a _header set filtered_ gap records about
+  the dropped names, are left to the Envoy receiver work
+  (thymianofficial/thymian-workspace#611). `HttpRequest` and
   `HttpResponse` are unchanged, and `data.headers` stays an object.
 - **Rule contract.** Rules ask `isHeaderCaptured(message, name)`, which lives in core next
   to `getHeader`. They never read `meta.captureGaps` themselves. The question is per field
@@ -77,7 +79,8 @@ We will mark Capture Gaps on the captured message, not in its data.
   `proxy-must-forward-unrecognized-header-fields`,
   `proxy-may-transform-content-without-no-transform-directive`) no longer report a finding
   that rests only on a gap.
-- thymianofficial/thymian-workspace#611's kinds have a place to go that rules already consult.
+- The other three kinds the Envoy receiver names have a place to go that rules already
+  consult (thymianofficial/thymian-workspace#611).
 
 **Negative:**
 
@@ -87,23 +90,27 @@ We will mark Capture Gaps on the captured message, not in its data.
 - The marker covers only trace rules. SQL header filters (`requestHeader`, `responseHeader`,
   `not(...)`) and single-transaction rules do not consult it. A rule like "a 3xx must carry
   `Location`" would still flag a message whose headers were not captured. No traffic source
-  produces a gap on a single transaction today. thymianofficial/thymian-workspace#611 must teach the filter engine about gaps,
-  because a filtered header set needs it anyway.
-- A skipped pair leaves no trace in the report. Whether and how gaps are reported, for every
-  kind, is thymianofficial/thymian-workspace#611's question.
+  produces a gap on a single transaction today. Teaching the filter engine about gaps is left
+  to the Envoy receiver work (thymianofficial/thymian-workspace#611), because a filtered
+  header set needs it anyway.
+- A skipped pair leaves no trace in the report. Whether a report should say a pair was
+  skipped, and how, for every kind, is left to the Envoy receiver work
+  (thymianofficial/thymian-workspace#611).
 
 **Neutral:**
 
 - The HAR plugin raises no gaps. HAR 1.2 requires `headers`, so `[]` stays `{}`: captured,
-  with no fields. Stretched HAR's `_` fields belong to thymianofficial/thymian-workspace#611.
+  with no fields. Reading gaps from stretched HAR's `_` fields is left to the Envoy receiver
+  work (thymianofficial/thymian-workspace#611).
 - Trace rules that only stay silent when a field is missing
   (`intermediary-must-check-and-update-max-forwards`,
   `intermediary-should-remove-known-hop-by-hop-fields`,
   `intermediary-must-parse-and-remove-connection-fields`,
   `proxy-must-not-change-field-line-order`) can miss a violation on a gap but never invent
   one. They carry a note saying so, not a guard.
-- Trailers and bodies are out of scope. Trailers wait until a tap delivers them (thymianofficial/thymian-workspace#590). The
-  body kinds are thymianofficial/thymian-workspace#611's.
+- Trailers and bodies are out of scope. Trailers wait until a tap delivers them
+  (thymianofficial/thymian-workspace#590). Body not captured and body truncated are defined
+  with the other kinds in the Envoy receiver work (thymianofficial/thymian-workspace#611).
 
 ## Related
 
