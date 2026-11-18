@@ -1,6 +1,8 @@
 import { getHeader, type RuleFnResult } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
+import { forwardingHops } from '../../routing/utils/forwarding.js';
+
 /**
  * Normalizes a header value into an ordered list of individual field-line
  * values. When a field with the same name appeared on multiple lines the
@@ -41,32 +43,23 @@ export default httpRule('rfc9110/proxy-must-not-change-field-line-order')
     ctx.validateCapturedHttpTraces((trace, location) => {
       const results: RuleFnResult[] = [];
 
-      for (let i = 1; i < trace.length; i++) {
-        // In a captured trace the proxy's own leg carries meta.role === 'proxy';
-        // `prev` is that leg (its request is what the proxy received) and `curr`
-        // is the next hop (its request is what the proxy forwarded onward).
-        const prev = trace[i - 1];
-        const curr = trace[i];
-
-        if (!prev || !curr || prev.request.meta.role !== 'proxy') {
-          continue;
-        }
-
-        const inbound = prev.request.data.headers ?? {};
-        const outbound = curr.request.data.headers;
+      for (const { inbound, outbound } of forwardingHops(trace, ['proxy'])) {
+        // The proxy received `inbound.request` and forwarded `outbound.request`.
+        const received = inbound.request.data.headers ?? {};
+        const forwarded = outbound.request.data.headers;
 
         // Compare the relative order of every same-name multi-line field.
         const seen = new Set<string>();
         const changed: string[] = [];
-        for (const rawName of Object.keys(inbound)) {
+        for (const rawName of Object.keys(received)) {
           const name = rawName.toLowerCase();
           if (seen.has(name)) {
             continue;
           }
           seen.add(name);
 
-          const before = fieldLineValues(getHeader(inbound, name));
-          const after = fieldLineValues(getHeader(outbound, name));
+          const before = fieldLineValues(getHeader(received, name));
+          const after = fieldLineValues(getHeader(forwarded, name));
 
           if (!before || !after || before.length !== after.length) {
             // If the field was combined/split or dropped, its ordering can no

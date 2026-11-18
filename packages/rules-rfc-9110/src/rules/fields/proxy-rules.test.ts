@@ -24,13 +24,13 @@ const runOnTrace = (
 const NOT_CAPTURED: CaptureGap[] = [{ kind: 'headers-not-captured' }];
 
 /**
- * Builds one captured hop. In a captured trace a hop's meta.role identifies the
- * participant whose leg it is, so the proxy's own leg (the request it received)
- * carries role 'proxy' and the leg it forwarded onward carries the next hop's
- * role (e.g. 'origin server').
+ * Builds one captured hop from `from` to `to`. `meta.role` names the
+ * participant that sent each message, so the request carries `from` and the
+ * response `to`, as in recorded traffic.
  */
 function hop(
-  role: HttpParticipantRole,
+  from: HttpParticipantRole,
+  to: HttpParticipantRole,
   headers: Record<string, string | string[] | undefined>,
   captureGaps?: CaptureGap[],
 ): CapturedTransaction {
@@ -42,11 +42,11 @@ function hop(
         path: '/',
         headers,
       },
-      meta: { role, ...(captureGaps && { captureGaps }) },
+      meta: { role: from, ...(captureGaps && { captureGaps }) },
     },
     response: {
       data: { statusCode: 200, headers: {}, trailers: {}, duration: 1 },
-      meta: { role },
+      meta: { role: to },
     },
   };
 }
@@ -57,8 +57,12 @@ const forwardRule = proxyMustForwardUnrecognizedHeaderFields;
 describe('proxy-must-not-change-field-line-order', () => {
   it('flags a proxy that reorders same-name field lines when forwarding', async () => {
     const trace: CapturedTrace = [
-      hop('proxy', { 'x-forwarded-for': ['10.0.0.1', '10.0.0.2'] }),
-      hop('origin server', { 'x-forwarded-for': ['10.0.0.2', '10.0.0.1'] }),
+      hop('user-agent', 'proxy', {
+        'x-forwarded-for': ['10.0.0.1', '10.0.0.2'],
+      }),
+      hop('proxy', 'origin server', {
+        'x-forwarded-for': ['10.0.0.2', '10.0.0.1'],
+      }),
     ];
 
     const results = await runOnTrace(orderRule, trace);
@@ -69,8 +73,25 @@ describe('proxy-must-not-change-field-line-order', () => {
 
   it('does not flag when the proxy preserves field-line order', async () => {
     const trace: CapturedTrace = [
-      hop('proxy', { 'x-forwarded-for': ['10.0.0.1', '10.0.0.2'] }),
-      hop('origin server', { 'x-forwarded-for': ['10.0.0.1', '10.0.0.2'] }),
+      hop('user-agent', 'proxy', {
+        'x-forwarded-for': ['10.0.0.1', '10.0.0.2'],
+      }),
+      hop('proxy', 'origin server', {
+        'x-forwarded-for': ['10.0.0.1', '10.0.0.2'],
+      }),
+    ];
+
+    expect(await runOnTrace(orderRule, trace)).toHaveLength(0);
+  });
+
+  it('does not judge a gateway that reorders field lines', async () => {
+    const trace: CapturedTrace = [
+      hop('user-agent', 'gateway', {
+        'x-forwarded-for': ['10.0.0.1', '10.0.0.2'],
+      }),
+      hop('gateway', 'origin server', {
+        'x-forwarded-for': ['10.0.0.2', '10.0.0.1'],
+      }),
     ];
 
     expect(await runOnTrace(orderRule, trace)).toHaveLength(0);
@@ -80,8 +101,11 @@ describe('proxy-must-not-change-field-line-order', () => {
 describe('proxy-must-forward-unrecognized-header-fields', () => {
   it('flags a field present on the received request but dropped when forwarded', async () => {
     const trace: CapturedTrace = [
-      hop('proxy', { 'x-custom': 'v', accept: 'application/json' }),
-      hop('origin server', { accept: 'application/json' }),
+      hop('user-agent', 'proxy', {
+        'x-custom': 'v',
+        accept: 'application/json',
+      }),
+      hop('proxy', 'origin server', { accept: 'application/json' }),
     ];
 
     const results = await runOnTrace(forwardRule, trace);
@@ -92,8 +116,17 @@ describe('proxy-must-forward-unrecognized-header-fields', () => {
 
   it('does not flag when every received field is forwarded', async () => {
     const trace: CapturedTrace = [
-      hop('proxy', { 'x-custom': 'v' }),
-      hop('origin server', { 'x-custom': 'v' }),
+      hop('user-agent', 'proxy', { 'x-custom': 'v' }),
+      hop('proxy', 'origin server', { 'x-custom': 'v' }),
+    ];
+
+    expect(await runOnTrace(forwardRule, trace)).toHaveLength(0);
+  });
+
+  it('does not judge a gateway that drops a received field', async () => {
+    const trace: CapturedTrace = [
+      hop('user-agent', 'gateway', { 'x-custom': 'v', accept: '*/*' }),
+      hop('gateway', 'origin server', { accept: '*/*' }),
     ];
 
     expect(await runOnTrace(forwardRule, trace)).toHaveLength(0);
@@ -101,8 +134,12 @@ describe('proxy-must-forward-unrecognized-header-fields', () => {
 
   it('excepts Connection-listed and hop-by-hop fields, flagging only genuine drops', async () => {
     const trace: CapturedTrace = [
-      hop('proxy', { connection: 'x-hop', 'x-hop': 'v', 'x-real': 'v' }),
-      hop('origin server', { host: 'example.com' }),
+      hop('user-agent', 'proxy', {
+        connection: 'x-hop',
+        'x-hop': 'v',
+        'x-real': 'v',
+      }),
+      hop('proxy', 'origin server', { host: 'example.com' }),
     ];
 
     const results = await runOnTrace(forwardRule, trace);
@@ -124,8 +161,8 @@ describe('proxy-must-forward-unrecognized-header-fields', () => {
     'flags every received field when the forwarded hop was recorded with %s',
     async (_, forwardedHeaders) => {
       const trace: CapturedTrace = [
-        hop('proxy', { 'x-custom': 'v' }),
-        hop('origin server', forwardedHeaders),
+        hop('user-agent', 'proxy', { 'x-custom': 'v' }),
+        hop('proxy', 'origin server', forwardedHeaders),
       ];
 
       const results = await runOnTrace(forwardRule, trace);
@@ -142,8 +179,8 @@ describe('proxy-must-forward-unrecognized-header-fields', () => {
     'does not flag when the forwarded hop has %s and its headers not captured',
     async (_, forwardedHeaders) => {
       const trace: CapturedTrace = [
-        hop('proxy', { 'x-custom': 'v' }),
-        hop('origin server', forwardedHeaders, NOT_CAPTURED),
+        hop('user-agent', 'proxy', { 'x-custom': 'v' }),
+        hop('proxy', 'origin server', forwardedHeaders, NOT_CAPTURED),
       ];
 
       expect(await runOnTrace(forwardRule, trace)).toHaveLength(0);
