@@ -1,11 +1,10 @@
-import {
-  getHeader,
-  httpRule,
-  isHeaderCaptured,
-  type RuleFnResult,
-} from '@thymian/core';
+import { getHeader, httpRule, type RuleFnResult } from '@thymian/core';
 
-import { forwardingHops, parseMaxForwards } from '../../utils/forwarding.js';
+import {
+  forwardingHops,
+  isHeaderCapturedOnBoth,
+  parseMaxForwards,
+} from '../../utils/forwarding.js';
 
 export default httpRule(
   'rfc9110/intermediary-must-generate-updated-max-forwards-when-forwarding',
@@ -32,8 +31,11 @@ export default httpRule(
         }
         // A hop whose field was not captured cannot show what was forwarded.
         if (
-          !isHeaderCaptured(inbound.request, 'max-forwards') ||
-          !isHeaderCaptured(outbound.request, 'max-forwards')
+          !isHeaderCapturedOnBoth(
+            inbound.request,
+            outbound.request,
+            'max-forwards',
+          )
         ) {
           continue;
         }

@@ -5,7 +5,10 @@ import {
   type RuleFnResult,
 } from '@thymian/core';
 
-import { forwardingHops } from '../../routing/utils/forwarding.js';
+import {
+  forwardingHops,
+  isHeaderCapturedOnBoth,
+} from '../../routing/utils/forwarding.js';
 
 // Fields a proxy may legitimately drop, so they are never treated as a
 // non-forwarded end-to-end field: hop-by-hop controls plus routing metadata a
@@ -65,8 +68,7 @@ export default httpRule('rfc9110/proxy-must-forward-unrecognized-header-fields')
             (name) =>
               !excepted.has(name) &&
               // A field not captured on either side cannot show a drop.
-              isHeaderCaptured(received, name) &&
-              isHeaderCaptured(forwarded, name) &&
+              isHeaderCapturedOnBoth(received, forwarded, name) &&
               getHeader(forwardedHeaders, name) === undefined,
           );
         if (dropped.length > 0) {
