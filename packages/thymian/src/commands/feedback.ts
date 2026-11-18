@@ -54,26 +54,20 @@ export class Feedback extends ThymianBaseCommand<typeof Feedback> {
   }
 
   /**
-   * Skip `ThymianBaseCommand.catch()`, which writes an error record: whatever
-   * fails inside `feedback` — the refusal, Ctrl+C, `open()` — must never
-   * overwrite the record the user is about to send. oclif's own handling
-   * still runs; its `catch` is protected, hence the cast.
+   * Whatever fails inside `feedback` — the refusal, Ctrl+C, `open()` — must
+   * never overwrite the record the user is about to send.
    */
+  protected override shouldWriteErrorRecord(): boolean {
+    return false;
+  }
+
+  /** Ctrl+C at a prompt: a normal interrupt, not an error. */
   protected override async catch(
     err: oclif.Interfaces.CommandError,
   ): Promise<void> {
-    const oclifCatch = (
-      oclif.Command.prototype as unknown as {
-        catch(err: oclif.Interfaces.CommandError): Promise<void>;
-      }
-    ).catch;
-
-    // Ctrl+C at a prompt: a normal interrupt, not an error.
-    if (err.name === 'ExitPromptError') {
-      return oclifCatch.call(this, new oclif.Errors.ExitError(130));
-    }
-
-    return oclifCatch.call(this, err);
+    return super.catch(
+      err.name === 'ExitPromptError' ? new oclif.Errors.ExitError(130) : err,
+    );
   }
 
   override async run(): Promise<void> {
