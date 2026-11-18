@@ -45,7 +45,7 @@ We will drop the status-code gate only where a live applicability check replaces
   would reach the validation function unchecked. Removing the positional overloads, as
   ADR-0025 intended, is a separate change (thymian-workspace#779).
 - **A pair the live re-check rejects is `skipped`, not `passed`.** It surfaces as a
-  `rule-skip` whose reason names the declared and the live status ("the description
+  `rule-skip` whose reason names the declared and the live status ("the specification
   declares 401, the server answered 200"). The exit code is unaffected
   ([ADR-0015](0015-cli-exit-status-is-severity-independent.md) counts only `failed`). A
   grouped call judges the transactions that pass the re-check and says nothing about the
