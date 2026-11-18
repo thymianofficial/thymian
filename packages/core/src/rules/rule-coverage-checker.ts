@@ -156,7 +156,7 @@ function informationalCellViolations(
       {
         code: 'informational-cell-contradicts-reason',
         rule: name,
-        message: `'${name}' is informational because '${wholeRuleReason ?? 'unknown'}', which holds in every context; only a 'tool-limitation' rule may carry per-context cells.`,
+        message: `'${name}' is informational because '${wholeRuleReason ?? 'unknown'}', which holds in every context, yet its entry carries cells for ${overridden.map(({ context }) => `'${context}'`).join(', ')}; only a 'tool-limitation' rule may carry per-context cells.`,
       },
     ];
   }

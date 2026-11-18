@@ -347,7 +347,7 @@ describe('coverage checker', () => {
           code: 'informational-cell-contradicts-reason',
           rule: 'pure-definition',
           message: expect.stringMatching(
-            /'pure-definition'.*'nothing-to-check'/,
+            /'pure-definition'.*'nothing-to-check'.*'static'/,
           ),
         },
       ]);
