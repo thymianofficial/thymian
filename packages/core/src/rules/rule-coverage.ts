@@ -23,7 +23,7 @@ import type { RuleSeverity } from './rule-severity.js';
 // deliberately excluded: it is a whole-rule verdict, not a context a check
 // runs in. An informational rule's cells default to its whole-rule reason;
 // the record may only refine that per context, under the narrow terms
-// `InformationalCoverageCell` below sets.
+// `CoverageEntry`'s informational branch below sets.
 export type CoverageContext = Exclude<RuleType, 'informational'>;
 
 export const coverageContexts: readonly CoverageContext[] = [
@@ -49,34 +49,25 @@ export type CoverageVerdict = 'observable' | 'heuristic' | 'impossible';
 // branch as an `Exclude` gives the branches disjoint discriminants, which is
 // what lets `reason === 'tool-limitation'` narrow to the branch that has
 // `.issue` — the fix on thymianofficial/thymian#406, repeated here.
+//
+// `PermanentImpossibleCell` is that non-`tool-limitation` branch, named once
+// because the informational entry's `contexts` takes exactly it.
+export type PermanentImpossibleCell = {
+  verdict: 'impossible';
+  reason: Exclude<ContextReason, 'tool-limitation'>;
+  note: string;
+};
+
 export type CoverageCell =
   | 'observable'
   | 'heuristic'
-  | {
-      verdict: 'impossible';
-      reason: Exclude<ContextReason, 'tool-limitation'>;
-      note: string;
-    }
+  | PermanentImpossibleCell
   | {
       verdict: 'impossible';
       reason: 'tool-limitation';
       issue: IssueReference;
       note: string;
     };
-
-// The only cell an informational entry may carry: the tier-2 reason that
-// holds in one context of a rule whose whole-rule reason is
-// `tool-limitation` (ADR-0021 §5). No bare 'observable'/'heuristic' — an
-// informational rule observes nothing — and no `tool-limitation`, which
-// would be a second, driftable copy of the rule's own tool gap and its
-// issue. What the type cannot see — the rule's actual whole-rule reason,
-// and that at least one context keeps it — the checker refuses
-// (`informational-cell-contradicts-reason`).
-type InformationalCoverageCell = {
-  verdict: 'impossible';
-  reason: Exclude<ContextReason, 'tool-limitation'>;
-  note: string;
-};
 
 // The declared denominator. A source with no denominator never refuses a
 // package — some documents have none — but an undeclared counting rule
@@ -112,7 +103,7 @@ export type CoverageUnits = Record<string, string>;
 // type — a real type mismatch, not a leniently-ignored excess key.
 //
 // The informational branch's `contexts` takes only
-// `InformationalCoverageCell`, so a bare literal or a `tool-limitation`
+// `PermanentImpossibleCell`, so a bare literal or a `tool-limitation`
 // cell there is refused at author time. Whether cells are allowed at all
 // depends on the rule's whole-rule reason, which lives in the rule file
 // this module never sees — that part is the checker's.
@@ -127,7 +118,15 @@ export type CoverageEntry<Units extends CoverageUnits = CoverageUnits> =
   | {
       covers: (keyof Units)[];
       declared: { types: readonly ['informational']; severity: RuleSeverity };
-      contexts?: Partial<Record<CoverageContext, InformationalCoverageCell>>;
+      // The only cell an informational entry may carry: the tier-2 reason
+      // that holds in one context of a rule whose whole-rule reason is
+      // `tool-limitation` (ADR-0021 §5). No bare 'observable'/'heuristic' —
+      // an informational rule observes nothing — and no `tool-limitation`,
+      // which would be a second, driftable copy of the rule's own tool gap
+      // and its issue. What the type cannot see — the rule's actual
+      // whole-rule reason, and that at least one context keeps it — the
+      // checker refuses (`informational-cell-contradicts-reason`).
+      contexts?: Partial<Record<CoverageContext, PermanentImpossibleCell>>;
     }
   | {
       covers: (keyof Units)[];
