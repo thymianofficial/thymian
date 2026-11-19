@@ -13,6 +13,7 @@
 import type { Rule } from './rule.js';
 import type { CoverageContext, CoverageRecord } from './rule-coverage.js';
 import { coverageContexts } from './rule-coverage.js';
+import { overridingCell } from './rule-coverage-cell.js';
 import type { RuleSeverity } from './rule-severity.js';
 import {
   type RuleTag,
@@ -163,14 +164,14 @@ function cellSymbol(
 ): string {
   const entry = record.rules[rule.meta.name];
   if (rule.meta.type.includes('informational')) {
-    // A cell names the tier-2 reason that holds in this context of a
-    // `tool-limitation` rule; a context without one keeps the whole-rule
-    // reason, as does a bare literal, which the checker refuses.
-    const cell = entry?.contexts?.[context];
+    // A cell renders only where `overridingCell` accepts it — the tier-2
+    // reason that holds in this context of a `tool-limitation` rule. Every
+    // other context, including one whose cell the checker refuses, renders
+    // the whole-rule reason.
     const reason =
-      cell !== undefined && typeof cell !== 'string'
-        ? cell.reason
-        : (rule.meta.impossibility?.reason ?? 'unknown');
+      overridingCell(rule, context, entry?.contexts?.[context])?.reason ??
+      rule.meta.impossibility?.reason ??
+      'unknown';
     return `impossible (${reason})`;
   }
 

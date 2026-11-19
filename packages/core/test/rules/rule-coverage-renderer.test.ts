@@ -283,6 +283,94 @@ describe('coverage renderer', () => {
     );
   });
 
+  describe('an informational cell the checker refuses never renders', () => {
+    function renderRow(rule: Rule, contexts: Record<string, unknown>) {
+      const record = defineCoverage({
+        source,
+        units: {},
+        rules: {
+          [rule.meta.name]: {
+            covers: [],
+            declared: {
+              types: ['informational'],
+              severity: rule.meta.severity,
+            },
+          },
+        },
+      });
+      // Runtime-drift simulation: some of these cells are refused by the
+      // type; a loaded record no longer has that guarantee.
+      (record.rules[rule.meta.name] as { contexts?: unknown }).contexts =
+        contexts;
+      return renderCoverage({
+        record,
+        rulesByTopic: { main: [rule] },
+        profiles: {},
+      });
+    }
+
+    const pureDefinition = httpRule('pure-definition')
+      .severity('off')
+      .type(
+        'informational',
+        'nothing-to-check',
+        'A definition no message can violate.',
+      )
+      .done();
+    const splitHeader = httpRule('split-header')
+      .severity('error')
+      .type(
+        'informational',
+        'tool-limitation',
+        'thymianofficial/thymian#1',
+        'Thymian cannot yet send the request this needs.',
+      )
+      .done();
+
+    it('renders the whole-rule reason over a cell under a world-claim reason', () => {
+      const output = renderRow(pureDefinition, {
+        static: {
+          verdict: 'impossible',
+          reason: 'not-representable',
+          note: 'An API description cannot declare the request.',
+        },
+      });
+
+      expect(output).toContain(
+        '| pure-definition | impossible (nothing-to-check) | impossible (nothing-to-check) | impossible (nothing-to-check) |',
+      );
+    });
+
+    it('renders the whole-rule reason over a tool-limitation cell under a world-claim reason', () => {
+      const output = renderRow(pureDefinition, {
+        test: {
+          verdict: 'impossible',
+          reason: 'tool-limitation',
+          issue: 'thymianofficial/thymian#1',
+          note: 'Thymian cannot yet send the request this needs.',
+        },
+      });
+
+      expect(output).toContain(
+        '| pure-definition | impossible (nothing-to-check) | impossible (nothing-to-check) | impossible (nothing-to-check) |',
+      );
+    });
+
+    it('renders the whole-rule reason over a cell with an empty note', () => {
+      const output = renderRow(splitHeader, {
+        static: {
+          verdict: 'impossible',
+          reason: 'not-representable',
+          note: '',
+        },
+      });
+
+      expect(output).toContain(
+        '| split-header | impossible (tool-limitation) | impossible (tool-limitation) | impossible (tool-limitation) |',
+      );
+    });
+  });
+
   // A plain word: `~text~` is GitHub-flavoured strikethrough, and the
   // generator's Prettier pass rewrites it to `~~text~~`, so a marker built from
   // tildes renders a heuristic cell crossed out — read as "not heuristic".

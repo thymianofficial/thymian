@@ -54,7 +54,8 @@ export function undeclaredCellShape(
 // `tool-limitation` (ADR-0021 §5). Anything else — no cell, a bare literal,
 // an empty note, a cell under a world-claim reason, a cell restating the
 // tool gap — leaves the context on the whole-rule reason. The checker counts
-// only these cells towards "every context overridden".
+// only these cells towards "every context overridden", and the renderer
+// renders only these.
 export function overridingCell(
   rule: Rule,
   context: CoverageContext,
