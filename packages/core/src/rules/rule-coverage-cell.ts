@@ -6,7 +6,7 @@ import type { Rule } from './rule.js';
 import type {
   CoverageCell,
   CoverageContext,
-  PermanentImpossibleCell,
+  ImpossibleCellWithoutIssue,
 } from './rule-coverage.js';
 import type { CoverageViolation } from './rule-coverage-checker.js';
 
@@ -60,7 +60,7 @@ export function overridingCell(
   rule: Rule,
   context: CoverageContext,
   cell: CoverageCell | undefined,
-): PermanentImpossibleCell | undefined {
+): ImpossibleCellWithoutIssue | undefined {
   if (
     cell === undefined ||
     rule.meta.impossibility?.reason !== 'tool-limitation'

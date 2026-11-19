@@ -50,9 +50,9 @@ export type CoverageVerdict = 'observable' | 'heuristic' | 'impossible';
 // what lets `reason === 'tool-limitation'` narrow to the branch that has
 // `.issue` — the fix on thymianofficial/thymian#406, repeated here.
 //
-// `PermanentImpossibleCell` is that non-`tool-limitation` branch, named once
+// `ImpossibleCellWithoutIssue` is that non-`tool-limitation` branch, named once
 // because the informational entry's `contexts` takes exactly it.
-export type PermanentImpossibleCell = {
+export type ImpossibleCellWithoutIssue = {
   verdict: 'impossible';
   reason: Exclude<ContextReason, 'tool-limitation'>;
   note: string;
@@ -61,7 +61,7 @@ export type PermanentImpossibleCell = {
 export type CoverageCell =
   | 'observable'
   | 'heuristic'
-  | PermanentImpossibleCell
+  | ImpossibleCellWithoutIssue
   | {
       verdict: 'impossible';
       reason: 'tool-limitation';
@@ -103,7 +103,7 @@ export type CoverageUnits = Record<string, string>;
 // type — a real type mismatch, not a leniently-ignored excess key.
 //
 // The informational branch's `contexts` takes only
-// `PermanentImpossibleCell`, so a bare literal or a `tool-limitation`
+// `ImpossibleCellWithoutIssue`, so a bare literal or a `tool-limitation`
 // cell there is refused at author time. Whether cells are allowed at all
 // depends on the rule's whole-rule reason, which lives in the rule file
 // this module never sees — that part is the checker's.
@@ -126,7 +126,7 @@ export type CoverageEntry<Units extends CoverageUnits = CoverageUnits> =
       // and its issue. What the type cannot see — the rule's actual
       // whole-rule reason, and that at least one context keeps it — the
       // checker refuses (`informational-cell-contradicts-reason`).
-      contexts?: Partial<Record<CoverageContext, PermanentImpossibleCell>>;
+      contexts?: Partial<Record<CoverageContext, ImpossibleCellWithoutIssue>>;
     }
   | {
       covers: (keyof Units)[];
