@@ -38,6 +38,7 @@ import type {
   CoverageRecord,
 } from './rule-coverage.js';
 import { coverageContexts } from './rule-coverage.js';
+import { nonEmpty, undeclaredCellShape } from './rule-coverage-cell.js';
 import type { RuleType } from './rule-meta.js';
 
 export type CoverageViolationCode =
@@ -93,40 +94,8 @@ function isWellFormedIssueReference(value: unknown): value is string {
   return typeof value === 'string' && issueReferencePattern.test(value);
 }
 
-function nonEmpty(value: string | undefined): boolean {
-  return value !== undefined && value.trim().length > 0;
-}
-
 function inScope(name: string, scope: readonly string[] | undefined): boolean {
   return scope === undefined || scope.includes(name);
-}
-
-// The shape every cell for a context a rule does not declare must have: an
-// object with a non-empty note, never a bare literal. Shared by executable
-// and informational entries — every context of an informational rule is
-// undeclared — so the same fault reads the same for every rule.
-function undeclaredCellShapeViolation(
-  ruleName: string,
-  context: CoverageContext,
-  cell: CoverageCell,
-): CoverageViolation | undefined {
-  if (typeof cell === 'string') {
-    return {
-      code: 'undeclared-context-cell-invalid',
-      rule: ruleName,
-      context,
-      message: `'${ruleName}' does not declare '${context}', but its cell is the bare literal '${cell}' rather than an impossible cell with a reason and a note.`,
-    };
-  }
-  if (!nonEmpty(cell.note)) {
-    return {
-      code: 'undeclared-context-cell-invalid',
-      rule: ruleName,
-      context,
-      message: `'${ruleName}''s cell for '${context}' has an empty note.`,
-    };
-  }
-  return undefined;
 }
 
 // Per-context cells on an informational entry refine a `tool-limitation`
@@ -170,10 +139,10 @@ function informationalCellViolations(
     });
   }
   for (const { context, cell } of overridden) {
-    const shapeViolation = undeclaredCellShapeViolation(name, context, cell);
-    if (shapeViolation !== undefined) {
-      violations.push(shapeViolation);
-    } else if (typeof cell !== 'string' && cell.reason === 'tool-limitation') {
+    const shape = undeclaredCellShape(name, context, cell);
+    if ('violation' in shape) {
+      violations.push(shape.violation);
+    } else if (shape.cell.reason === 'tool-limitation') {
       violations.push({
         code: 'informational-cell-contradicts-reason',
         rule: name,
@@ -298,17 +267,12 @@ export function checkCoverage(input: CoverageCheckInput): CoverageViolation[] {
         });
         continue;
       }
-      const shapeViolation = undeclaredCellShapeViolation(
-        rule.meta.name,
-        context,
-        cell,
-      );
-      if (shapeViolation !== undefined) {
-        violations.push(shapeViolation);
+      const shape = undeclaredCellShape(rule.meta.name, context, cell);
+      if ('violation' in shape) {
+        violations.push(shape.violation);
       } else if (
-        typeof cell !== 'string' &&
-        cell.reason === 'tool-limitation' &&
-        !isWellFormedIssueReference(cell.issue)
+        shape.cell.reason === 'tool-limitation' &&
+        !isWellFormedIssueReference(shape.cell.issue)
       ) {
         // Assertion: every tool-limitation cell carries a well-formed
         // issue reference.
@@ -316,7 +280,7 @@ export function checkCoverage(input: CoverageCheckInput): CoverageViolation[] {
           code: 'malformed-tool-limitation-issue',
           rule: rule.meta.name,
           context,
-          message: `'${rule.meta.name}''s tool-limitation cell for '${context}' carries a malformed issue reference: ${JSON.stringify(cell.issue)}.`,
+          message: `'${rule.meta.name}''s tool-limitation cell for '${context}' carries a malformed issue reference: ${JSON.stringify(shape.cell.issue)}.`,
         });
       }
     }
