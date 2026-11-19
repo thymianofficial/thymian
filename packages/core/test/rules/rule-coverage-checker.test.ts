@@ -386,6 +386,78 @@ describe('coverage checker', () => {
       ]);
     });
 
+    it('does not count a cell restating tool-limitation as overriding its context', () => {
+      const rule = toolLimitedRule('split-header');
+      const record = defineCoverage({
+        source,
+        units,
+        rules: {
+          'split-header': {
+            covers: ['1.1'],
+            declared: { types: ['informational'], severity: 'error' },
+            contexts: {
+              static: notRepresentable,
+              analytics: requiresControlledInput,
+            },
+          },
+        },
+      });
+      // Runtime-drift simulation: the type refuses a tool-limitation cell
+      // on an informational entry; a loaded record no longer has that
+      // guarantee.
+      (
+        record.rules['split-header'] as { contexts: Record<string, unknown> }
+      ).contexts.test = {
+        verdict: 'impossible',
+        reason: 'tool-limitation',
+        issue: 'thymianofficial/thymian#1',
+        note: 'Thymian cannot yet send the request this needs.',
+      };
+
+      const violations = checkCoverage({ record, rules: [rule] });
+
+      expect(violations).toEqual([
+        {
+          code: 'informational-cell-contradicts-reason',
+          rule: 'split-header',
+          context: 'test',
+          message: expect.stringMatching(/'split-header'.*'test'.*restates/),
+        },
+      ]);
+    });
+
+    it('does not count a bare literal cell as overriding its context', () => {
+      const rule = toolLimitedRule('split-header');
+      const record = defineCoverage({
+        source,
+        units,
+        rules: {
+          'split-header': {
+            covers: ['1.1'],
+            declared: { types: ['informational'], severity: 'error' },
+            contexts: {
+              static: notRepresentable,
+              analytics: requiresControlledInput,
+            },
+          },
+        },
+      });
+      (
+        record.rules['split-header'] as { contexts: Record<string, unknown> }
+      ).contexts.test = 'observable';
+
+      const violations = checkCoverage({ record, rules: [rule] });
+
+      expect(violations).toEqual([
+        {
+          code: 'undeclared-context-cell-invalid',
+          rule: 'split-header',
+          context: 'test',
+          message: expect.stringMatching(/'split-header'.*'test'/),
+        },
+      ]);
+    });
+
     it('refuses a tool-limitation cell found in a loaded record', () => {
       const rule = toolLimitedRule('split-header');
       const record = defineCoverage({

@@ -263,9 +263,10 @@ of this.
   a declared context defaults to `observable`; the only value ever written for one is
   `heuristic`. An informational rule's entry carries cells only under a
   `tool-limitation` reason: each cell names the tier-2 reason that holds in its context, a
-  context without one renders the whole-rule reason, and the checker refuses cells under a
-  world-claim, a cell that restates `tool-limitation`, and an entry that overrides every
-  context, because each would contradict the rule's own reason. _(Amended 2026-11-18; see
+  context without such a cell renders the whole-rule reason, and the checker refuses cells
+  under a world-claim, a cell that restates `tool-limitation`, and an entry whose
+  well-formed cells name a reason other than `tool-limitation` in every context, because
+  each would contradict the rule's own reason. A cell the checker refuses never renders. _(Amended 2026-11-18; see
   Status History.)_ There is no `.covers()` on the rule builder: what a rule discharges is a
   second, driftable claim if restated on the rule itself, so it is declared exactly once,
   here.

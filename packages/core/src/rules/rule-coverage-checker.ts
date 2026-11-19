@@ -38,7 +38,11 @@ import type {
   CoverageRecord,
 } from './rule-coverage.js';
 import { coverageContexts } from './rule-coverage.js';
-import { nonEmpty, undeclaredCellShape } from './rule-coverage-cell.js';
+import {
+  nonEmpty,
+  overridingCell,
+  undeclaredCellShape,
+} from './rule-coverage-cell.js';
 import type { RuleType } from './rule-meta.js';
 
 export type CoverageViolationCode =
@@ -111,11 +115,11 @@ function informationalCellViolations(
   const name = rule.meta.name;
   // Widened to the executable cell type on purpose: the record may have
   // been loaded past the type that keeps these cells narrower.
-  const overridden = coverageContexts.flatMap((context) => {
+  const carried = coverageContexts.flatMap((context) => {
     const cell: CoverageCell | undefined = entry.contexts?.[context];
     return cell === undefined ? [] : [{ context, cell }];
   });
-  if (overridden.length === 0) {
+  if (carried.length === 0) {
     return [];
   }
 
@@ -125,12 +129,17 @@ function informationalCellViolations(
       {
         code: 'informational-cell-contradicts-reason',
         rule: name,
-        message: `'${name}' is informational because '${wholeRuleReason ?? 'unknown'}', which holds in every context, yet its entry carries cells for ${overridden.map(({ context }) => `'${context}'`).join(', ')}; only a 'tool-limitation' rule may carry per-context cells.`,
+        message: `'${name}' is informational because '${wholeRuleReason ?? 'unknown'}', which holds in every context, yet its entry carries cells for ${carried.map(({ context }) => `'${context}'`).join(', ')}; only a 'tool-limitation' rule may carry per-context cells.`,
       },
     ];
   }
 
   const violations: CoverageViolation[] = [];
+  // Only a cell the checker accepts takes its context off the whole-rule
+  // reason; a refused cell is reported below and leaves its context on it.
+  const overridden = carried.filter(
+    ({ context, cell }) => overridingCell(rule, context, cell) !== undefined,
+  );
   if (overridden.length === coverageContexts.length) {
     violations.push({
       code: 'informational-cell-contradicts-reason',
@@ -138,7 +147,7 @@ function informationalCellViolations(
       message: `'${name}' is informational because of a 'tool-limitation', but its entry overrides every context; at least one must keep the whole-rule reason.`,
     });
   }
-  for (const { context, cell } of overridden) {
+  for (const { context, cell } of carried) {
     const shape = undeclaredCellShape(name, context, cell);
     if ('violation' in shape) {
       violations.push(shape.violation);
