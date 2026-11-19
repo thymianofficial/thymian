@@ -86,11 +86,16 @@ re-derivable from the counting rule alone. A unit that is a step of a numbered a
 the source's own step number, `<section>/step-<k>`; an unnumbered step paragraph is
 `<section>/<n>` like any other.
 
-An **informational** rule's entry carries no cells: the checker refuses them, and the README
-derives all three of its cells from the rule's one whole-rule reason. Where its contexts are
-impossible for different reasons — one a `tool-limitation`, another `not-representable` —
-the rule's note names each; the README renders the reason code and not the issue a
-`tool-limitation` cites, until the generator renders each cell's own reason.
+An **informational** rule's cells default to the rule's one whole-rule reason. Only when that
+reason is `tool-limitation` may its entry carry cells, one per context that is impossible for
+a different reason: an impossible cell with a tier-2 reason other than `tool-limitation` and a
+non-empty note, as `rules-rfc-6265bis`'s `server-must-be-tolerant-of-multiple-cookie-headers`
+records `not-representable` for `static` and `requires-controlled-input` for `analytics`. The
+rule's note then explains only the tool gap. The checker refuses, as
+`informational-cell-contradicts-reason`, cells under a world-claim reason, a cell that
+restates `tool-limitation`, and an entry whose well-formed cells name a reason other than
+`tool-limitation` in all three contexts, so the rule's reason holds somewhere. A bare
+literal or an empty note is `undeclared-context-cell-invalid`, as on any rule.
 
 `substituteLabel` names what stands in where units are not statements: for RFC 9110 §17, the
 14–15 sections it cross-references.
@@ -130,8 +135,8 @@ are the precedent.
    are **one sentence**, not two. Probing rules render what they send here.
 4. **Rule verdicts** — one collapsed table per topic directory. **Profile-independent**:
    observability does not vary by profile, only severity does, so this renders once. An
-   informational rule's row is derived from its whole-rule reason (`rule.meta.impossibility`),
-   never from the record.
+   informational rule's row renders each context's cell where its entry carries one the checker
+   accepts, and the whole-rule reason (`rule.meta.impossibility`) everywhere else.
 5. **Tag status** — every concern tag in the closed vocabulary, every time: filled with a rule
    count, or named as shipped empty. A category the package's rules never touch at all still
    names its tags as empty, rather than going unmentioned.
