@@ -266,10 +266,10 @@ of this.
   context without such a cell renders the whole-rule reason, and the checker refuses cells
   under a world-claim, a cell that restates `tool-limitation`, and an entry whose
   well-formed cells name a reason other than `tool-limitation` in every context, because
-  each would contradict the rule's own reason. A cell the checker refuses never renders. _(Amended 2026-11-18; see
-  Status History.)_ There is no `.covers()` on the rule builder: what a rule discharges is a
-  second, driftable claim if restated on the rule itself, so it is declared exactly once,
-  here.
+  each would contradict the rule's own reason. A cell the checker refuses never renders.
+  _(Amended 2026-11-18; see Status History.)_ There is no `.covers()` on the rule builder:
+  what a rule discharges is a second, driftable claim if restated on the rule itself, so it
+  is declared exactly once, here.
 - **The numerator is derived, not asserted.** Rules and source units are N:M _both ways_ —
   all 14 rules on `#name-expect` discharge one unit. Each rule's entry declares `covers`, and
   the headline renders **two numbers** ("9 of 14 statements, covered by 21 rules") rather
