@@ -41,9 +41,9 @@ export function missingElementMessage(location: GraphLocation): string {
 /** The skip message of a response-scoped rule on an Undocumented Response. */
 export function undocumentedResponseMessage(response: HttpResponse): string {
   const mediaType = getContentType(response.headers);
-  const media = mediaType ? ` (${encodeMediaType(mediaType)})` : '';
+  const media = mediaType ? `(${encodeMediaType(mediaType)})` : '(none)';
 
-  return `Skipped: the response ${response.statusCode}${media} is not documented in the API specification.`;
+  return `Skipped: the response ${response.statusCode} ${media} is not documented in the API specification.`;
 }
 
 /**

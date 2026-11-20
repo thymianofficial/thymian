@@ -185,6 +185,7 @@ describe('undocumented response (node location on the request node)', () => {
   function run(
     rule: (typeof rules)[number]['rule'],
     location: RuleViolationLocation,
+    recorded: HttpResponse = response,
   ) {
     const ctx = {
       format,
@@ -196,7 +197,7 @@ describe('undocumented response (node location on the request node)', () => {
           res: HttpResponse,
           location: RuleViolationLocation,
         ) => RuleFnResult[];
-      }) => violatedWhen(request, response, location),
+      }) => violatedWhen(request, recorded, location),
     };
 
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
@@ -244,6 +245,30 @@ describe('undocumented response (node location on the request node)', () => {
               title: ruleTitle,
               message:
                 'Skipped: the response 418 (application/json) is not documented in the API specification.',
+            },
+          ],
+        },
+      ]);
+    },
+  );
+
+  it.each(responseRules)(
+    '$ruleName skips naming an undocumented response without a content type',
+    async ({ rule, ruleTitle }) => {
+      const results = await run(rule, nodeLocation, {
+        ...response,
+        headers: {},
+      });
+
+      expect(results).toEqual([
+        {
+          location: nodeLocation,
+          findings: [
+            {
+              kind: 'rule-skip',
+              title: ruleTitle,
+              message:
+                'Skipped: the response 418 (none) is not documented in the API specification.',
             },
           ],
         },
