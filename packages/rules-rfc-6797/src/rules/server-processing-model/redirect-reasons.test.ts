@@ -122,6 +122,11 @@ describe.each([rfcRule, conventionRule])('$meta.name', (rule) => {
       302,
       /declares a 302, a redirect that is not permanent/,
     ],
+    [
+      'a default response',
+      'default',
+      /declares a default response, which names no redirect status/,
+    ],
   ])(
     'flags, in static, %s declared beside a permanent redirect',
     async (_what, statusCode, expected) => {

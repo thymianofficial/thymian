@@ -87,6 +87,9 @@ function redirectProblem(
   locations: string[],
   base: string,
 ): string | undefined {
+  if (status === 'default') {
+    return `${wording.answered} default response, which names no redirect status. ${SHOULD_REDIRECT}`;
+  }
   if (!isOneOf(PERMANENT_REDIRECTS, status)) {
     return isOneOf(OTHER_REDIRECTS, status)
       ? `${wording.answered} ${status}, a redirect that is not permanent, which the user agent follows again over plain http on every visit. ${SHOULD_REDIRECT}`
