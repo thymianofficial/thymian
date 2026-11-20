@@ -22,7 +22,8 @@ import type { ThymianHttpTransaction } from '../format/thymian-format.js';
  * and ASCII, and it is **the only spelling of a Transaction anywhere Thymian
  * writes one** (ADR-0023): check lines, test-case names, rule headings, report
  * locations and error texts all render it, so any printed transaction pastes
- * back as a hook target.
+ * back as a Selector. A `default` Selector resolves (`sampler show` prints it),
+ * but it is not a hook target (ADR-0027).
  *
  * This is a documentation alias only. `@thymian/plugin-sampler` generates the
  * typed union (`Selector = keyof Endpoints`) from the catalog, so branding the
