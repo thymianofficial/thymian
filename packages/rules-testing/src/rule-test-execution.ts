@@ -68,7 +68,7 @@ export function listExecutions(
   isApplicable: (transactionId: string) => boolean,
   transactionOf: (
     location: RuleViolationLocation,
-  ) => string | undefined = transactionLocated,
+  ) => string | undefined = transactionOfEdge,
 ): RuleTestExecution[] {
   const transactions = format.getThymianHttpTransactions();
   const reportedOn = new Map<string, RuleTestExecution[]>(
@@ -113,7 +113,7 @@ export function listExecutions(
 /**
  * The transaction a location names: an `edge`'s `elementId`.
  */
-export function transactionLocated(
+export function transactionOfEdge(
   location: RuleViolationLocation,
 ): string | undefined {
   return typeof location !== 'string' && location.elementType === 'edge'

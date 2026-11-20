@@ -21,7 +21,7 @@ import {
   listExecutions,
   reportedExecutions,
   type RuleTestExecution,
-  transactionLocated,
+  transactionOfEdge,
 } from './rule-test-execution.js';
 import type { RuleUnderTest } from './rule-under-test.js';
 import {
@@ -105,7 +105,7 @@ export async function runAnalyze(
     const recorded = new Set(
       recordings.map(({ transactionId }) => transactionId),
     );
-    const transactionOfLabel = transactionsByLabel(recordings);
+    const transactionOfLabel = transactionOfEachLabel(recordings);
     const applicable = applicableTransactions(stated(), analyzerContext());
 
     // A transaction whose recording the format cannot tell from another's
@@ -118,7 +118,7 @@ export async function runAnalyze(
       (location: RuleViolationLocation) =>
         typeof location === 'string'
           ? transactionOfLabel.get(location)
-          : transactionLocated(location),
+          : transactionOfEdge(location),
     );
   } finally {
     await repository.close();
@@ -133,11 +133,13 @@ export async function runAnalyze(
  * media type, so recordings of two transactions can share one; such a label is
  * about neither.
  */
-function transactionsByLabel(
+function transactionOfEachLabel(
   recordings: { label: string; transactionId: string | undefined }[],
 ): Map<string, string | undefined> {
   const byLabel = new Map<string, string | undefined>();
 
+  // `undefined` stands for both a recording that matched no transaction and a
+  // label shared by recordings of two: either way it is about none.
   for (const { label, transactionId } of recordings) {
     byLabel.set(
       label,
