@@ -79,8 +79,10 @@ export interface ThymianEdges {
  * Where a recorded request/response pair lands in the format (ADR-0026).
  * Matching resolves the operation first, then the response within it:
  *
- * - `unknown-operation`: no request node matches method, path, origin and
- *   request media type.
+ * - `unknown-operation`: no single Transaction can be looked up. Either no
+ *   request node matches method, path, origin and request media type, or
+ *   several match at the same tier, or, within the one operation, more than
+ *   one documented response claims the pair. An ambiguous match is no match.
  * - `undocumented-response`: the operation is documented, the response is not
  *   (an **Undocumented Response**). `undocumented` says whether no response
  *   covers the status, or the status is covered (concretely, or by `default`)
