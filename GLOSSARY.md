@@ -77,6 +77,16 @@ A request paired with the response it expects — one edge in the `Thymian Forma
 the unit that rules, samples, and selectors all address.
 _Avoid_: interaction, exchange, call
 
+### Recorded traffic
+
+**Trace**:
+The recorded transactions one request caused, one per hop it crossed, ordered from the client
+inward. A hop is one segment between two adjacent participants, as in the workspace's
+`First-Hop Traffic`; a trace of one hop is a single recorded exchange.
+_In code_: `CapturedTrace`. Note that `ForwardingHop` in `rules-rfc-9110` names a _pair_ of
+adjacent hops around one forwarding participant, not one hop.
+_Avoid_: leg, chain
+
 ### Rules and configuration
 
 **Rule Set**:

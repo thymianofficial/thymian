@@ -17,7 +17,7 @@ export default httpRule('rfc9110/gateway-may-send-via-header-in-responses')
   // Surfaces use of the optional mechanism: the hint fires when a gateway
   // response carries a Via header, never on its absence. It runs on captured
   // transactions and gates on the response role so the origin server's own Via
-  // on the gateway's upstream leg is not misattributed to the gateway.
+  // on the gateway's upstream hop is not misattributed to the gateway.
   .rule((ctx) =>
     ctx.validateCapturedHttpTransactions(
       responseHeader('via'),

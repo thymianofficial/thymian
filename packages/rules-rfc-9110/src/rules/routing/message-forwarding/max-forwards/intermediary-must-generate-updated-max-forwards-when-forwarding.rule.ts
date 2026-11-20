@@ -1,6 +1,10 @@
 import { getHeader, httpRule, type RuleFnResult } from '@thymian/core';
 
-import { forwardingHops, parseMaxForwards } from '../../utils/forwarding.js';
+import {
+  forwardingHops,
+  isHeaderCapturedOnBoth,
+  parseMaxForwards,
+} from '../../utils/forwarding.js';
 
 export default httpRule(
   'rfc9110/intermediary-must-generate-updated-max-forwards-when-forwarding',
@@ -23,6 +27,16 @@ export default httpRule(
       for (const { inbound, outbound } of forwardingHops(trace)) {
         const method = inbound.request.data.method.toUpperCase();
         if (method !== 'TRACE' && method !== 'OPTIONS') {
+          continue;
+        }
+        // A message whose field was not captured cannot show what was forwarded.
+        if (
+          !isHeaderCapturedOnBoth(
+            inbound.request,
+            outbound.request,
+            'max-forwards',
+          )
+        ) {
           continue;
         }
         const receivedValue = parseMaxForwards(

@@ -1,5 +1,7 @@
 import { getHeader, httpRule, type RuleFnResult } from '@thymian/core';
 
+import { isHeaderCapturedOnBoth } from '../../../routing/utils/forwarding.js';
+
 // The MUST NOT is about a proxy *generating* a Max-Forwards field it did not
 // receive. This is observable by correlating adjacent hops of the same request
 // chain — the request a proxy received (without Max-Forwards) vs the request it
@@ -30,6 +32,13 @@ export default httpRule(
         const curr = trace[i];
 
         if (!prev || !curr || prev.response.meta.role !== 'proxy') {
+          continue;
+        }
+
+        // A message whose field was not captured cannot show a generated field.
+        if (
+          !isHeaderCapturedOnBoth(prev.request, curr.request, 'max-forwards')
+        ) {
           continue;
         }
 

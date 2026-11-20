@@ -10,6 +10,10 @@ import {
   httpStatusCodeToPhrase,
   isValidHttpStatusCode,
 } from './http-status-codes/index.js';
+import type {
+  CapturedHttpRequest,
+  CapturedHttpResponse,
+} from './rules/traffic.js';
 import {
   formatRequestSelector,
   formatResponseSelector,
@@ -100,6 +104,28 @@ export function getHeader(
   }
 
   return undefined;
+}
+
+/**
+ * Whether the header field `name` was captured on a recorded message, so that
+ * its absence from `data.headers` means the message did not carry it.
+ *
+ * Answers `false` for every name when the message is marked
+ * `headers-not-captured`, whatever headers it also carries, and `true`
+ * otherwise. A trace rule that compares a field across hops asks this for
+ * both sides and skips the pair when either answers `false`. See ADR-0026
+ * (`docs/arc42/adr/0026-capture-gaps-are-marked-on-the-captured-message.md`).
+ */
+export function isHeaderCaptured(
+  message: CapturedHttpRequest | CapturedHttpResponse,
+  // Asked per field name so a partly filtered header set can answer per name
+  // later without changing any rule; no gap kind reads it yet.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  name: string,
+): boolean {
+  return !message.meta.captureGaps?.some(
+    (gap) => gap.kind === 'headers-not-captured',
+  );
 }
 
 export function deleteHeader<T extends Record<string, unknown> | undefined>(

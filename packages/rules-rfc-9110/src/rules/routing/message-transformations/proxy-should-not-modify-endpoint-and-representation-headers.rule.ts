@@ -1,6 +1,10 @@
 import { getHeader, httpRule, type RuleFnResult } from '@thymian/core';
 
-import { equalHeaderValues, forwardingHops } from '../utils/forwarding.js';
+import {
+  equalHeaderValues,
+  forwardingHops,
+  isHeaderCapturedOnBoth,
+} from '../utils/forwarding.js';
 
 const REPRESENTATION_HEADERS = [
   'content-type',
@@ -33,9 +37,15 @@ export default httpRule(
       const results: RuleFnResult[] = [];
       for (const { inbound, outbound } of forwardingHops(trace, ['proxy'])) {
         // For responses the direction reverses: the proxy receives the
-        // outbound leg's response from upstream and forwards it downstream
-        // as the inbound leg's response.
+        // outbound hop's response from upstream and forwards it downstream
+        // as the inbound hop's response.
         const modified = REPRESENTATION_HEADERS.filter((name) => {
+          // A field not captured on either side cannot show a modification.
+          if (
+            !isHeaderCapturedOnBoth(outbound.response, inbound.response, name)
+          ) {
+            return false;
+          }
           const before = getHeader(outbound.response.data.headers, name);
           const after = getHeader(inbound.response.data.headers, name);
           if (before === undefined && after === undefined) {

@@ -1,5 +1,9 @@
 import { getHeader, httpRule, type RuleFnResult } from '@thymian/core';
 
+import {
+  forwardingHops,
+  isHeaderCapturedOnBoth,
+} from '../../../routing/utils/forwarding.js';
 import { equalHeaderValues } from '../../utils/header-value-equality.js';
 
 export default httpRule('rfc9110/proxy-must-not-modify-authorization')
@@ -24,18 +28,27 @@ export default httpRule('rfc9110/proxy-must-not-modify-authorization')
   .rule((ctx) =>
     ctx.validateCapturedHttpTraces((trace, location) => {
       const results: RuleFnResult[] = [];
-      for (let i = 1; i < trace.length; i++) {
-        // prev = request as the proxy emitted it (outbound hop);
-        // curr = request as the proxy received it (inbound hop).
-        const prev = trace[i - 1];
-        const curr = trace[i];
-
-        if (!prev || !curr || prev.request.meta.role !== 'proxy') {
+      for (const { inbound, outbound } of forwardingHops(trace, ['proxy'])) {
+        // The proxy received `inbound.request` and forwarded `outbound.request`.
+        // A message whose field was not captured cannot show a modification.
+        if (
+          !isHeaderCapturedOnBoth(
+            inbound.request,
+            outbound.request,
+            'authorization',
+          )
+        ) {
           continue;
         }
 
-        const forwarded = getHeader(prev.request.data.headers, 'authorization');
-        const received = getHeader(curr.request.data.headers, 'authorization');
+        const received = getHeader(
+          inbound.request.data.headers,
+          'authorization',
+        );
+        const forwarded = getHeader(
+          outbound.request.data.headers,
+          'authorization',
+        );
 
         // Nothing to compare only when neither hop carried the field. Present
         // on exactly one side means the proxy added or removed it — itself a
