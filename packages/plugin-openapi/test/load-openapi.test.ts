@@ -945,6 +945,25 @@ describe('load-openapi', () => {
         expect((thymianError.cause as Error).message).toContain(
           'schemas/missing.yaml',
         );
+        expect(thymianError.message).toContain('schemas/missing.yaml');
+        expect(thymianError.message).not.toContain('internal');
+      }
+    });
+
+    it('throws OpenAPIDereferenceError for a missing external file when validateSpecs is enabled', async () => {
+      try {
+        await loadAndUpgrade(
+          join(import.meta.dirname, 'fixtures/missing-ref.yaml'),
+          process.cwd(),
+          new NoopLogger(),
+          true,
+        );
+        expect.fail('Error should have been thrown');
+      } catch (error) {
+        expect(error).toBeInstanceOf(ThymianBaseError);
+        expect((error as ThymianBaseError).options.name).toBe(
+          'OpenAPIDereferenceError',
+        );
       }
     });
   });
@@ -1052,6 +1071,16 @@ describe('load-openapi', () => {
 
       expect(result.status).toBe('failed');
       expect(result.issues.length).toBeGreaterThan(0);
+    });
+
+    it('reports reference errors for a missing external file', async () => {
+      const result = await validateOpenApi('test/fixtures/missing-ref.yaml', {
+        cwd: join(import.meta.dirname, '..'),
+        logger: new NoopLogger(),
+      });
+
+      expect(result.status).toBe('failed');
+      expect(result.metadata?.['hasReferenceErrors']).toBe(true);
     });
   });
 });
