@@ -57,11 +57,18 @@ export type RuleTestExecution = {
  * A transaction the engine reported nothing on is `passed` when the rule
  * applies to it and `notApplicable` when it does not. The engines report only
  * what a rule returns, so this is the one place that knows the difference.
+ *
+ * `transactionOf` says which transaction an execution's location is about, if
+ * any; by default only a transaction location is. An execution keeps its
+ * location wherever it is listed.
  */
 export function listExecutions(
   format: ThymianFormat,
   reported: RuleTestExecution[],
   isApplicable: (transactionId: string) => boolean,
+  transactionOf: (
+    location: RuleViolationLocation,
+  ) => string | undefined = transactionLocated,
 ): RuleTestExecution[] {
   const transactions = format.getThymianHttpTransactions();
   const reportedOn = new Map<string, RuleTestExecution[]>(
@@ -70,11 +77,9 @@ export function listExecutions(
   const reportedElsewhere: RuleTestExecution[] = [];
 
   for (const execution of reported) {
-    const { location } = execution;
+    const transactionId = transactionOf(execution.location);
     const onTransaction =
-      typeof location !== 'string' && location.elementType === 'edge'
-        ? reportedOn.get(location.elementId)
-        : undefined;
+      transactionId === undefined ? undefined : reportedOn.get(transactionId);
 
     (onTransaction ?? reportedElsewhere).push(execution);
   }
@@ -103,6 +108,17 @@ export function listExecutions(
     ),
     ...reportedElsewhere,
   ];
+}
+
+/**
+ * The transaction a location names: an `edge`'s `elementId`.
+ */
+export function transactionLocated(
+  location: RuleViolationLocation,
+): string | undefined {
+  return typeof location !== 'string' && location.elementType === 'edge'
+    ? location.elementId
+    : undefined;
 }
 
 /**

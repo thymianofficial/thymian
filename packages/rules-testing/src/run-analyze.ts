@@ -1,7 +1,9 @@
 import {
   type CapturedTransaction,
+  httpTransactionToLabel,
   NoopLogger,
   type RuleRunnerAdapter,
+  type RuleViolationLocation,
   runRules,
   serializeRequest,
   type ThymianFormat,
@@ -19,6 +21,7 @@ import {
   listExecutions,
   reportedExecutions,
   type RuleTestExecution,
+  transactionLocated,
 } from './rule-test-execution.js';
 import type { RuleUnderTest } from './rule-under-test.js';
 import {
@@ -95,12 +98,14 @@ export async function runAnalyze(
     const result = await runRules(logger, [rule], format, rulesConfig, adapter);
     const reported = reportedExecutions(result, underTest, format, 'analyze');
 
+    const recordings = traffic.map(({ request, response }) => ({
+      label: httpTransactionToLabel(request.data, response.data),
+      transactionId: format.matchTransaction(request.data, response.data)?.[0],
+    }));
     const recorded = new Set(
-      traffic.map(
-        ({ request, response }) =>
-          format.matchTransaction(request.data, response.data)?.[0],
-      ),
+      recordings.map(({ transactionId }) => transactionId),
     );
+    const transactionOfLabel = transactionsByLabel(recordings);
     const applicable = applicableTransactions(stated(), analyzerContext());
 
     // A transaction whose recording the format cannot tell from another's
@@ -110,10 +115,39 @@ export async function runAnalyze(
       reported,
       (transactionId) =>
         recorded.has(transactionId) && (applicable?.has(transactionId) ?? true),
+      (location: RuleViolationLocation) =>
+        typeof location === 'string'
+          ? transactionOfLabel.get(location)
+          : transactionLocated(location),
     );
   } finally {
     await repository.close();
   }
+}
+
+/**
+ * The transaction each recording's label is about: what the analyzer locates
+ * on the label, from `validateCapturedHttpTransactions` and from
+ * `validateCapturedHttpTraces` for a trace of one pair, is about the
+ * transaction that recording matched. The label does not name the request's
+ * media type, so recordings of two transactions can share one; such a label is
+ * about neither.
+ */
+function transactionsByLabel(
+  recordings: { label: string; transactionId: string | undefined }[],
+): Map<string, string | undefined> {
+  const byLabel = new Map<string, string | undefined>();
+
+  for (const { label, transactionId } of recordings) {
+    byLabel.set(
+      label,
+      byLabel.has(label) && byLabel.get(label) !== transactionId
+        ? undefined
+        : transactionId,
+    );
+  }
+
+  return byLabel;
 }
 
 /**

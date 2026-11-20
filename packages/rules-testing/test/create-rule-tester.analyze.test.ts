@@ -438,7 +438,7 @@ describe('createRuleTester(rule).runAnalyze(format)', () => {
     });
   });
 
-  it('returns an execution the rule locates on a free string as reported, after the transactions', async () => {
+  it("lists an execution the rule locates on a recording's label in the place of the transaction recorded", async () => {
     const rule = httpRule('test/flags-the-recording')
       .severity('error')
       .type('analytics')
@@ -448,6 +448,74 @@ describe('createRuleTester(rule).runAnalyze(format)', () => {
           statusCode(201),
           (_pair, label) => [{ location: label, violation: {}, findings: [] }],
         ),
+      )
+      .done();
+    const format = createThymianFormat();
+    const launchesListed = addTransaction(
+      format,
+      createGetRequest({ path: '/launches' }),
+      createOkResponse(),
+    );
+    addTransaction(
+      format,
+      createPostRequest({ path: '/astronauts' }),
+      createCreatedResponse(),
+    );
+
+    const executions = await createRuleTester(rule).runAnalyze(format);
+
+    expect(executions).toMatchObject([
+      { location: { elementId: launchesListed }, status: 'notApplicable' },
+      {
+        location: expect.stringContaining('/astronauts'),
+        status: 'failed',
+        message: 'flagged by its label',
+      },
+    ]);
+    expect(executions).toHaveLength(2);
+  });
+
+  it('lists an execution a rule reading traces locates on a trace of one pair in the place of the transaction recorded', async () => {
+    const rule = httpRule('test/flags-the-trace')
+      .severity('error')
+      .type('analytics')
+      .rule((ctx) =>
+        ctx.validateCapturedHttpTraces((trace, label) =>
+          trace.length === 1 && trace[0]?.response.data.statusCode === 201
+            ? [{ location: label, violation: {}, findings: [] }]
+            : [],
+        ),
+      )
+      .done();
+    const format = createThymianFormat();
+    const launchesListed = addTransaction(
+      format,
+      createGetRequest({ path: '/launches' }),
+      createOkResponse(),
+    );
+    addTransaction(
+      format,
+      createPostRequest({ path: '/astronauts' }),
+      createCreatedResponse(),
+    );
+
+    const executions = await createRuleTester(rule).runAnalyze(format);
+
+    expect(executions).toMatchObject([
+      { location: { elementId: launchesListed }, status: 'passed' },
+      { location: expect.stringContaining('/astronauts'), status: 'failed' },
+    ]);
+    expect(executions).toHaveLength(2);
+  });
+
+  it('returns an execution the rule locates on any other free string as reported, after the transactions', async () => {
+    const rule = httpRule('test/flags-elsewhere')
+      .severity('error')
+      .type('analytics')
+      .rule((ctx) =>
+        ctx.validateCapturedHttpTransactions(statusCode(201), () => [
+          { location: 'somewhere else', violation: {}, findings: [] },
+        ]),
       )
       .done();
     const format = createThymianFormat();
@@ -467,13 +535,44 @@ describe('createRuleTester(rule).runAnalyze(format)', () => {
     expect(executions).toMatchObject([
       { location: { elementId: launchesListed }, status: 'notApplicable' },
       { location: { elementId: astronautCreated }, status: 'passed' },
-      {
-        location: expect.stringContaining('/astronauts'),
-        status: 'failed',
-        message: 'flagged by its label',
-      },
+      { location: 'somewhere else', status: 'failed' },
     ]);
     expect(executions).toHaveLength(3);
+  });
+
+  it('lists an execution on a label that recordings of two transactions share after the transactions, which are filled in', async () => {
+    const rule = httpRule('test/flags-the-recording')
+      .severity('error')
+      .type('analytics')
+      .rule((ctx) =>
+        ctx.validateCapturedHttpTransactions(
+          statusCode(201),
+          (_pair, label) => [{ location: label, violation: {}, findings: [] }],
+        ),
+      )
+      .done();
+    const format = createThymianFormat();
+    // The label names the response's media type but not the request's.
+    const launchCreatedFromJson = addTransaction(
+      format,
+      createPostRequest({ path: '/launches', mediaType: 'application/json' }),
+      createCreatedResponse(),
+    );
+    const launchCreatedFromXml = addTransaction(
+      format,
+      createPostRequest({ path: '/launches', mediaType: 'application/xml' }),
+      createCreatedResponse(),
+    );
+
+    const executions = await createRuleTester(rule).runAnalyze(format);
+
+    expect(executions).toMatchObject([
+      { location: { elementId: launchCreatedFromJson }, status: 'passed' },
+      { location: { elementId: launchCreatedFromXml }, status: 'passed' },
+      { location: expect.stringContaining('/launches'), status: 'failed' },
+      { location: expect.stringContaining('/launches'), status: 'failed' },
+    ]);
+    expect(executions).toHaveLength(4);
   });
 
   it('runs a rule that ships with severity off, with the options it is given', async () => {

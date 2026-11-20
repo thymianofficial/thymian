@@ -93,7 +93,7 @@ Each pair is recorded the way traffic read from a HAR file is by default, as a u
 
 The analyzer locates an execution on the transaction of the format the recorded pair matches, so you name a transaction by the same id as in the other contexts. An execution the rule locates itself, as a rule that reads captured transactions or whole traces does with the label it is given, keeps that location and comes last.
 
-The analyzer recognises a transaction in a recording by method, origin, path, status and media types, as it does for real traffic. Where that does not single out the transaction you added, `analytics` differs from `static` and `test`: two answers of one request with the same status and media type match neither, so both are `notApplicable` and an execution on their recording keeps its label; and a recording of `/launches/{id}` with the example `latest` is taken for a transaction on the literal path `/launches/latest` when the format has one.
+The analyzer recognises a transaction in a recording by method, origin, path, status and media types, as it does for real traffic. Where that does not single out the transaction you added, `analytics` differs from `static` and `test`: two answers of one request with the same status and media type match neither, so both are `notApplicable` and an execution on their recording keeps its label; and a recording of `/launches/{id}` with the example `latest` is taken for a transaction on the literal path `/launches/latest` when the format has one. And the label of a recording names the method, the URL, the status and the response's media type, but not the request's: where recordings of two transactions share one, an execution on it comes after the transactions, and both transactions are listed as if the rule had said nothing about them.
 
 A request that cannot be built, for example for a path parameter without an example, makes `analytics` throw and name the transaction: there is nothing to record for it. Give the parameter's schema an example, as for `test`.
 
@@ -128,7 +128,7 @@ A list of executions. Each one has:
 
 The `label` is the readable name of the location, so a failing comparison says which transaction it is about although ids are hashes. A label the rule set itself is kept.
 
-**Order.** Every transaction of the format, in the order it was added. A transaction the engine reported several executions on appears once per execution, in the order the engine reported them. Executions on any other location come last.
+**Order.** Every transaction of the format, in the order it was added. A transaction the engine reported several executions on appears once per execution, in the order the engine reported them. In `analytics` an execution on the label of a recorded pair counts as reported on the transaction the pair matched: it takes that transaction's place and keeps the label as its `location`. The analyzer locates there what a rule returns from `validateCapturedHttpTransactions` and `validateCapturedHttpTraces`. Executions on any other location come last.
 
 **Where `passed` and `notApplicable` come from.** In `test` the tester reports an execution for every transaction it sent a request for, `passed` and `skipped` included; `createRuleTester` takes them as reported and adds only `notApplicable`, for a transaction no request was sent for. The linter and the analyzer report only what a rule returns, which for most rules is its violations. In `static` and `analytics`, `createRuleTester` works out the rest from the `appliesTo` the rule states in its rule-context calls: a transaction inside it that the engine reported nothing on is `passed`, one outside it is `notApplicable`. Several calls count together; a transaction is applicable when any of them accepts it. `static` asks the `appliesTo` of the format, `analytics` of the recorded pair.
 
@@ -139,7 +139,7 @@ A rule whose applicability cannot be read from outside gets `passed` for every t
 
 **Skips and findings.** A rule that returns a `rule-skip` finding for a location yields a `skipped` execution there, with the `reason` it gave. Any other finding comes back in `findings`, on a `passed` execution as much as on a `failed` one, in the shape of a report finding: `{ id, kind, title, message: { text } }`. The `id` is generated per run, so compare findings with `toMatchObject` or leave it out.
 
-`notApplicable` is filled in for transactions only. A node or a free string appears only when the engine reports an execution on it.
+`passed` and `notApplicable` are filled in for transactions only, for a transaction no execution is about. A node or a free string appears only when the engine reports an execution on it.
 
 <!-- FOOTER:START - Do not remove or modify this section -->
 

@@ -76,7 +76,13 @@ declares, and return what the rule said about **every transaction** of the input
   node or transaction location has none, the harness fills in the label a report prints for
   it, so a failing comparison names the transaction although ids are hashes. An execution
   also carries the findings the report builder gives it, on a pass as on a violation.
-  `notApplicable` and `passed` are filled in for transactions only.
+  `notApplicable` and `passed` are filled in for transactions only, and only for a transaction
+  no execution is about. In `analytics` the analyzer locates what a rule returns from
+  `validateCapturedHttpTransactions`, and from `validateCapturedHttpTraces` for a trace of one
+  pair, on the recorded pair's label, a free string. Such an execution is about the transaction
+  that pair matched: it is listed in that transaction's place and keeps the label as its
+  location. A label that recordings of two transactions share is about neither, and its
+  execution comes after the transactions.
 - **Rule tests replace the `Fixture`** as the way to show that a rule works in a context.
   The fixture modules of the existing rule sets, and the records that describe them, stay
   as they are until those rule sets are moved onto rule tests.
@@ -136,6 +142,11 @@ transaction, and the harness would only add `notApplicable`. Rejected:
 - The traffic of a rule test in `analytics` is recorded as a user agent talking to an origin
   server, the roles traffic read from a HAR file gets by default. A rule that speaks only
   about an intermediary is not asked about it.
+- In `analytics` an execution in a transaction's place can carry the recorded pair's label
+  rather than the transaction id, so a comparison on `elementId` does not match it; the place
+  in the list says which transaction it is about. Where recordings of two transactions share a
+  label, the execution on it is listed after the transactions, and both transactions are filled
+  in as if the rule had said nothing about them.
 
 **Neutral:**
 
@@ -159,7 +170,8 @@ transaction, and the harness would only add `notApplicable`. Rejected:
 
 ## Status History
 
-| Date       | Status   | Notes                                               |
-| ---------- | -------- | --------------------------------------------------- |
-| 2026-11-13 | Accepted | Initial draft                                       |
-| 2026-11-13 | Accepted | `analytics` added: traffic recorded from the format |
+| Date       | Status   | Notes                                                                                   |
+| ---------- | -------- | --------------------------------------------------------------------------------------- |
+| 2026-11-13 | Accepted | Initial draft                                                                           |
+| 2026-11-13 | Accepted | `analytics` added: traffic recorded from the format                                     |
+| 2026-11-20 | Accepted | analytics: an execution on a recorded pair's label is listed in its transaction's place |
