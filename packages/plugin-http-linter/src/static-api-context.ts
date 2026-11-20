@@ -167,9 +167,7 @@ export class StaticApiContext implements LintContext {
         {},
       );
 
-    const rawEntries: RuleFnResult<
-      RuleViolationLocation | RuleViolationGroupLocation
-    >[] = Object.entries(groups).flatMap(([key, group]) => {
+    return Object.entries(groups).flatMap(([key, group]) => {
       const members = group.map(
         ({
           thymianReq,
@@ -193,8 +191,6 @@ export class StaticApiContext implements LintContext {
         members.map(([, , location]) => location),
       );
     });
-
-    return rawEntries;
   }
 
   validateHttpTransactions(criteria: LintRuleCriteria): RuleFnResult[];
