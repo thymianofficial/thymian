@@ -14,7 +14,8 @@ origin). A recorded response whose status the API specification does not list
 therefore failed the _whole_ match, and every rule reported it as "No matching
 endpoint found", although the operation was documented. Request-scoped rules
 were skipped although they could run, and the undocumented response itself went
-unreported ([#465](https://github.com/thymianofficial/thymian-workspace/issues/465)).
+unreported ([#465](https://github.com/thymianofficial/thymian-workspace/issues/465),
+private repository).
 
 Fixing that means telling an **Undocumented Response** apart from an unknown
 operation. That distinction is only honest if Thymian knows every response the
@@ -121,6 +122,8 @@ node. No type changes.
   concrete path's operation — and may become an Undocumented Response there.
 - A `default` selector resolves in `sampler show` but cannot be targeted, which
   is one more rule for a hook author to learn; the refusal message carries it.
+  The `sampler.show` action response gains a `{ selector, notTested }` variant
+  for it, a second public break.
 
 **Neutral:**
 
@@ -128,7 +131,8 @@ node. No type changes.
   Undocumented Response.
 - A known method and path with an undocumented _request_ media type still
   matches no operation and keeps the unknown-endpoint message; that is
-  [#739](https://github.com/thymianofficial/thymian-workspace/issues/739).
+  [#739](https://github.com/thymianofficial/thymian-workspace/issues/739)
+  (private repository).
 
 ## Related
 

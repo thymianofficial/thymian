@@ -174,7 +174,8 @@ is the whole point.
   only when a body exists; `GLOSSARY.md` is canonical for the grammar.
 - [ADR-0026](0026-default-is-a-response-node-and-matching-is-staged.md):
   extends the grammar's status part with the literal `default`, for the
-  response nodes an OpenAPI `default` response becomes.
+  response nodes an OpenAPI `default` response becomes; a `default` Selector
+  is not a hook target.
 - [ADR-0007](0007-core-owns-validation-entrypoints-plugins-own-execution.md):
   the core/plugin boundary. Moving a pure renderer of core types into core is
   consistent with it — no execution moves.
