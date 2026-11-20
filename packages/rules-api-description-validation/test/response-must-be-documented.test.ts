@@ -19,7 +19,7 @@ const NAME = 'thymian/response-must-be-documented';
 
 /**
  * `POST /v2/clock` documents 200 and 404 concretely; `GET /v2/clock`
- * documents 200 and `default`.
+ * documents 200 and `default`; `DELETE /v2/clock` documents no responses.
  */
 function specification(): { format: ThymianFormat; ids: string[] } {
   const format = new ThymianFormat();
@@ -59,6 +59,16 @@ function specification(): { format: ThymianFormat; ids: string[] } {
       ids.push(requestId);
     }
   }
+
+  ids.push(
+    format.addRequest(
+      createHttpRequest({
+        method: 'DELETE',
+        path: '/v2/clock',
+        host: 'api.example.com',
+      }),
+    ),
+  );
 
   return { format, ids: [...new Set(ids)] };
 }
@@ -174,6 +184,23 @@ describe(NAME, () => {
         violation: {
           message:
             'Response media type text/html is not documented for default of GET /v2/clock. Documented: application/problem+json.',
+        },
+        findings: [],
+      },
+    ]);
+  });
+
+  it('lists none for an operation documenting no responses', async () => {
+    const { format, ids } = specification();
+
+    const results = await analyze(format, [recorded('DELETE', 204, '')]);
+
+    expect(results).toEqual([
+      {
+        location: { elementType: 'node', elementId: ids[2] },
+        violation: {
+          message:
+            'Response status 204 is not documented for DELETE /v2/clock. Documented: none.',
         },
         findings: [],
       },
