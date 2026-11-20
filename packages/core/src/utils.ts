@@ -184,7 +184,8 @@ export function thymianResponseToString(res: ThymianHttpResponse): string {
  *
  * Every surface that names a Transaction goes through here — check lines,
  * test-case names, rule headings, report locations, error texts — so any line
- * a user reads pastes back as a hook target (ADR-0023).
+ * a user reads pastes back as a Selector (ADR-0023). A `default` one resolves,
+ * but it is not a hook target (ADR-0026).
  */
 export function thymianHttpTransactionToString(
   req: ThymianHttpRequest,

@@ -1,4 +1,8 @@
-import { formatRequestSelector, type Parameter } from '@thymian/core';
+import {
+  formatRequestSelector,
+  isTestableTransaction,
+  type Parameter,
+} from '@thymian/core';
 
 import { compareSelectors } from '../../selectors/selector.js';
 import type { TransactionCatalog } from '../../selectors/transaction-catalog.js';
@@ -180,6 +184,14 @@ export async function generateTypeSurface(
   const names = new NameRegistry(FIXED_ROOT_NAMES);
 
   for (const [selector, transaction] of catalog.entries()) {
+    // A `default` Transaction is not a hook or seed target, so it is absent
+    // from the surface entirely — the compiler rejects it as a target, and an
+    // operation that declares only `default` has no `utils.request` entry
+    // (ADR-0026).
+    if (!isTestableTransaction(transaction)) {
+      continue;
+    }
+
     const { thymianReq: req, thymianRes: res } = transaction;
 
     methods.add(req.method.toUpperCase());

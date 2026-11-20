@@ -87,7 +87,9 @@ const FIELDS = {
     expected: 'a status class: "1XX", "2XX", "3XX", "4XX" or "5XX"',
     // The first digit, not core's list of registered codes: a status class is a
     // range, and a description is free to declare a 418 or a vendor's 499.
+    // A `default` response has no status, so it is in no class (ADR-0026).
     accepts: (value, { thymianRes }) =>
+      typeof thymianRes.statusCode === 'number' &&
       String(thymianRes.statusCode).startsWith(String(value)[0] as string),
   },
   path: {

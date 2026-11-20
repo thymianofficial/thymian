@@ -13,13 +13,32 @@ import {
   type HttpResponse,
   httpStatusCodeToPhrase,
   httpTest,
+  isTestableTransaction,
   isValidHttpStatusCode,
   mapToTestCase,
   runRequests,
+  type ThymianFormat,
   type ThymianHttpTransaction,
   thymianHttpTransactionToString,
 } from '@thymian/core';
 import { rxjs } from '@thymian/core';
+
+/** The transactions the picker offers, keyed by their Selector. */
+export function transactionChoices(
+  format: ThymianFormat,
+): Map<string, ThymianHttpTransaction> {
+  const choices = new Map<string, ThymianHttpTransaction>();
+
+  // A `default` Transaction names no status to send a request for, so the
+  // picker does not offer it (ADR-0026).
+  for (const t of format
+    .getThymianHttpTransactions()
+    .filter(isTestableTransaction)) {
+    choices.set(thymianHttpTransactionToString(t.thymianReq, t.thymianRes), t);
+  }
+
+  return choices;
+}
 
 export default class RunRequest extends BaseCliRunCommand<typeof RunRequest> {
   static override flags = {
@@ -37,14 +56,7 @@ export default class RunRequest extends BaseCliRunCommand<typeof RunRequest> {
         validateSpecs: this.flags['validate-specs'],
       });
 
-      const titleToTransaction = new Map<string, ThymianHttpTransaction>();
-
-      for (const t of format.getThymianHttpTransactions()) {
-        titleToTransaction.set(
-          thymianHttpTransactionToString(t.thymianReq, t.thymianRes),
-          t,
-        );
-      }
+      const titleToTransaction = transactionChoices(format);
 
       const transactions = [...titleToTransaction.keys()].map((title) => ({
         name: title,

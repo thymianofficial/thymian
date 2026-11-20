@@ -20,6 +20,24 @@ export function isHttpStatusCodeRange(
   return /^[12345]XX$/.test(statusCode);
 }
 
+/**
+ * Whether a documented status lies in `start..end`, inclusive. A `default`
+ * response has no status, so no range holds it (ADR-0026) — the one rule every
+ * status-range filter compiler shares.
+ */
+export function isStatusCodeInRange(
+  statusCode: number | 'default',
+  start: number,
+  end: number,
+): boolean {
+  return (
+    typeof statusCode === 'number' &&
+    Number.isInteger(statusCode) &&
+    statusCode >= start &&
+    statusCode <= end
+  );
+}
+
 export function statusCodeMatchesRange(
   statusCode: number | string,
   range: HttpStatusCodeRange,

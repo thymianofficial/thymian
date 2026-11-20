@@ -19,6 +19,7 @@ import {
   type CheckSummary,
   summaryLineOf,
   summaryOf,
+  transactionsToCheck,
 } from '../src/cli/check-result.js';
 
 /**
@@ -319,6 +320,31 @@ describe('a transaction whose attempt threw', () => {
 
     expect(result.outcome).toBe('errored');
     expect(result.details).toEqual(['Run with --debug …']);
+  });
+});
+
+describe('the Transactions sampler check runs', () => {
+  it('leave default Transactions out, so they get no line and no outcome', () => {
+    const format = createThymianFormatWithTransactions([
+      [
+        createHttpRequest({ method: 'GET', path: '/launches' }),
+        createHttpResponse({ statusCode: 200 }),
+      ],
+      [
+        createHttpRequest({ method: 'GET', path: '/launches' }),
+        createHttpResponse({ statusCode: 'default' }),
+      ],
+      [
+        createHttpRequest({ method: 'GET', path: '/launches' }),
+        createHttpResponse({ statusCode: 503 }),
+      ],
+    ]);
+
+    expect(
+      transactionsToCheck(format).map(
+        ({ thymianRes }) => thymianRes.statusCode,
+      ),
+    ).toStrictEqual([200, 503]);
   });
 });
 

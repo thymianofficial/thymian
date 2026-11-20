@@ -53,6 +53,17 @@ describe('the label of a transaction', () => {
     );
   });
 
+  it('spells a default response as default, apart from any concrete status', () => {
+    expect(
+      thymianHttpTransactionToString(
+        request(),
+        response({ statusCode: 'default' }),
+      ),
+    ).toBe(
+      'POST /launches/{id} (application/json) -> default (application/json)',
+    );
+  });
+
   it('carries no reason phrase', () => {
     const label = thymianHttpTransactionToString(
       request({ mediaType: '' }),
