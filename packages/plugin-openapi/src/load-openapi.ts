@@ -61,6 +61,10 @@ function isMissingFileError(error: ParserError): boolean {
   return error.code === MISSING_FILE_CODE;
 }
 
+function plural(count: number, word: string): string {
+  return count > 1 ? `${word}s` : word;
+}
+
 function missingFileClause(errors: ParserError[]): string | undefined {
   const files = errors
     .filter(isMissingFileError)
@@ -74,49 +78,48 @@ function missingFileClause(errors: ParserError[]): string | undefined {
     return undefined;
   }
 
-  return `Referenced file${files.length > 1 ? 's' : ''} not found: ${files.map((file) => `'${file}'`).join(', ')} (resolved relative to the document containing the $ref).`;
+  return `${plural(files.length, 'Referenced file')} not found: ${files.map((file) => `'${file}'`).join(', ')} (resolved relative to the document containing the $ref).`;
 }
 
 function createDereferenceError(
-  message: string,
+  clauses: (string | undefined)[],
   errors: ParserError[],
 ): ThymianBaseError {
-  return new ThymianBaseError(message, {
-    name: 'OpenAPIDereferenceError',
-    ref: 'https://thymian.dev/references/errors/openapi-dereference-error/',
-    cause: new Error(errors.map((e) => e.message).join('; ')),
-    suggestions: [
-      'Ensure every $ref points to an existing location: a JSON pointer within its document, or a file path relative to the document containing the $ref.',
-      ...(errors.some(isMissingFileError)
-        ? [
-            'Check that the referenced file exists and the relative path is spelled correctly.',
-          ]
-        : []),
-    ],
-  });
+  return new ThymianBaseError(
+    clauses.filter((clause) => clause !== undefined).join(' '),
+    {
+      name: 'OpenAPIDereferenceError',
+      ref: 'https://thymian.dev/references/errors/openapi-dereference-error/',
+      cause: new Error(errors.map((e) => e.message).join('; ')),
+      suggestions: [
+        'Ensure every $ref points to an existing location: a JSON pointer within its document, or a file path relative to the document containing the $ref.',
+        ...(errors.some(isMissingFileError)
+          ? [
+              'Check that the referenced file exists and the relative path is spelled correctly.',
+            ]
+          : []),
+      ],
+    },
+  );
 }
 
-// For the validate step, where every given error is a reference error.
-function invalidReferencesError(
+function validateStepReferenceError(
   refErrors: ParserError[],
   allErrors: ParserError[],
 ): ThymianBaseError {
   const pointerErrors = refErrors.filter((e) => !isMissingFileError(e));
   const pointerClause =
     pointerErrors.length > 0
-      ? `Invalid $ref${pointerErrors.length > 1 ? 's' : ''} found: ${pointerErrors.map((e) => e.message).join(', ')}`
+      ? `${plural(pointerErrors.length, 'Invalid $ref')} found: ${pointerErrors.map((e) => e.message).join(', ')}`
       : undefined;
 
   return createDereferenceError(
-    [missingFileClause(refErrors), pointerClause]
-      .filter((clause) => clause !== undefined)
-      .join(' '),
+    [missingFileClause(refErrors), pointerClause],
     allErrors,
   );
 }
 
-// For the dereference step, after the validate step has passed.
-function resolvingReferencesError(
+function dereferenceStepReferenceError(
   sourceLabel: string,
   errors: ParserError[],
 ): ThymianBaseError {
@@ -127,12 +130,7 @@ function resolvingReferencesError(
       ? `Resolving the $refs in ${sourceLabel} failed${otherErrors.length > 0 ? `: ${otherErrors.map((e) => e.message).join('; ')}` : ''}.`
       : undefined;
 
-  return createDereferenceError(
-    [missingFiles, resolvingClause]
-      .filter((clause) => clause !== undefined)
-      .join(' '),
-    errors,
-  );
+  return createDereferenceError([missingFiles, resolvingClause], errors);
 }
 
 export type LoadResult = {
@@ -271,7 +269,7 @@ export async function loadAndUpgrade(
     const refErrors = validationResult.errors.filter(isReferenceError);
 
     if (refErrors.length > 0) {
-      throw invalidReferencesError(refErrors, validationResult.errors);
+      throw validateStepReferenceError(refErrors, validationResult.errors);
     }
 
     if (validateSpecs) {
@@ -319,7 +317,7 @@ export async function loadAndUpgrade(
 
   if (dereferencedResult?.errors?.length || !dereferencedResult.schema) {
     logger.debug(`Cannot dereference ${sourceLabel}.`);
-    throw resolvingReferencesError(
+    throw dereferenceStepReferenceError(
       sourceLabel,
       dereferencedResult?.errors ?? [],
     );
@@ -381,8 +379,8 @@ export async function validateOpenApi(
 
     if (dereferencedResult?.errors?.length || !dereferencedResult.schema) {
       logger.debug(`Cannot dereference '${source}'.`);
-      throw resolvingReferencesError(
-        `'${source}'`,
+      throw dereferenceStepReferenceError(
+        formatSourceLabel(source),
         dereferencedResult?.errors ?? [],
       );
     }
