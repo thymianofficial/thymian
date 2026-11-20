@@ -17,10 +17,11 @@ import {
   isValidHttpStatusCode,
   mapToTestCase,
   runRequests,
+  type ThymianFormat,
   type ThymianHttpTransaction,
   thymianHttpTransactionToString,
 } from '@thymian/core';
-import { rxjs, type ThymianFormat } from '@thymian/core';
+import { rxjs } from '@thymian/core';
 
 /** The transactions the picker offers, keyed by their Selector. */
 export function transactionChoices(

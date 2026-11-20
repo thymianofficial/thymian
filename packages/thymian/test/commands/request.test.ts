@@ -4,7 +4,8 @@ import { transactionChoices } from '../../src/commands/request.js';
 
 describe('thymian request', () => {
   it('does not offer a default transaction in the picker', async () => {
-    // Imported lazily, as the other command tests load `@thymian/core-testing`.
+    // Imported lazily: other tests in this project load `@thymian/core-testing`
+    // dynamically, so @nx/enforce-module-boundaries refuses a static import.
     const {
       createHttpRequest,
       createHttpResponse,
