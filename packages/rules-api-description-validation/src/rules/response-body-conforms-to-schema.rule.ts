@@ -15,6 +15,7 @@ import {
 import {
   missingElementMessage,
   undocumentedResponseSkip,
+  unknownOperationSkip,
 } from './graph-location.js';
 
 const NAME = 'thymian/response-body-must-conforms-to-schema';
@@ -36,18 +37,7 @@ export default httpRule(NAME)
         location: RuleViolationLocation,
       ): RuleFnResult[] => {
         if (typeof location === 'string') {
-          return [
-            {
-              location,
-              findings: [
-                {
-                  title: NAME,
-                  kind: 'rule-skip',
-                  message: `No matching endpoint found in corresponding API description document.`,
-                },
-              ],
-            },
-          ];
+          return unknownOperationSkip(location, NAME);
         }
 
         if (location.elementType === 'node') {

@@ -9,7 +9,11 @@ import {
   validateRequestQueryParameters,
 } from '@thymian/core';
 
-import { missingElementMessage, requestAt } from './graph-location.js';
+import {
+  missingElementMessage,
+  requestAt,
+  unknownOperationSkip,
+} from './graph-location.js';
 
 const NAME = 'thymian/request-query-parameters-must-conform-to-schema';
 
@@ -32,18 +36,7 @@ export default httpRule(NAME)
         location: RuleViolationLocation,
       ): RuleFnResult[] => {
         if (typeof location === 'string') {
-          return [
-            {
-              location,
-              findings: [
-                {
-                  title: NAME,
-                  kind: 'rule-skip',
-                  message: `No matching endpoint found in corresponding API description document.`,
-                },
-              ],
-            },
-          ];
+          return unknownOperationSkip(location, NAME);
         }
 
         const thymianReq = requestAt(ctx.format, location);

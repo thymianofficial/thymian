@@ -38,6 +38,28 @@ export function missingElementMessage(location: GraphLocation): string {
   return `Can't find ${element} with given ID ${location.elementId} in Thymian format.`;
 }
 
+/**
+ * A rule's result on a recorded pair whose operation the API description does
+ * not know: a skip at the pair's label.
+ */
+export function unknownOperationSkip(
+  location: string,
+  title: string,
+): RuleFnResult[] {
+  return [
+    {
+      location,
+      findings: [
+        {
+          title,
+          kind: 'rule-skip',
+          message: `No matching endpoint found in corresponding API description document.`,
+        },
+      ],
+    },
+  ];
+}
+
 /** The skip message of a response-scoped rule on an Undocumented Response. */
 export function undocumentedResponseMessage(response: HttpResponse): string {
   const mediaType = getContentType(response.headers);
