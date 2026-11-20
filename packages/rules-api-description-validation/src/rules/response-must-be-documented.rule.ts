@@ -9,7 +9,7 @@ import {
   type RuleViolationLocation,
 } from '@thymian/core';
 
-import { requestAt } from './located-request.js';
+import { requestAt, unknownOperationSkip } from './located-request.js';
 
 const NAME = 'thymian/response-must-be-documented';
 
@@ -34,18 +34,7 @@ export default httpRule(NAME)
         location: RuleViolationLocation,
       ): RuleFnResult[] => {
         if (typeof location === 'string') {
-          return [
-            {
-              location,
-              findings: [
-                {
-                  title: NAME,
-                  kind: 'rule-skip',
-                  message: `No matching endpoint found in corresponding API description document.`,
-                },
-              ],
-            },
-          ];
+          return unknownOperationSkip(location, NAME);
         }
 
         if (location.elementType === 'edge') {
