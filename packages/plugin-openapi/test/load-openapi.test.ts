@@ -950,6 +950,26 @@ describe('load-openapi', () => {
       }
     });
 
+    it('lists missing files and unresolved pointers in separate clauses', async () => {
+      try {
+        await loadAndUpgrade(
+          join(import.meta.dirname, 'fixtures/missing-refs-mixed.yaml'),
+          process.cwd(),
+          new NoopLogger(),
+        );
+        expect.fail('Error should have been thrown');
+      } catch (error) {
+        expect(error).toBeInstanceOf(ThymianBaseError);
+        const { message } = error as ThymianBaseError;
+        expect(message).toContain(
+          "Referenced files not found: './schemas/missing-a.yaml', './schemas/missing-b.yaml'",
+        );
+        expect(message).toContain(
+          "Invalid $ref found: Can't resolve reference: #/components/schemas/NonExistent",
+        );
+      }
+    });
+
     it('throws OpenAPIDereferenceError for a missing external file when validateSpecs is enabled', async () => {
       try {
         await loadAndUpgrade(
