@@ -60,7 +60,8 @@ content), joined to the request node by ordinary `http-transaction` edges.
 
 We will make matching staged in a new `ThymianFormat.resolveTransaction`,
 which returns one of the three outcomes below. `matchTransaction` keeps its
-signature and becomes the wrapper that returns only a full match:
+signature and becomes the wrapper that returns only a full match _(Amended
+2026-11-20; see Status History.)_:
 
 1. **Operation.** Method, path, origin and request media type, with the same
    three tiers as before (exact path → strict template → relaxed origin). No
