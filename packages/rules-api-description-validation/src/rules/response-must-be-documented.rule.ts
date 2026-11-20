@@ -9,11 +9,7 @@ import {
   type RuleViolationLocation,
 } from '@thymian/core';
 
-import {
-  type GraphLocation,
-  missingElementMessage,
-  requestAt,
-} from './graph-location.js';
+import { requestAt } from './graph-location.js';
 
 const NAME = 'thymian/response-must-be-documented';
 
@@ -37,15 +33,7 @@ export default httpRule(NAME)
         response: HttpResponse,
         location: RuleViolationLocation,
       ): RuleFnResult[] => {
-        // The location only says where the pair landed; the resolution also
-        // says what about an Undocumented Response (ADR-0027) is undocumented.
-        const resolution = ctx.format.resolveTransaction(request, response);
-
-        if (resolution.kind === 'matched') {
-          return [{ location, findings: [] }];
-        }
-
-        if (resolution.kind === 'unknown-operation') {
+        if (typeof location === 'string') {
           return [
             {
               location,
@@ -60,25 +48,19 @@ export default httpRule(NAME)
           ];
         }
 
-        const operationLocation: GraphLocation = {
-          elementType: 'node',
-          elementId: resolution.requestId,
-        };
-        const operation = requestAt(ctx.format, operationLocation);
+        if (location.elementType === 'edge') {
+          return [{ location, findings: [] }];
+        }
 
-        if (!operation) {
-          return [
-            {
-              location,
-              findings: [
-                {
-                  title: NAME,
-                  kind: 'rule-skip',
-                  message: missingElementMessage(operationLocation),
-                },
-              ],
-            },
-          ];
+        // A node location is an Undocumented Response (ADR-0027) at its
+        // operation; the resolution says what about it is undocumented.
+        const resolution = ctx.format.resolveTransaction(request, response);
+        const operation = requestAt(ctx.format, location);
+
+        if (resolution.kind !== 'undocumented-response' || !operation) {
+          throw new Error(
+            `${NAME}: expected an Undocumented Response at an existing request ${location.elementId}.`,
+          );
         }
 
         const selector = formatRequestSelector(operation);
