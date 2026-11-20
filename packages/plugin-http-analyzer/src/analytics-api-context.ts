@@ -144,10 +144,14 @@ export class AnalyticsApiContext implements AnalyzeContext {
       this.roles = expandHttpParticipantRoles(roles);
     }
 
-    // A recorded pair the specification does not describe is not secured.
+    // A recorded pair to an operation the specification does not describe is
+    // not secured. An undocumented response still belongs to its operation.
     this.repository.answerIsSecuredWith((request, response) => {
-      const reqId = this.format.matchTransaction(request, response)?.[1];
-      return !!reqId && this.format.requestIsSecured(reqId);
+      const resolution = this.format.resolveTransaction(request, response);
+      return (
+        resolution.kind !== 'unknown-operation' &&
+        this.format.requestIsSecured(resolution.requestId)
+      );
     });
   }
 
@@ -347,24 +351,38 @@ export class AnalyticsApiContext implements AnalyzeContext {
       finalFilter,
       this.roles,
     )) {
-      const matchResult = this.format.matchTransaction(
-        request.data,
-        response.data,
-      );
-      const transactionId = matchResult?.[0];
-
-      const location: RuleViolationLocation = transactionId
-        ? {
-            elementType: 'edge',
-            elementId: transactionId,
-            label: httpTransactionToLabel(request.data, response.data),
-          }
-        : httpTransactionToLabel(request.data, response.data);
+      const location = this.locate(request.data, response.data);
 
       results.push(...validateFn(request.data, response.data, location));
     }
 
     return results;
+  }
+
+  /**
+   * Where a recorded pair lands in the specification: the matched Transaction,
+   * the matched operation's request node for an Undocumented Response (no
+   * label, so the report names the operation's selector, not the recorded
+   * URL), or the recorded pair's label for an unknown operation.
+   */
+  private locate(
+    request: HttpRequest,
+    response: HttpResponse,
+  ): RuleViolationLocation {
+    const resolution = this.format.resolveTransaction(request, response);
+
+    switch (resolution.kind) {
+      case 'matched':
+        return {
+          elementType: 'edge',
+          elementId: resolution.transactionId,
+          label: httpTransactionToLabel(request, response),
+        };
+      case 'undocumented-response':
+        return { elementType: 'node', elementId: resolution.requestId };
+      case 'unknown-operation':
+        return httpTransactionToLabel(request, response);
+    }
   }
 
   validateCapturedHttpTransactions(

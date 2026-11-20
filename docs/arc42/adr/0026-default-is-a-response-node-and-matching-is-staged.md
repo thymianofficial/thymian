@@ -58,7 +58,10 @@ content), joined to the request node by ordinary `http-transaction` edges.
 
 ### Matching resolves the operation first, then the response within it
 
-We will make `matchTransaction` staged:
+We will make matching staged in a new `ThymianFormat.resolveTransaction`,
+which returns one of the three outcomes below. `matchTransaction` keeps its
+signature and becomes the wrapper that returns only a full match _(Amended
+2026-11-20; see Status History.)_:
 
 1. **Operation.** Method, path, origin and request media type, with the same
    three tiers as before (exact path → strict template → relaxed origin). No
@@ -154,3 +157,4 @@ node. No type changes.
 | Date       | Status   | Notes                                                                                               |
 | ---------- | -------- | --------------------------------------------------------------------------------------------------- |
 | 2026-11-16 | Accepted | `default` modelled as response nodes, not a test target; `matchTransaction` staged operation-first. |
+| 2026-11-20 | Amended  | `resolveTransaction` is the staged entry point; `matchTransaction` is its full-match wrapper.       |
