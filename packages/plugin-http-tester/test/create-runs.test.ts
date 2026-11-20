@@ -2,8 +2,11 @@ import {
   httpRule,
   type HttpTestCase,
   type HttpTestCaseStep,
+  locateOnGroup,
   type Logger,
   type RuleFnResult,
+  type RuleViolationGroupLocation,
+  type RuleViolationLocation,
   type TestCaseExecution,
   ThymianFormat,
   type ThymianHttpTransaction,
@@ -134,7 +137,9 @@ function makeSkippedCase(name: string): HttpTestCase {
 }
 
 function ruleResults(
-  ruleFnResult: RuleFnResult[],
+  ruleFnResult: RuleFnResult<
+    RuleViolationLocation | RuleViolationGroupLocation
+  >[],
   diagnostics: HttpTesterRuleDiagnostics | undefined,
 ) {
   return { [rule.meta.name]: { ruleFnResult, diagnostics } };
@@ -754,6 +759,45 @@ describe('createRuns', () => {
         type: 'custom',
         value: 'my-group',
       });
+    });
+
+    it('reports a result located on a group as its failed test case, on the group key', () => {
+      const [result] = locateOnGroup(
+        [
+          {
+            location: 'my-group',
+            violation: { message: 'flagged' },
+            findings: [],
+          },
+        ],
+        'my-group',
+        [{ elementType: 'edge', elementId: 'tx-1' }],
+      );
+      const diagnostics: HttpTesterRuleDiagnostics = [
+        {
+          testResult: {
+            name: 'test',
+            cases: [makePassedCase('case', [makeGroupedStep('my-group')])],
+          } as never,
+          placements: [{ result: result!, testCaseIndex: 0, stepIndex: 0 }],
+        },
+      ];
+
+      const [run] = createRuns(
+        PLUGIN,
+        ruleResults([result!], diagnostics),
+        [rule],
+        FORMAT,
+        makeLogger(),
+      );
+
+      expect(testCases(run?.executions)).toMatchObject([
+        {
+          status: { kind: 'failed', reason: 'flagged' },
+          steps: [{ location: { type: 'custom', value: 'my-group' } }],
+        },
+      ]);
+      expect(testCases(run?.executions)).toHaveLength(1);
     });
 
     it('uses JSON-stringified location for a custom step with object source', () => {

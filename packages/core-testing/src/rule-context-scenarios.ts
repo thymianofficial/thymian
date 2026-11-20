@@ -18,6 +18,7 @@ import {
   responseHeader,
   responseWith,
   type RuleFnResult,
+  type RuleViolationGroupLocation,
   type RuleViolationLocation,
   statusCode,
   type ThymianHttpRequest,
@@ -392,7 +393,7 @@ async function validate(
   form: ViolatedWhenForm,
   appliesTo: HttpFilterExpression,
   reached: RuleViolationLocation[],
-): Promise<RuleFnResult[]> {
+): Promise<RuleFnResult<RuleViolationLocation | RuleViolationGroupLocation>[]> {
   const common = (
     _req: CommonHttpRequest,
     res: CommonHttpResponse,

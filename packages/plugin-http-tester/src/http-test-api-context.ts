@@ -12,7 +12,9 @@ import {
   type HttpRuleCriteria,
   type HttpTestCaseResult,
   isRuleCriteria,
+  locateOnGroup,
   type RuleFnResult,
+  type RuleViolationGroupLocation,
   type RuleViolationLocation,
   type TestContext,
   ThymianBaseError,
@@ -50,13 +52,17 @@ function hasSource(
 }
 
 function isSameLocation(
-  a: RuleViolationLocation,
+  a: RuleViolationLocation | RuleViolationGroupLocation,
   b: RuleViolationLocation,
 ): boolean {
   if (typeof a === 'string' || typeof b === 'string') {
     return a === b;
   }
-  return a.elementType === b.elementType && a.elementId === b.elementId;
+  return (
+    a.elementType !== 'group' &&
+    a.elementType === b.elementType &&
+    a.elementId === b.elementId
+  );
 }
 
 type EdgeLocation = {
@@ -70,7 +76,7 @@ type EdgeLocation = {
  * stepIndex is absent for test-case-level results (e.g. from httpTest()).
  */
 export type RuleFnResultPlacement = {
-  result: RuleFnResult;
+  result: RuleFnResult<RuleViolationLocation | RuleViolationGroupLocation>;
   testCaseIndex: number;
   stepIndex?: number;
 };
@@ -129,21 +135,27 @@ export class HttpTestApiContext<
 
   async validateGroupedCommonHttpTransactions(
     criteria: GroupedCommonHttpRuleCriteria,
-  ): Promise<RuleFnResult[]>;
+  ): Promise<
+    RuleFnResult<RuleViolationLocation | RuleViolationGroupLocation>[]
+  >;
   async validateGroupedCommonHttpTransactions(
     filterExpr: HttpFilterExpression,
     groupByExpression: HttpFilterExpression,
     validationFn: ValidationFn<
       [string, [CommonHttpRequest, CommonHttpResponse, RuleViolationLocation][]]
     >,
-  ): Promise<RuleFnResult[]>;
+  ): Promise<
+    RuleFnResult<RuleViolationLocation | RuleViolationGroupLocation>[]
+  >;
   async validateGroupedCommonHttpTransactions(
     appliesToOrCriteria: HttpFilterExpression | GroupedCommonHttpRuleCriteria,
     groupByArg?: HttpFilterExpression,
     violatedWhenArg?: ValidationFn<
       [string, [CommonHttpRequest, CommonHttpResponse, RuleViolationLocation][]]
     >,
-  ): Promise<RuleFnResult[]> {
+  ): Promise<
+    RuleFnResult<RuleViolationLocation | RuleViolationGroupLocation>[]
+  > {
     const [appliesTo, groupByExpression, violatedWhen, liveAppliesTo] =
       isRuleCriteria(appliesToOrCriteria)
         ? [
@@ -169,7 +181,9 @@ export class HttpTestApiContext<
 
     const testResult = await test(this.ctx);
 
-    const callViolations: RuleFnResult[] = [];
+    const callViolations: RuleFnResult<
+      RuleViolationLocation | RuleViolationGroupLocation
+    >[] = [];
     const placements: RuleFnResultPlacement[] = [];
 
     testResult.cases.forEach((value, testCaseIndex) => {
@@ -217,7 +231,11 @@ export class HttpTestApiContext<
         return;
       }
 
-      const results = violatedWhen(source.key, transactionsToValidate);
+      const results = locateOnGroup(
+        violatedWhen(source.key, transactionsToValidate),
+        source.key,
+        transactionsToValidate.map(([, , location]) => location),
+      );
       callViolations.push(...results);
       for (const result of results) {
         placements.push({ result, testCaseIndex, stepIndex: 0 });

@@ -20,11 +20,13 @@ import {
   type HttpRuleCriteria,
   httpTransactionToLabel,
   isRuleCriteria,
+  locateOnGroup,
   type Logger,
   matchesOrigin,
   not,
   or,
   type RuleFnResult,
+  type RuleViolationGroupLocation,
   type RuleViolationLocation,
   ThymianFormat,
   thymianRequestToOrigin,
@@ -168,6 +170,30 @@ export class AnalyticsApiContext implements AnalyzeContext {
         );
   }
 
+  // Locates a recorded pair on the format Transaction it matches. A pair that
+  // matches none, or more than one, keeps its label as the location, and so
+  // does a pair the format cannot be asked about (a duplicated Content-Type,
+  // an origin that is no URL): where a result is shown must not end the run.
+  private locate(
+    request: HttpRequest,
+    response: HttpResponse,
+    label: string,
+  ): RuleViolationLocation {
+    let transactionId: string | undefined;
+
+    try {
+      transactionId = this.format.matchTransaction(request, response)?.[0];
+    } catch (error) {
+      this.logger.debug(
+        `Cannot match "${label}" to a transaction, locating it by its label: ${String(error)}`,
+      );
+    }
+
+    return transactionId
+      ? { elementType: 'edge', elementId: transactionId, label }
+      : label;
+  }
+
   validateCommonHttpTransactions(
     criteria: CommonHttpRuleCriteria,
   ): RuleFnResult[];
@@ -219,18 +245,18 @@ export class AnalyticsApiContext implements AnalyzeContext {
       finalFilter,
       this.roles,
     )) {
-      const location = httpTransactionToLabel(request.data, response.data);
+      const label = httpTransactionToLabel(request.data, response.data);
       results.push(
         ...validateFn(
           httpRequestToCommonHttpRequest(request.data, {
-            label: location,
+            label,
             logger: this.logger,
           }),
           httpResponseToCommonHttpResponse(response.data, {
-            label: location,
+            label,
             logger: this.logger,
           }),
-          location,
+          this.locate(request.data, response.data, label),
         ),
       );
     }
@@ -240,21 +266,21 @@ export class AnalyticsApiContext implements AnalyzeContext {
 
   validateGroupedCommonHttpTransactions(
     criteria: GroupedCommonHttpRuleCriteria,
-  ): RuleFnResult[];
+  ): RuleFnResult<RuleViolationLocation | RuleViolationGroupLocation>[];
   validateGroupedCommonHttpTransactions(
     filter: HttpFilterExpression,
     groupBy: HttpFilterExpression,
     validationFn: ValidationFn<
       [string, [CommonHttpRequest, CommonHttpResponse, RuleViolationLocation][]]
     >,
-  ): RuleFnResult[];
+  ): RuleFnResult<RuleViolationLocation | RuleViolationGroupLocation>[];
   validateGroupedCommonHttpTransactions(
     appliesToOrCriteria: HttpFilterExpression | GroupedCommonHttpRuleCriteria,
     groupByArg?: HttpFilterExpression,
     violatedWhenArg?: ValidationFn<
       [string, [CommonHttpRequest, CommonHttpResponse, RuleViolationLocation][]]
     >,
-  ): RuleFnResult[] {
+  ): RuleFnResult<RuleViolationLocation | RuleViolationGroupLocation>[] {
     const [appliesTo, groupBy, violatedWhen] = isRuleCriteria(
       appliesToOrCriteria,
     )
@@ -266,7 +292,9 @@ export class AnalyticsApiContext implements AnalyzeContext {
       : // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         [appliesToOrCriteria, groupByArg!, violatedWhenArg!];
 
-    const results: RuleFnResult[] = [];
+    const results: RuleFnResult<
+      RuleViolationLocation | RuleViolationGroupLocation
+    >[] = [];
     const finalFilter = this.addOriginsToFilter(appliesTo);
 
     const groups = this.repository.readAndGroupTransactionsByHttpFilter(
@@ -276,27 +304,29 @@ export class AnalyticsApiContext implements AnalyzeContext {
     );
 
     for (const [key, transactions] of groups) {
-      results.push(
-        ...violatedWhen(
-          key,
-          transactions.map((t) => {
-            const location = httpTransactionToLabel(
-              t.request.data,
-              t.response.data,
-            );
+      const members = transactions.map(
+        (t): [CommonHttpRequest, CommonHttpResponse, RuleViolationLocation] => {
+          const label = httpTransactionToLabel(t.request.data, t.response.data);
 
-            return [
-              httpRequestToCommonHttpRequest(t.request.data, {
-                label: location,
-                logger: this.logger,
-              }),
-              httpResponseToCommonHttpResponse(t.response.data, {
-                label: location,
-                logger: this.logger,
-              }),
-              location,
-            ];
-          }),
+          return [
+            httpRequestToCommonHttpRequest(t.request.data, {
+              label,
+              logger: this.logger,
+            }),
+            httpResponseToCommonHttpResponse(t.response.data, {
+              label,
+              logger: this.logger,
+            }),
+            this.locate(t.request.data, t.response.data, label),
+          ];
+        },
+      );
+
+      results.push(
+        ...locateOnGroup(
+          violatedWhen(key, members),
+          key,
+          members.map(([, , location]) => location),
         ),
       );
     }

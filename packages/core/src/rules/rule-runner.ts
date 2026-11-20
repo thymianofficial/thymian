@@ -19,10 +19,13 @@ import type {
 import type { ExecutableRuleType } from './rule-execution-invariant.js';
 import type { RuleSeverity } from './rule-severity.js';
 import { isRuleSeverityLevel } from './rule-severity.js';
-import type {
-  EvaluatedRuleViolation,
-  RuleFnResult,
-  RuleViolationLocation,
+import {
+  type EvaluatedRuleViolation,
+  isGroupLocationMadeByContext,
+  isRuleViolationGroupLocation,
+  type RuleFnResult,
+  type RuleViolationGroupLocation,
+  type RuleViolationLocation,
 } from './rule-violation.js';
 
 export function findDuplicates<T>(elements: T[]): T[] {
@@ -32,10 +35,19 @@ export function findDuplicates<T>(elements: T[]): T[] {
 }
 
 export function resolveViolationLocation(
-  location: RuleViolationLocation,
+  location: RuleViolationLocation | RuleViolationGroupLocation,
   format: ThymianFormat,
   ruleName: string,
 ): { heading: string; location: Location } {
+  // A report shows a group by its key, as it did when the key was all a
+  // grouped rule could return. The members stay with the rule result.
+  if (isRuleViolationGroupLocation(location)) {
+    return {
+      heading: location.key,
+      location: { type: 'custom', value: location.key },
+    };
+  }
+
   if (typeof location === 'string') {
     return {
       heading: location,
@@ -149,7 +161,9 @@ export type RunRulesResult<TDiagnostics = unknown> = Record<
   string,
   {
     diagnostics: TDiagnostics | undefined;
-    ruleFnResult: RuleFnResult[];
+    ruleFnResult: RuleFnResult<
+      RuleViolationLocation | RuleViolationGroupLocation
+    >[];
   }
 >;
 
@@ -166,7 +180,11 @@ export type RuleRunnerAdapter<
           mode: 'static' | 'analytics' | 'test';
         },
         logger: Logger,
-      ) => RuleFnResult[] | Promise<RuleFnResult[]>)
+      ) =>
+        | RuleFnResult<RuleViolationLocation | RuleViolationGroupLocation>[]
+        | Promise<
+            RuleFnResult<RuleViolationLocation | RuleViolationGroupLocation>[]
+          >)
     | undefined;
   createContext(
     rule: Rule,
@@ -254,6 +272,23 @@ export async function runRules<
         },
         logger.child(rule.meta.name),
       );
+
+      // Only a validation context makes a group location; one a rule made
+      // itself, or copied, names members nothing vouches for.
+      for (const { location } of ruleFnResult) {
+        if (
+          isRuleViolationGroupLocation(location) &&
+          !isGroupLocationMadeByContext(location)
+        ) {
+          throw new ThymianBaseError(
+            `Invalid rule violation location for rule ${rule.meta.name}: a rule cannot make a group location.`,
+            {
+              name: 'InvalidRuleViolationLocationError',
+              ref: 'https://thymian.dev/references/errors/invalid-rule-violation-location-error/',
+            },
+          );
+        }
+      }
 
       const diagnostics = context.getRuleExecutionDiagnostics();
 

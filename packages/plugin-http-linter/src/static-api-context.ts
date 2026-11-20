@@ -9,10 +9,12 @@ import {
   isRuleCriteria,
   type LintContext,
   type LintRuleCriteria,
+  locateOnGroup,
   type Logger,
   type RuleFinding,
   type RuleFnResult,
   type RuleViolation,
+  type RuleViolationGroupLocation,
   type RuleViolationLocation,
   ThymianFormat,
   type ThymianHttpRequest,
@@ -125,21 +127,21 @@ export class StaticApiContext implements LintContext {
 
   validateGroupedCommonHttpTransactions(
     criteria: GroupedCommonHttpRuleCriteria,
-  ): RuleFnResult[];
+  ): RuleFnResult<RuleViolationLocation | RuleViolationGroupLocation>[];
   validateGroupedCommonHttpTransactions(
     filter: HttpFilterExpression,
     groupBy: HttpFilterExpression,
     validationFn: ValidationFn<
       [string, [CommonHttpRequest, CommonHttpResponse, RuleViolationLocation][]]
     >,
-  ): RuleFnResult[];
+  ): RuleFnResult<RuleViolationLocation | RuleViolationGroupLocation>[];
   validateGroupedCommonHttpTransactions(
     appliesToOrCriteria: HttpFilterExpression | GroupedCommonHttpRuleCriteria,
     groupByArg?: HttpFilterExpression,
     violatedWhenArg?: ValidationFn<
       [string, [CommonHttpRequest, CommonHttpResponse, RuleViolationLocation][]]
     >,
-  ): RuleFnResult[] {
+  ): RuleFnResult<RuleViolationLocation | RuleViolationGroupLocation>[] {
     const [appliesTo, groupBy, violatedWhen] = isRuleCriteria(
       appliesToOrCriteria,
     )
@@ -165,30 +167,30 @@ export class StaticApiContext implements LintContext {
         {},
       );
 
-    const rawEntries: RuleFnResult[] = Object.entries(groups).flatMap(
-      ([key, group]) =>
-        violatedWhen(
-          key,
-          group.map(
-            ({
-              thymianReq,
-              thymianRes,
-              thymianReqId,
-              thymianResId,
-              transactionId,
-            }) => [
-              thymianToCommonHttpRequest(thymianReq, thymianReqId),
-              thymianToCommonHttpResponse(thymianRes, thymianResId),
-              {
-                elementType: 'edge',
-                elementId: transactionId,
-              },
-            ],
-          ),
-        ),
-    );
+    return Object.entries(groups).flatMap(([key, group]) => {
+      const members = group.map(
+        ({
+          thymianReq,
+          thymianRes,
+          thymianReqId,
+          thymianResId,
+          transactionId,
+        }): [CommonHttpRequest, CommonHttpResponse, RuleViolationLocation] => [
+          thymianToCommonHttpRequest(thymianReq, thymianReqId),
+          thymianToCommonHttpResponse(thymianRes, thymianResId),
+          {
+            elementType: 'edge',
+            elementId: transactionId,
+          },
+        ],
+      );
 
-    return rawEntries;
+      return locateOnGroup(
+        violatedWhen(key, members),
+        key,
+        members.map(([, , location]) => location),
+      );
+    });
   }
 
   validateHttpTransactions(criteria: LintRuleCriteria): RuleFnResult[];

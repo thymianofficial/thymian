@@ -68,6 +68,7 @@ export {
   createThymianSchema,
 } from './factories/schema.factory.js';
 export {
+  addTransaction,
   createThymianFormat,
   createThymianFormatWithTransaction,
   createThymianFormatWithTransactions,
@@ -105,6 +106,7 @@ export {
 
 export {
   exampleRequestSampler,
+  exampleRequestTemplate,
   generateExampleParameters,
   identityHookRunner,
 } from './http-testing-utils.js';
