@@ -24,6 +24,8 @@ import {
   type RuleFnResult,
   type RuleRunnerAdapter,
   rulesToRuleDescriptors,
+  type RuleViolationGroupLocation,
+  type RuleViolationLocation,
   runRules,
   type RunRulesResult,
   type SingleRuleConfiguration,
@@ -274,9 +276,15 @@ function computeTestCaseStatus(
 function resolvePlacements(
   testResult: HttpTestResult,
   contextPlacements: RuleFnResultPlacement[],
-  ruleFnResult: RuleFnResult[],
-  alreadyConsumed: ReadonlySet<RuleFnResult>,
-  allPlacedResults: ReadonlySet<RuleFnResult>,
+  ruleFnResult: RuleFnResult<
+    RuleViolationLocation | RuleViolationGroupLocation
+  >[],
+  alreadyConsumed: ReadonlySet<
+    RuleFnResult<RuleViolationLocation | RuleViolationGroupLocation>
+  >,
+  allPlacedResults: ReadonlySet<
+    RuleFnResult<RuleViolationLocation | RuleViolationGroupLocation>
+  >,
 ): RuleFnResultPlacement[] {
   // Tie-break: an unplaced result carries only an edge id (no step index), so
   // when the same `source.transactionId` runs in more than one step/case we
@@ -355,7 +363,9 @@ export function createRuns(
       continue;
     }
 
-    const consumedResults = new Set<RuleFnResult>();
+    const consumedResults = new Set<
+      RuleFnResult<RuleViolationLocation | RuleViolationGroupLocation>
+    >();
 
     if (diagnostics) {
       // Every result placed by ANY diagnostics entry, computed once. Guards

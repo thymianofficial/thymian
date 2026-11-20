@@ -11,6 +11,7 @@ import {
   resolveViolationLocation,
   type RuleFnResult,
   type RuleRunnerAdapter,
+  type RuleViolationGroupLocation,
   type RuleViolationLocation,
   runRules,
   type TestCaseExecution,
@@ -182,13 +183,13 @@ export async function runTest(
  */
 type TestedGroup = {
   members: ThymianHttpTransaction[];
-  returned: RuleFnResult[];
+  returned: RuleFnResult<RuleViolationLocation | RuleViolationGroupLocation>[];
 };
 
 /** The group of a test case of a grouped rule; none for any other case. */
 function groupOf(
   { steps }: HttpTestCase,
-  returned: RuleFnResult[],
+  returned: RuleFnResult<RuleViolationLocation | RuleViolationGroupLocation>[],
 ): TestedGroup | undefined {
   const [step] = steps;
 

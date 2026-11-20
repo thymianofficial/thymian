@@ -16,7 +16,7 @@ const headUsers: RuleViolationLocation = {
   elementId: 'head-users',
 };
 
-function violationOn(location: RuleFnResult['location']): RuleFnResult {
+function violationOn<L>(location: L): RuleFnResult<L> {
   return { location, violation: { message: 'flagged' }, findings: [] };
 }
 
@@ -74,13 +74,10 @@ describe('locateOnGroup', () => {
 
 describe('isRuleViolationGroupLocation', () => {
   it('tells a group from the locations a rule names', () => {
-    expect(
-      isRuleViolationGroupLocation({
-        elementType: 'group',
-        key: '/users',
-        members: [],
-      }),
-    ).toBe(true);
+    const [result] = locateOnGroup([violationOn('/users')], '/users', []);
+
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    expect(isRuleViolationGroupLocation(result!.location)).toBe(true);
     expect(isRuleViolationGroupLocation(getUsers)).toBe(false);
     expect(isRuleViolationGroupLocation('/users')).toBe(false);
   });

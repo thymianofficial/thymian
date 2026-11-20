@@ -87,7 +87,8 @@ declares, and return what the rule said about **every transaction** of the input
 - **A group is a location that names its members.** A grouped rule
   (`validateGroupedCommonHttpTransactions`) returns one location, and that choice is read as
   its statement of what is at fault: a member, or the group, for which it returns the group
-  key. The rule contract stays as it is. The three contexts turn a result on the group key
+  key. The rule contract stays as it is: a rule returns the locations it always could, and
+  only a context makes a group location. The three contexts turn a result on the group key
   into a result on a group location that carries the key and the locations of the members,
   where they used to pass the bare key on. The harness lists such an execution once per
   member, on the member, with the key as `group`; a member the rule returned nothing on is

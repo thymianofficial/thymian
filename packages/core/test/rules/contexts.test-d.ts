@@ -5,7 +5,10 @@ import {
   type LintContext,
   type LiveApiContext,
   responseHeader,
+  type RuleFn,
   type RuleFnResult,
+  type RuleViolationGroupLocation,
+  type RuleViolationLocation,
   statusCode,
 } from '../../src/index.js';
 
@@ -14,6 +17,9 @@ declare const live: LiveApiContext;
 declare const lint: LintContext;
 
 type Results = Promise<RuleFnResult[]> | RuleFnResult[];
+type GroupedResults =
+  | Promise<RuleFnResult<RuleViolationLocation | RuleViolationGroupLocation>[]>
+  | RuleFnResult<RuleViolationLocation | RuleViolationGroupLocation>[];
 
 describe('the { appliesTo, violatedWhen } form of rule-context validation calls', () => {
   it('accepts both keys', () => {
@@ -37,7 +43,7 @@ describe('the { appliesTo, violatedWhen } form of rule-context validation calls'
         groupBy: statusCode(),
         violatedWhen: () => [],
       }),
-    ).toEqualTypeOf<Results>();
+    ).toEqualTypeOf<GroupedResults>();
     expectTypeOf(
       lint.validateHttpTransactions({
         appliesTo: (_req, res) => res.statusCode === 405,
@@ -74,5 +80,41 @@ describe('the { appliesTo, violatedWhen } form of rule-context validation calls'
     });
     // @ts-expect-error violatedWhen is required
     lint.validateHttpTransactions({ appliesTo: () => true });
+  });
+});
+
+describe('a group location in what a rule returns', () => {
+  const handBuilt = {
+    elementType: 'group' as const,
+    key: '/users',
+    members: [] as RuleViolationLocation[],
+  };
+
+  it('cannot be made in a grouped violatedWhen', () => {
+    api.validateGroupedCommonHttpTransactions({
+      appliesTo: statusCode(405),
+      groupBy: statusCode(),
+      violatedWhen: () => [
+        // @ts-expect-error a rule cannot make a group location
+        { location: handBuilt, findings: [] },
+      ],
+    });
+  });
+
+  it('cannot be made in an ungrouped violatedWhen', () => {
+    // @ts-expect-error a rule cannot make a group location
+    live.validateHttpTransactions({
+      appliesTo: statusCode(405),
+      violatedWhen: () => [{ location: handBuilt, findings: [] }],
+    });
+  });
+
+  it('cannot be made in a rule body', () => {
+    const rule: RuleFn<ApiContext, Record<string, never>> = () => [
+      // @ts-expect-error a rule cannot make a group location
+      { location: handBuilt, findings: [] },
+    ];
+
+    expectTypeOf(rule).toBeFunction();
   });
 });

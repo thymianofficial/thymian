@@ -26,6 +26,7 @@ import {
   not,
   or,
   type RuleFnResult,
+  type RuleViolationGroupLocation,
   type RuleViolationLocation,
   ThymianFormat,
   thymianRequestToOrigin,
@@ -265,21 +266,21 @@ export class AnalyticsApiContext implements AnalyzeContext {
 
   validateGroupedCommonHttpTransactions(
     criteria: GroupedCommonHttpRuleCriteria,
-  ): RuleFnResult[];
+  ): RuleFnResult<RuleViolationLocation | RuleViolationGroupLocation>[];
   validateGroupedCommonHttpTransactions(
     filter: HttpFilterExpression,
     groupBy: HttpFilterExpression,
     validationFn: ValidationFn<
       [string, [CommonHttpRequest, CommonHttpResponse, RuleViolationLocation][]]
     >,
-  ): RuleFnResult[];
+  ): RuleFnResult<RuleViolationLocation | RuleViolationGroupLocation>[];
   validateGroupedCommonHttpTransactions(
     appliesToOrCriteria: HttpFilterExpression | GroupedCommonHttpRuleCriteria,
     groupByArg?: HttpFilterExpression,
     violatedWhenArg?: ValidationFn<
       [string, [CommonHttpRequest, CommonHttpResponse, RuleViolationLocation][]]
     >,
-  ): RuleFnResult[] {
+  ): RuleFnResult<RuleViolationLocation | RuleViolationGroupLocation>[] {
     const [appliesTo, groupBy, violatedWhen] = isRuleCriteria(
       appliesToOrCriteria,
     )
@@ -291,7 +292,9 @@ export class AnalyticsApiContext implements AnalyzeContext {
       : // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         [appliesToOrCriteria, groupByArg!, violatedWhenArg!];
 
-    const results: RuleFnResult[] = [];
+    const results: RuleFnResult<
+      RuleViolationLocation | RuleViolationGroupLocation
+    >[] = [];
     const finalFilter = this.addOriginsToFilter(appliesTo);
 
     const groups = this.repository.readAndGroupTransactionsByHttpFilter(

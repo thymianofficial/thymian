@@ -2,8 +2,11 @@ import {
   httpRule,
   type HttpTestCase,
   type HttpTestCaseStep,
+  locateOnGroup,
   type Logger,
   type RuleFnResult,
+  type RuleViolationGroupLocation,
+  type RuleViolationLocation,
   type TestCaseExecution,
   ThymianFormat,
   type ThymianHttpTransaction,
@@ -134,7 +137,9 @@ function makeSkippedCase(name: string): HttpTestCase {
 }
 
 function ruleResults(
-  ruleFnResult: RuleFnResult[],
+  ruleFnResult: RuleFnResult<
+    RuleViolationLocation | RuleViolationGroupLocation
+  >[],
   diagnostics: HttpTesterRuleDiagnostics | undefined,
 ) {
   return { [rule.meta.name]: { ruleFnResult, diagnostics } };
@@ -757,28 +762,30 @@ describe('createRuns', () => {
     });
 
     it('reports a result located on a group as its failed test case, on the group key', () => {
-      const result: RuleFnResult = {
-        location: {
-          elementType: 'group',
-          key: 'my-group',
-          members: [{ elementType: 'edge', elementId: 'tx-1' }],
-        },
-        violation: { message: 'flagged' },
-        findings: [],
-      };
+      const [result] = locateOnGroup(
+        [
+          {
+            location: 'my-group',
+            violation: { message: 'flagged' },
+            findings: [],
+          },
+        ],
+        'my-group',
+        [{ elementType: 'edge', elementId: 'tx-1' }],
+      );
       const diagnostics: HttpTesterRuleDiagnostics = [
         {
           testResult: {
             name: 'test',
             cases: [makePassedCase('case', [makeGroupedStep('my-group')])],
           } as never,
-          placements: [{ result, testCaseIndex: 0, stepIndex: 0 }],
+          placements: [{ result: result!, testCaseIndex: 0, stepIndex: 0 }],
         },
       ];
 
       const [run] = createRuns(
         PLUGIN,
-        ruleResults([result], diagnostics),
+        ruleResults([result!], diagnostics),
         [rule],
         FORMAT,
         makeLogger(),

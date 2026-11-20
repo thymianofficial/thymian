@@ -14,6 +14,7 @@ import {
   isRuleCriteria,
   locateOnGroup,
   type RuleFnResult,
+  type RuleViolationGroupLocation,
   type RuleViolationLocation,
   type TestContext,
   ThymianBaseError,
@@ -51,7 +52,7 @@ function hasSource(
 }
 
 function isSameLocation(
-  a: RuleFnResult['location'],
+  a: RuleViolationLocation | RuleViolationGroupLocation,
   b: RuleViolationLocation,
 ): boolean {
   if (typeof a === 'string' || typeof b === 'string') {
@@ -75,7 +76,7 @@ type EdgeLocation = {
  * stepIndex is absent for test-case-level results (e.g. from httpTest()).
  */
 export type RuleFnResultPlacement = {
-  result: RuleFnResult;
+  result: RuleFnResult<RuleViolationLocation | RuleViolationGroupLocation>;
   testCaseIndex: number;
   stepIndex?: number;
 };
@@ -134,21 +135,27 @@ export class HttpTestApiContext<
 
   async validateGroupedCommonHttpTransactions(
     criteria: GroupedCommonHttpRuleCriteria,
-  ): Promise<RuleFnResult[]>;
+  ): Promise<
+    RuleFnResult<RuleViolationLocation | RuleViolationGroupLocation>[]
+  >;
   async validateGroupedCommonHttpTransactions(
     filterExpr: HttpFilterExpression,
     groupByExpression: HttpFilterExpression,
     validationFn: ValidationFn<
       [string, [CommonHttpRequest, CommonHttpResponse, RuleViolationLocation][]]
     >,
-  ): Promise<RuleFnResult[]>;
+  ): Promise<
+    RuleFnResult<RuleViolationLocation | RuleViolationGroupLocation>[]
+  >;
   async validateGroupedCommonHttpTransactions(
     appliesToOrCriteria: HttpFilterExpression | GroupedCommonHttpRuleCriteria,
     groupByArg?: HttpFilterExpression,
     violatedWhenArg?: ValidationFn<
       [string, [CommonHttpRequest, CommonHttpResponse, RuleViolationLocation][]]
     >,
-  ): Promise<RuleFnResult[]> {
+  ): Promise<
+    RuleFnResult<RuleViolationLocation | RuleViolationGroupLocation>[]
+  > {
     const [appliesTo, groupByExpression, violatedWhen, liveAppliesTo] =
       isRuleCriteria(appliesToOrCriteria)
         ? [
@@ -174,7 +181,9 @@ export class HttpTestApiContext<
 
     const testResult = await test(this.ctx);
 
-    const callViolations: RuleFnResult[] = [];
+    const callViolations: RuleFnResult<
+      RuleViolationLocation | RuleViolationGroupLocation
+    >[] = [];
     const placements: RuleFnResultPlacement[] = [];
 
     testResult.cases.forEach((value, testCaseIndex) => {

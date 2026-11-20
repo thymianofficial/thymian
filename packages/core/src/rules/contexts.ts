@@ -11,6 +11,7 @@ import type {
   RuleFinding,
   RuleFnResult,
   RuleViolation,
+  RuleViolationGroupLocation,
   RuleViolationLocation,
 } from './rule-violation.js';
 import type { CapturedTrace, CapturedTransaction } from './traffic.js';
@@ -119,14 +120,22 @@ export interface ApiContext<
   ): Promise<RuleFnResult[]> | RuleFnResult[];
   validateGroupedCommonHttpTransactions(
     criteria: GroupedCommonHttpRuleCriteria,
-  ): Promise<RuleFnResult[]> | RuleFnResult[];
+  ):
+    | Promise<
+        RuleFnResult<RuleViolationLocation | RuleViolationGroupLocation>[]
+      >
+    | RuleFnResult<RuleViolationLocation | RuleViolationGroupLocation>[];
   validateGroupedCommonHttpTransactions(
     filter: HttpFilterExpression,
     groupBy: HttpFilterExpression,
     validationFn: ValidationFn<
       [string, [CommonHttpRequest, CommonHttpResponse, RuleViolationLocation][]]
     >,
-  ): Promise<RuleFnResult[]> | RuleFnResult[];
+  ):
+    | Promise<
+        RuleFnResult<RuleViolationLocation | RuleViolationGroupLocation>[]
+      >
+    | RuleFnResult<RuleViolationLocation | RuleViolationGroupLocation>[];
 }
 
 export interface LiveApiContext<
