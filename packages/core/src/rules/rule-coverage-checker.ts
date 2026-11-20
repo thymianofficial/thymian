@@ -330,10 +330,10 @@ export function checkCoverage(input: CoverageCheckInput): CoverageViolation[] {
       const shippedSeverity = rule.meta.severity;
       for (const [profileName, config] of Object.entries(profiles)) {
         const profileSeverity = severityOfProfileEntry(config[rule.meta.name]);
-        if (
-          profileSeverity === undefined ||
-          compareRuleSeverities(profileSeverity, shippedSeverity) <= 0
-        ) {
+        const isPromotion =
+          profileSeverity !== undefined &&
+          compareRuleSeverities(profileSeverity, shippedSeverity) > 0;
+        if (!isPromotion) {
           continue;
         }
 

@@ -24,9 +24,10 @@ describe('compareRuleSeverities', () => {
   it('is antisymmetric', () => {
     for (const a of order) {
       for (const b of order) {
-        expect(Math.sign(compareRuleSeverities(a, b))).toEqual(
-          -Math.sign(compareRuleSeverities(b, a)) || 0,
-        );
+        expect(
+          Math.sign(compareRuleSeverities(a, b)) +
+            Math.sign(compareRuleSeverities(b, a)),
+        ).toBe(0);
       }
     }
   });
