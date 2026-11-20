@@ -9,7 +9,7 @@ import {
   validateBodyForRequest,
 } from '@thymian/core';
 
-import { missingElementMessage, requestAt } from './located-request.js';
+import { missingElementMessage, requestAt } from './graph-location.js';
 
 const NAME = 'thymian/request-body-must-conform-to-schema';
 

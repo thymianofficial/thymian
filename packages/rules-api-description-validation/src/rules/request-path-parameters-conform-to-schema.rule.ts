@@ -9,7 +9,7 @@ import {
   validateRequestPathParameters,
 } from '@thymian/core';
 
-import { missingElementMessage, requestAt } from './located-request.js';
+import { missingElementMessage, requestAt } from './graph-location.js';
 
 const NAME = 'thymian/request-path-parameters-must-conform-to-schema';
 

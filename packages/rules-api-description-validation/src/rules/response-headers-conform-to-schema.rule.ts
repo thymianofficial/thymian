@@ -15,7 +15,7 @@ import {
 import {
   missingElementMessage,
   undocumentedResponseSkip,
-} from './located-request.js';
+} from './graph-location.js';
 
 const NAME = 'thymian/response-headers-must-conform-to-schema';
 

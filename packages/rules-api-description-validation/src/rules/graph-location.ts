@@ -56,7 +56,7 @@ export function undocumentedResponseSkip(
   response: HttpResponse,
   title: string,
 ): RuleFnResult[] {
-  const operation = requestAt(format, location);
+  const hasRequest = requestAt(format, location) !== undefined;
 
   return [
     {
@@ -65,7 +65,7 @@ export function undocumentedResponseSkip(
         {
           title,
           kind: 'rule-skip',
-          message: operation
+          message: hasRequest
             ? undocumentedResponseMessage(response)
             : missingElementMessage(location),
         },
