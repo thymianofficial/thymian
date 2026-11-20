@@ -64,6 +64,21 @@ declares, and return what the rule said about **every transaction** of the input
   The fixture modules of the existing rule sets, and the records that describe them, stay
   as they are until those rule sets are moved onto rule tests.
 
+### Rejected alternative: `runRule(rule)` with methods named as in `.type(...)`
+
+The entry point could be `runRule(rule)`, returning one method per context named after the
+`RuleType` value a rule declares: `static`, `test` and `analytics`. That was the name first
+agreed for this harness. Rejected:
+
+- The methods take the words this project uses for the contexts everywhere else: Lint, Test
+  and Analyze, as in `thymian lint`, `thymian test` and `thymian analyze`, and in the rule
+  functions `lintRule`, `testRule` and `analyzeRule` a rule author has just written. Only the
+  `RuleType` value says `static` and `analytics`, and a rule test should not carry that
+  mismatch into every call.
+- `createRuleTester(rule)` names what it returns: a tester, kept and called once per context,
+  as rule authors know it from ESLint's `RuleTester`. `runRule(rule)` reads as running the
+  rule right away, while it runs nothing until a context is called.
+
 ### Rejected alternative: the engines report passes
 
 The linter and the analyzer could emit a `passed` execution for every applicable

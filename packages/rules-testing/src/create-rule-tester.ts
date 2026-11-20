@@ -43,16 +43,20 @@ export function createRuleTester<Options extends Record<PropertyKey, unknown>>(
 
   return {
     async runLint(format) {
-      assertDeclares(anyRule, 'static');
+      assertDeclares(anyRule, 'runLint', 'static');
       return runLint(anyRule, format);
     },
   };
 }
 
-function assertDeclares(rule: Rule, context: 'static'): void {
+function assertDeclares(
+  rule: Rule,
+  method: keyof RuleTester,
+  context: 'static',
+): void {
   if (!rule.meta.type.includes(context)) {
     throw new Error(
-      `Rule "${rule.meta.name}" does not declare the "${context}" context. It declares: ${rule.meta.type.join(', ')}.`,
+      `${method} runs a rule in "${context}", and rule "${rule.meta.name}" does not declare it. It declares: ${rule.meta.type.join(', ')}.`,
     );
   }
 }

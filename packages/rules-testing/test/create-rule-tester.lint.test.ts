@@ -468,7 +468,7 @@ describe('createRuleTester(rule).runLint(format)', () => {
     });
   });
 
-  it('throws for a rule that does not declare static, naming the rule and its declared contexts', async () => {
+  it('throws for a rule that does not declare static, naming the method, the context, the rule and its declared contexts', async () => {
     const rule = httpRule('test/live-only')
       .severity('error')
       .type('test', 'analytics')
@@ -483,7 +483,7 @@ describe('createRuleTester(rule).runLint(format)', () => {
     await expect(
       createRuleTester(rule).runLint(createThymianFormat()),
     ).rejects.toThrow(
-      'Rule "test/live-only" does not declare the "static" context. It declares: test, analytics.',
+      'runLint runs a rule in "static", and rule "test/live-only" does not declare it. It declares: test, analytics.',
     );
   });
 });
