@@ -1,6 +1,11 @@
 import type { CachedError } from '@thymian/common-cli';
 
-export function createGithubIssueUrlForError(error: CachedError): string {
+import { type Draft, type DraftOptions, shortenHomeDir } from './draft.js';
+
+export function createGithubIssueDraft(
+  error: CachedError,
+  { withoutStack = false }: DraftOptions = {},
+): Draft {
   const baseUrl = 'https://github.com/thymianofficial/thymian/issues/new';
 
   const title = error.commandName
@@ -31,19 +36,7 @@ ${pluginTable}
 </details>
 
 ### 🔍 Error Details
-${
-  error.stack
-    ? `
-<details>
-<summary><b>Click to expand Stacktrace</b></summary>
-
-\`\`\`text
-${error.stack.replaceAll(process.env.HOME || '', '~')}
-\`\`\`
-</details>
-`
-    : '_No stacktrace available._'
-}
+${stackMarkdown(error.stack, withoutStack)}
 
 ---
 *Reported via \`thymian feedback\`*`.trim();
@@ -53,5 +46,26 @@ ${error.stack.replaceAll(process.env.HOME || '', '~')}
   url.searchParams.set('body', body);
   url.searchParams.set('labels', 'bug');
 
-  return url.toString();
+  return { heading: title, body, url: url.toString() };
+}
+
+function stackMarkdown(
+  stack: string | undefined,
+  withoutStack: boolean,
+): string {
+  if (withoutStack) {
+    return '_Stack trace left out._';
+  }
+
+  return stack
+    ? `
+<details>
+<summary><b>Click to expand Stacktrace</b></summary>
+
+\`\`\`text
+${shortenHomeDir(stack)}
+\`\`\`
+</details>
+`
+    : '_No stacktrace available._';
 }
