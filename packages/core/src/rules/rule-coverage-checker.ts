@@ -44,7 +44,7 @@ import {
   undeclaredCellShape,
 } from './rule-coverage-cell.js';
 import type { RuleType } from './rule-meta.js';
-import { type RuleSeverity, severityLevelValues } from './rule-severity.js';
+import { compareRuleSeverities, type RuleSeverity } from './rule-severity.js';
 
 export type CoverageViolationCode =
   | 'missing-entry'
@@ -177,11 +177,6 @@ function severityOfProfileEntry(
     return undefined;
   }
   return typeof entry === 'string' ? entry : entry.severity;
-}
-
-// `severityLevelValues` counts down: `error` is 1, `off` is 4.
-function isAbove(severity: RuleSeverity, than: RuleSeverity): boolean {
-  return severityLevelValues[severity] < severityLevelValues[than];
 }
 
 export function checkCoverage(input: CoverageCheckInput): CoverageViolation[] {
@@ -335,10 +330,10 @@ export function checkCoverage(input: CoverageCheckInput): CoverageViolation[] {
       const shippedSeverity = rule.meta.severity;
       for (const [profileName, config] of Object.entries(profiles)) {
         const profileSeverity = severityOfProfileEntry(config[rule.meta.name]);
-        if (
-          profileSeverity === undefined ||
-          !isAbove(profileSeverity, shippedSeverity)
-        ) {
+        const isPromotion =
+          profileSeverity !== undefined &&
+          compareRuleSeverities(profileSeverity, shippedSeverity) > 0;
+        if (!isPromotion) {
           continue;
         }
 

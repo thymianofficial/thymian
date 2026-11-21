@@ -255,7 +255,7 @@ _Avoid_: message, note, diagnostic
 How loudly a failure is labelled — `error`, `warn`, `hint`, `info` — resolved per failed
 `Execution` for display and for the report's summary counts. Presentational only: it does not
 decide whether a run passed, and a `hint` violation fails a run exactly as an `error` does.
-A rule also ships at a severity — `off`, `hint`, `warn`, `error` — which a run's
-`ruleSeverity` floor compares to decide whether the rule loads at all; a `Promotion` sets a
-rule above it within a `Profile`.
+A rule also ships at a severity, ordered `off` < `hint` < `warn` < `error`, where _above_
+means more severe. A run's `ruleSeverity` floor compares it in that order to decide whether
+the rule loads at all; a `Promotion` sets a rule above it within a `Profile`.
 _Avoid_: level, priority, importance

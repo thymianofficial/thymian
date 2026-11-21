@@ -1,8 +1,8 @@
 import {
+  compareRuleSeverities,
   isRuleSeverityLevel,
   type RuleFilter,
   type RuleSeverity,
-  severityLevelValues,
   type SpecificationInput,
   type TrafficInput,
 } from '@thymian/core';
@@ -116,7 +116,7 @@ export function resolveRuleSeverity(
  * Create a rule filter from a severity threshold.
  * Only rules whose severity is at or above the threshold will be loaded.
  *
- * Severity hierarchy (most to least severe): error (1) > warn (2) > hint (3) > off (4)
+ * Severities are ordered off < hint < warn < error (see `compareRuleSeverities`):
  * - 'error': only loads rules with severity 'error'
  * - 'warn': loads rules with severity 'error' or 'warn'
  * - 'hint': loads rules with severity 'error', 'warn', or 'hint' (all active rules)
@@ -127,6 +127,5 @@ export function createSeverityRuleFilter(severity: RuleSeverity): RuleFilter {
     return () => false;
   }
 
-  return (rule) =>
-    severityLevelValues[rule.meta.severity] <= severityLevelValues[severity];
+  return (rule) => compareRuleSeverities(rule.meta.severity, severity) >= 0;
 }
