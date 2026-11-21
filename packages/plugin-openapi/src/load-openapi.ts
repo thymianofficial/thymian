@@ -47,6 +47,92 @@ async function fileExists(path: string) {
   }
 }
 
+type ParserError = { code?: string; message: string };
+
+const MISSING_FILE_CODE = 'EXTERNAL_REFERENCE_NOT_FOUND';
+// The parser reports a missing file as this prefix followed by the file as the $ref wrote it.
+const MISSING_FILE_MESSAGE_PREFIX = "Can't resolve external reference: ";
+
+function isReferenceError(error: ParserError): boolean {
+  return error.code === 'INVALID_REFERENCE' || error.code === MISSING_FILE_CODE;
+}
+
+function isMissingFileError(error: ParserError): boolean {
+  return error.code === MISSING_FILE_CODE;
+}
+
+function plural(count: number, word: string): string {
+  return count > 1 ? `${word}s` : word;
+}
+
+function missingFileClause(errors: ParserError[]): string | undefined {
+  const files = errors
+    .filter(isMissingFileError)
+    .map(({ message }) =>
+      message.startsWith(MISSING_FILE_MESSAGE_PREFIX)
+        ? message.slice(MISSING_FILE_MESSAGE_PREFIX.length)
+        : message,
+    );
+
+  if (files.length === 0) {
+    return undefined;
+  }
+
+  return `${plural(files.length, 'Referenced file')} not found: ${files.map((file) => `'${file}'`).join(', ')} (resolved relative to the document containing the $ref).`;
+}
+
+function createDereferenceError(
+  clauses: (string | undefined)[],
+  errors: ParserError[],
+): ThymianBaseError {
+  return new ThymianBaseError(
+    clauses.filter((clause) => clause !== undefined).join(' '),
+    {
+      name: 'OpenAPIDereferenceError',
+      ref: 'https://thymian.dev/references/errors/openapi-dereference-error/',
+      cause: new Error(errors.map((e) => e.message).join('; ')),
+      suggestions: [
+        'Ensure every $ref points to an existing location: a JSON pointer within its document, or a file path relative to the document containing the $ref.',
+        ...(errors.some(isMissingFileError)
+          ? [
+              'Check that the referenced file exists and the relative path is spelled correctly.',
+            ]
+          : []),
+      ],
+    },
+  );
+}
+
+function validateStepReferenceError(
+  refErrors: ParserError[],
+  allErrors: ParserError[],
+): ThymianBaseError {
+  const pointerErrors = refErrors.filter((e) => !isMissingFileError(e));
+  const pointerClause =
+    pointerErrors.length > 0
+      ? `${plural(pointerErrors.length, 'Invalid $ref')} found: ${pointerErrors.map((e) => e.message).join(', ')}`
+      : undefined;
+
+  return createDereferenceError(
+    [missingFileClause(refErrors), pointerClause],
+    allErrors,
+  );
+}
+
+function dereferenceStepReferenceError(
+  sourceLabel: string,
+  errors: ParserError[],
+): ThymianBaseError {
+  const missingFiles = missingFileClause(errors);
+  const otherErrors = errors.filter((e) => !isMissingFileError(e));
+  const resolvingClause =
+    otherErrors.length > 0 || !missingFiles
+      ? `Resolving the $refs in ${sourceLabel} failed${otherErrors.length > 0 ? `: ${otherErrors.map((e) => e.message).join('; ')}` : ''}.`
+      : undefined;
+
+  return createDereferenceError([missingFiles, resolvingClause], errors);
+}
+
 export type LoadResult = {
   document: OpenAPIV3_1.Document;
   original: OpenAPI.Document;
@@ -180,24 +266,10 @@ export async function loadAndUpgrade(
   const validationResult = await validate(document, { throwOnError: false });
 
   if (!validationResult.valid && validationResult.errors) {
-    const refErrors = validationResult.errors.filter(
-      (err) => err.code === 'INVALID_REFERENCE',
-    );
+    const refErrors = validationResult.errors.filter(isReferenceError);
 
     if (refErrors.length > 0) {
-      throw new ThymianBaseError(
-        `Invalid $ref${refErrors.length > 1 ? 's' : ''} found: ${refErrors.map((err) => err.message).join(', ')}`,
-        {
-          name: 'OpenAPIDereferenceError',
-          ref: 'https://thymian.dev/references/errors/openapi-dereference-error/',
-          cause: new Error(
-            validationResult?.errors?.map((e) => e.message).join('; ') ?? '',
-          ),
-          suggestions: [
-            'Ensure all $refs are valid and resolve to a valid non-external location.',
-          ],
-        },
-      );
+      throw validateStepReferenceError(refErrors, validationResult.errors);
     }
 
     if (validateSpecs) {
@@ -245,18 +317,9 @@ export async function loadAndUpgrade(
 
   if (dereferencedResult?.errors?.length || !dereferencedResult.schema) {
     logger.debug(`Cannot dereference ${sourceLabel}.`);
-    throw new ThymianBaseError(
-      `Dereferencing all internal references in ${sourceLabel} failed.`,
-      {
-        name: 'OpenAPIDereferenceError',
-        ref: 'https://thymian.dev/references/errors/openapi-dereference-error/',
-        cause: new Error(
-          dereferencedResult?.errors?.map((e) => e.message).join('; ') ?? '',
-        ),
-        suggestions: [
-          'Ensure all $refs are valid and resolve to a valid non-external location.',
-        ],
-      },
+    throw dereferenceStepReferenceError(
+      sourceLabel,
+      dereferencedResult?.errors ?? [],
     );
   }
 
@@ -292,9 +355,7 @@ export async function validateOpenApi(
 
     if (!validationResult.valid && validationResult.errors) {
       const issues = validationResult.errors.map(mapValidationIssue);
-      const hasReferenceErrors = validationResult.errors.some(
-        (error) => error.code === 'INVALID_REFERENCE',
-      );
+      const hasReferenceErrors = validationResult.errors.some(isReferenceError);
 
       logger.info(`OpenAPI validation failed for '${source}'.`);
 
@@ -318,18 +379,9 @@ export async function validateOpenApi(
 
     if (dereferencedResult?.errors?.length || !dereferencedResult.schema) {
       logger.debug(`Cannot dereference '${source}'.`);
-      throw new ThymianBaseError(
-        `Dereferencing all internal references in '${source}' failed.`,
-        {
-          name: 'OpenAPIDereferenceError',
-          ref: 'https://thymian.dev/references/errors/openapi-dereference-error/',
-          cause: new Error(
-            dereferencedResult?.errors?.map((e) => e.message).join('; ') ?? '',
-          ),
-          suggestions: [
-            'Ensure all $refs are valid and resolve to a valid non-external location.',
-          ],
-        },
+      throw dereferenceStepReferenceError(
+        formatSourceLabel(source),
+        dereferencedResult?.errors ?? [],
       );
     }
 
