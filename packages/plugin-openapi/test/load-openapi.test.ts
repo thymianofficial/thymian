@@ -965,7 +965,7 @@ describe('load-openapi', () => {
           "Referenced files could not be loaded: './schemas/missing-a.yaml', './schemas/missing-b.yaml' (resolved relative to the document containing the $ref).",
         );
         expect(message).toContain(
-          "Invalid $ref found: Can't resolve reference: #/components/schemas/NonExistent",
+          "Invalid $ref found: Can't resolve reference: #/components/schemas/NonExistent.",
         );
       }
     });

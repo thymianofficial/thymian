@@ -121,7 +121,7 @@ function validateStepReferenceError(
   const pointerErrors = refErrors.filter((e) => !isMissingFileError(e));
   const pointerClause =
     pointerErrors.length > 0
-      ? `${plural(pointerErrors.length, 'Invalid $ref')} found: ${pointerErrors.map((e) => e.message).join(', ')}`
+      ? `${plural(pointerErrors.length, 'Invalid $ref')} found: ${pointerErrors.map((e) => e.message).join('; ')}.`
       : undefined;
 
   return createDereferenceError(
