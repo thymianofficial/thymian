@@ -401,7 +401,11 @@ describe('load-openapi', () => {
       });
 
       const transactions = format.getThymianHttpTransactions();
-      const get = transactions.find((t) => t.thymianReq.method === 'get');
+      const get = transactions.find(
+        (t) =>
+          t.thymianReq.method === 'get' &&
+          t.thymianReq.path === '/api/users/{id}',
+      );
       const put = transactions.find((t) => t.thymianReq.method === 'put');
       expect(get?.thymianRes.sourceLocation).toMatchObject({
         path: join(dir, 'paths/user.yaml'),
@@ -410,6 +414,38 @@ describe('load-openapi', () => {
       expect(put?.thymianReq.sourceLocation).toMatchObject({
         path: join(dir, 'paths/user.yaml'),
         position: { line: 15, column: 1 },
+      });
+    });
+
+    it('turns an operation behind a chain of path item refs into a transaction', async () => {
+      const dir = join(import.meta.dirname, 'fixtures/loc-mapper/split');
+      const { document, filePath } = await loadAndUpgrade(
+        join(dir, 'openapi.yaml'),
+        process.cwd(),
+        new NoopLogger(),
+      );
+
+      const format = await openapiToThymianFormat(document, {
+        filter: constant(true),
+        filePath,
+        serverInfo: {
+          basePath: '/api',
+          port: 8080,
+          host: 'localhost',
+          protocol: 'http',
+        },
+      });
+
+      const transaction = format
+        .getThymianHttpTransactions()
+        .find(
+          (t) =>
+            t.thymianReq.method === 'get' &&
+            t.thymianReq.path === '/api/teams/{id}',
+        );
+      expect(transaction?.thymianRes.sourceLocation).toMatchObject({
+        path: join(dir, 'paths/team.yaml'),
+        position: { line: 7, column: 1 },
       });
     });
 

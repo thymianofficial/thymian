@@ -11,7 +11,36 @@ export function isReferenceObject(
   );
 }
 
+/**
+ * Resolves an internal `$ref` and every internal `$ref` its target is in turn,
+ * until it reaches an object that is not a reference.
+ */
 export function resolveOpenApiReference<T>(
+  value: T | OpenApiV31.ReferenceObject,
+  document: OpenApiV31.Document,
+  label = 'OpenAPI object',
+): T {
+  const seen = new Set<string>();
+  let current: unknown = value;
+
+  while (isReferenceObject(current)) {
+    const ref = current.$ref;
+
+    if (seen.has(ref)) {
+      throw new Error(
+        `Could not resolve internal ${label} reference "${ref}": the refs form a cycle.`,
+      );
+    }
+
+    seen.add(ref);
+    current = resolveOpenApiReferenceOnce(current, document, label);
+  }
+
+  return current as T;
+}
+
+/** Resolves an internal `$ref` one level, even when its target is a `$ref`. */
+export function resolveOpenApiReferenceOnce<T>(
   value: T | OpenApiV31.ReferenceObject,
   document: OpenApiV31.Document,
   label = 'OpenAPI object',

@@ -1,7 +1,7 @@
 import type { ThymianSchema } from '@thymian/core';
 import type { OpenAPIV3_1 as OpenAPIV31 } from 'openapi-types';
 
-import { resolveOpenApiReference } from './openapi-reference-resolver.js';
+import { resolveOpenApiReferenceOnce } from './openapi-reference-resolver.js';
 
 const keysToRemove = new Set([
   'nullable',
@@ -244,11 +244,14 @@ function createDefinitionName(ref: string, usedNames: Set<string>): string {
   return candidate;
 }
 
+// One level only: the normalizer turns a nested ref into a `$defs` entry
+// itself, and in 2020-12 a schema `$ref`'s siblings count, so following the
+// chain here would drop them.
 function resolveInternalReference(
   document: OpenAPIV31.Document,
   ref: string,
 ): Draft202012SchemaObject {
-  return resolveOpenApiReference<Draft202012SchemaObject>(
+  return resolveOpenApiReferenceOnce<Draft202012SchemaObject>(
     { $ref: ref },
     document,
     'schema',

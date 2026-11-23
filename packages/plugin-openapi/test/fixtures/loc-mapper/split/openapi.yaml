@@ -5,3 +5,5 @@ info:
 paths:
   /users/{id}:
     $ref: ./paths/user.yaml
+  /teams/{id}:
+    $ref: ./paths/team-chain.yaml
