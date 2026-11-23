@@ -367,30 +367,30 @@ export class HttpTestApiContext<
           ],
         );
 
-      const results = locateOnGroup(
-        violatedWhen(source.key, transactionsToValidate),
-        source.key,
-        transactionsToValidate.map(([, , location]) => location),
-      );
-
-      if (liveAppliesTo) {
-        for (const { transaction, transactionIndex } of applicable) {
-          const { response } = transaction;
-          const drift =
-            response &&
-            statusDriftResult(
-              {
-                elementId: transaction.source.transactionId,
-                elementType: 'edge',
-              },
-              { source: transaction.source, response },
-              transactionIndex,
-            );
-          if (drift) {
-            results.push(drift);
-          }
-        }
-      }
+      const drifts = liveAppliesTo
+        ? applicable.flatMap(({ transaction, transactionIndex }) => {
+            const { response } = transaction;
+            const drift =
+              response &&
+              statusDriftResult(
+                {
+                  elementId: transaction.source.transactionId,
+                  elementType: 'edge',
+                },
+                { source: transaction.source, response },
+                transactionIndex,
+              );
+            return drift ? [drift] : [];
+          })
+        : [];
+      const results = [
+        ...locateOnGroup(
+          violatedWhen(source.key, transactionsToValidate),
+          source.key,
+          transactionsToValidate.map(([, , location]) => location),
+        ),
+        ...drifts,
+      ];
 
       callViolations.push(...results);
       for (const result of results) {
