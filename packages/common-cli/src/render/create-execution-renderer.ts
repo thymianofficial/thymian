@@ -1,6 +1,7 @@
 import { ux } from '@oclif/core';
 import {
   type AnalyzeExecution,
+  isListedExecution,
   type LintExecution,
   type LocationResolver,
   pluralizeSeverity,
@@ -83,7 +84,7 @@ export function createExecutionsRenderer<T extends Groupable>(
 
     const lines: string[] = [];
     for (const [key, group] of Object.entries(sortGroups(groups))) {
-      if (!group.some((execution) => execution.status.kind !== 'passed')) {
+      if (!group.some(isListedExecution)) {
         continue;
       }
 
@@ -96,7 +97,7 @@ export function createExecutionsRenderer<T extends Groupable>(
       lines.push('');
 
       for (const execution of group) {
-        if (execution.status.kind === 'passed') {
+        if (!isListedExecution(execution)) {
           continue;
         }
 
@@ -198,10 +199,11 @@ const ruleHeading: RenderGroupHeadingFn<Groupable> = (
 /** `severity`: the severity symbol, then the pluralized severity word. */
 const severityHeading: RenderGroupHeadingFn<Groupable> = (key) => {
   const label = ux.colorize('underline', pluralizeSeverity(key).toUpperCase());
-  // Keys here are always severity words or the `skipped` bucket; `skipped` has
-  // a symbol but no severity color, so it is rendered uncolored.
-  return key === 'skipped'
-    ? `${SEVERITY_SYMBOLS.skipped} ${label}`
+  // Keys here are always severity words or the `skipped`/`notApplicable`
+  // buckets; those have a symbol but no severity color, so they are rendered
+  // uncolored.
+  return key === 'skipped' || key === 'notApplicable'
+    ? `${SEVERITY_SYMBOLS[key]} ${label}`
     : ux.colorize(
         SEVERITY_COLORS[key as Severity],
         `${SEVERITY_SYMBOLS[key as Severity]} ${label}`,
@@ -263,7 +265,8 @@ function endpointEntryRenderer<T extends Groupable>(
  * `rule`/`severity` entry: the group heading already carries the rule or
  * severity, so each violation leads with its location (the identity endpoint
  * grouping used to supply) and the reason. Under severity grouping it also
- * names the violated rule. Skipped executions are marked with the skip glyph.
+ * names the violated rule. Skipped and not-applicable executions are marked
+ * with their own glyph.
  */
 function groupedEntryRenderer<T extends Groupable>(
   renderDetails: RenderExecutionDetailsFn<T>,
@@ -283,11 +286,12 @@ function groupedEntryRenderer<T extends Groupable>(
   ) => {
     const label = options.labelOf(execution, locationResolver, toolRun);
     const rule = execution.ruleId ? ruleIndex.get(execution.ruleId) : undefined;
-    const severity =
-      resolveExecutionSeverity(execution, ruleIndex) ??
-      (execution.status.kind === 'skipped' ? 'skipped' : 'error');
     const symbol =
-      severity === 'skipped' ? SEVERITY_SYMBOLS['skipped'] + '  skipped:' : '•';
+      execution.status.kind === 'skipped'
+        ? SEVERITY_SYMBOLS.skipped + '  skipped:'
+        : execution.status.kind === 'notApplicable'
+          ? SEVERITY_SYMBOLS.notApplicable + '  not applicable:'
+          : '•';
 
     const reason =
       'reason' in execution.status ? execution.status.reason : undefined;
