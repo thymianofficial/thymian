@@ -242,7 +242,7 @@ and in `Test` `appliesTo` is evaluated twice, against the specification to choos
 send and against the pair that came back. That second check replaces the status-code gate: a pair
 it rejects is reported as skipped with the declared and the live status, and a judged pair whose
 status drifted carries an informational finding
-([ADR-0026](adr/0026-rule-context-calls-judge-the-live-status.md)). A fact only live traffic
+([ADR-0028](adr/0028-rule-context-calls-judge-the-live-status.md)). A fact only live traffic
 carries, such as `Content-Length`, belongs in `violatedWhen`.
 
 ### 8.4.4 Rule Runner Adapter

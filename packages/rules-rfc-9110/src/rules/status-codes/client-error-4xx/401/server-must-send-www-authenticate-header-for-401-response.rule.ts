@@ -38,7 +38,7 @@ export default httpRule(
       singleTestCase()
         .forTransactionsWith(and(not(method('HEAD')), statusCode(401)))
         // Sent without credentials, the server may answer something other
-        // than the declared 401; the rule then does not apply (ADR-0026).
+        // than the declared 401; the rule then does not apply (ADR-0028).
         .run({ authorize: false, checkStatusCode: false })
         .skipIf(
           not(statusCode(401)),

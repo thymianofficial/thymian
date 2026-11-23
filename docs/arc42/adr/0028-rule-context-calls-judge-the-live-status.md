@@ -1,8 +1,8 @@
-# ADR-0026: Rule-context calls judge the response the server actually sent
+# ADR-0028: Rule-context calls judge the response the server actually sent
 
 | Status   | Date       | Supersedes | Superseded by |
 | -------- | ---------- | ---------- | ------------- |
-| Proposed | 2026-11-18 | —          | —             |
+| Accepted | 2026-11-18 | —          | —             |
 
 ## Context
 
@@ -45,11 +45,14 @@ We will drop the status-code gate only where a live applicability check replaces
   would reach the validation function unchecked. Removing the positional overloads, as
   ADR-0025 intended, is a separate change (thymian-workspace#779).
 - **A pair the live re-check rejects is `skipped`, not `passed`.** It surfaces as a
-  `rule-skip` whose reason names the declared and the live status ("the specification
-  declares 401, the server answered 200"). The exit code is unaffected
+  `rule-skip` whose reason says the live pair is outside the rule's applicability and,
+  when the live status differs from the declared one, names both ("The live pair is
+  outside the rule's applicability (the specification declares 401, the server answered
+  200)."). The exit code is unaffected
   ([ADR-0015](0015-cli-exit-status-is-severity-independent.md) counts only `failed`). A
   grouped call judges the transactions that pass the re-check and says nothing about the
-  rest; the group is `skipped` only when none of them does.
+  rest; the group is `skipped`, located on the group and naming every member, only when
+  none of them does.
 - **A status mismatch on a judged pair is reported, not gating.** When the live status
   differs from the declared one but the pair is still applicable and judged, the execution
   carries an `informational` status-drift finding. It neither skips nor fails the
@@ -92,6 +95,8 @@ We will drop the status-code gate only where a live applicability check replaces
   (thymian-workspace#779).
 - Every test-builder override remains a place a rule author must decide the gate
   explicitly; the default does not do it for them.
+- In `@thymian/rules-testing`, a group member the re-check rejects is not judged but reads
+  `passed`, unless no member of its group applies.
 
 **Neutral:**
 
@@ -118,4 +123,4 @@ We will drop the status-code gate only where a live applicability check replaces
 
 | Date       | Status   | Notes         |
 | ---------- | -------- | ------------- |
-| 2026-11-18 | Proposed | Initial draft |
+| 2026-11-18 | Accepted | Initial draft |

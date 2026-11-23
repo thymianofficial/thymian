@@ -72,7 +72,7 @@ export interface RuleContextDriver {
   /**
    * The context re-checks `appliesTo` on the live pair and reports what it
    * found: a `rule-skip` for a pair it rejects, a `Status drift` finding for
-   * a pair it judges with another status than declared (ADR-0026).
+   * a pair it judges with another status than declared (ADR-0028).
    */
   reportsLiveChecks?: boolean;
   setup(transactions: ScenarioTransaction[]): Promise<RuleContextScenarioSetup>;

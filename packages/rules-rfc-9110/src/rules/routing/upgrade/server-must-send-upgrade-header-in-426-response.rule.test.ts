@@ -69,7 +69,7 @@ describe('rfc9110/server-must-send-upgrade-header-in-426-response (test)', () =>
       duration: 0,
     });
 
-    // Not applicable to the live pair: skipped, not passed (ADR-0026).
+    // Not applicable to the live pair: skipped, not passed (ADR-0028).
     expect(results).toEqual([
       expect.objectContaining({
         findings: [expect.objectContaining({ kind: 'rule-skip' })],

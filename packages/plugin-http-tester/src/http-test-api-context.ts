@@ -92,7 +92,7 @@ function inParentheses(clauses: (string | undefined)[]): string {
 
 /**
  * The informational finding a named-form call adds to a pair it judged although
- * the live status differs from the declared one (ADR-0026), or `undefined` when
+ * the live status differs from the declared one (ADR-0028), or `undefined` when
  * the status is the declared one. It neither skips nor fails the execution.
  */
 function statusDriftResult(
@@ -183,7 +183,7 @@ export class HttpTestApiContext<
   /**
    * A pair the live re-check rejects was not judged: it is reported as a
    * `rule-skip` saying so, and naming the declared and the live status where
-   * they differ (ADR-0026), not as a pass.
+   * they differ (ADR-0028), not as a pass.
    */
   private notApplicableResult(
     location: RuleViolationLocation,
@@ -196,7 +196,7 @@ export class HttpTestApiContext<
   }
 
   /**
-   * The named form's live check of one sent pair (ADR-0026): whether
+   * The named form's live check of one sent pair (ADR-0028): whether
    * `violatedWhen` judges it, and the result to report alongside — a
    * `rule-skip` when `appliesTo` rejects the pair, a status-drift note when it
    * is judged with a status the specification does not declare for it. The
@@ -277,7 +277,7 @@ export class HttpTestApiContext<
         mapToGroupedTestCase(),
         generateRequests(),
         // The named form re-checks `appliesTo` on every live pair, which
-        // replaces the status-code gate (ADR-0026).
+        // replaces the status-code gate (ADR-0028).
         runRequests({ checkStatusCode: !liveAppliesTo }),
       ),
     );
@@ -441,7 +441,7 @@ export class HttpTestApiContext<
       singleTestCase()
         .forTransactionsWith(appliesTo)
         // The named form re-checks `appliesTo` on the live pair, which
-        // replaces the status-code gate (ADR-0026).
+        // replaces the status-code gate (ADR-0028).
         .run({ checkStatusCode: !liveAppliesTo })
         .done(),
     );
@@ -639,7 +639,7 @@ export class HttpTestApiContext<
       singleTestCase()
         .forTransactionsWith(appliesTo)
         // The named form re-checks `appliesTo` on the live pair, which
-        // replaces the status-code gate (ADR-0026).
+        // replaces the status-code gate (ADR-0028).
         .run({ checkStatusCode: !liveAppliesTo })
         .done(),
     );
