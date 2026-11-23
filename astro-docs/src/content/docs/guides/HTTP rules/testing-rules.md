@@ -287,9 +287,11 @@ expect(executions).toMatchObject([
 ]);
 ```
 
-### Another Status Than Declared Is `skipped`
+### Another Status Than Declared
 
-A server that answers a transaction with a **different status than the format declares** makes that transaction `skipped`, not `failed`. The tester does not ask the rule about it, exactly as `thymian test` does not:
+A server that answers a transaction with a **different status than the format declares** leads to one of two outcomes. The tester asks the rule's `appliesTo` again of the pair that came back, as `thymian test` does.
+
+When the live pair is **outside the rule's applicability**, the transaction is `skipped`, not `failed`. The tester does not ask the rule about it, and the `reason` names the declared and the live status:
 
 ```typescript
 const executions = await createRuleTester(createdResponsesHaveLocation).runTest(format, {
@@ -299,11 +301,34 @@ const executions = await createRuleTester(createdResponsesHaveLocation).runTest(
 expect(executions[1]).toMatchObject({
   location: { elementId: launchCreated },
   status: 'skipped',
-  reason: expect.stringContaining('Expected status code 201, but received 500'),
+  reason: expect.stringContaining('the specification declares 201, the server answered 500'),
 });
 ```
 
-So `respond` cannot turn a `201` into a `400` to see what the rule says about a `400`. Add a transaction that declares the `400` instead.
+When the live pair is still **inside the rule's applicability**, the rule judges it, and the execution carries an informational `Status drift` finding that neither skips nor fails it:
+
+```typescript
+const executions = await createRuleTester(clientErrorsAreProblemJson).runTest(format, {
+  respond: ({ transaction, conforming }) =>
+    transaction === astronautRejected
+      ? {
+          ...conforming,
+          statusCode: 404,
+          headers: { ...conforming.headers, 'content-type': 'application/problem+json' },
+        }
+      : conforming,
+});
+
+expect(executions[5]).toMatchObject({
+  location: { elementId: astronautRejected },
+  status: 'passed',
+  findings: expect.arrayContaining([expect.objectContaining({ kind: 'informational', title: 'Status drift' })]),
+});
+```
+
+A rule that calls a context method in its positional form, or an override that keeps `checkStatusCode`, still skips such a transaction with the reason `Expected status code …`.
+
+So `respond` cannot turn a `201` into a `400` to see what the rule says about a `400`: `appliesTo` is asked of the format to choose what to send, and no request is sent for a `400` the format does not declare. Add a transaction that declares the `400` instead.
 
 ## Traffic You Hand In
 
@@ -532,7 +557,7 @@ expect(inAnalytics?.group).toBe('https://localhost/launches');
 ## Limits You Will Meet
 
 - **A path parameter without an example.** A request cannot be built for it. In `test` the transaction is `skipped`, with the reason `Missing value for path parameter "id".`; in `analytics` the call throws, because there is nothing to record. Give the parameter's schema an example, as `getLaunch` does above.
-- **A group in `test` is sent together.** A server that answers one member of a group with another status than declared makes every member of that group `skipped`.
+- **A group in `test` is sent together.** A member the server answers outside the rule's applicability is not judged. It reads `passed` unless no member of its group applies; then every member is `skipped`.
 - **A transaction recorded several times, under a rule that compares.** The analyzer names the transaction an execution is about, not the recording. For a rule that judges each recording on its own, `createRuleTester` still tells the recordings apart, as shown above. What a grouped rule, or a rule that compares recordings with each other, reports on a transaction appears on **every** recording of it:
 
   ```typescript

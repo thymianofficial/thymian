@@ -28,7 +28,8 @@ export default httpRule(
         .forTransactionsWith(and(method('POST'), statusCode(201)))
         .run()
         .skipIf(not(statusCode(201)))
-        .replayStep((step) => step.run().done())
+        // The replay expects 303, not the declared 201.
+        .replayStep((step) => step.run({ checkStatusCode: false }).done())
         .transactions(([, transaction]) => {
           if (transaction.response.statusCode !== 303) {
             results.push({

@@ -96,7 +96,13 @@ describe('rfc9110/server-must-send-www-authenticate-header-for-401-response (tes
       duration: 0,
     });
 
-    expect(cases.map((c) => c.status)).toEqual(['skipped']);
+    expect(cases).toEqual([
+      expect.objectContaining({
+        status: 'skipped',
+        reason:
+          "The live pair is outside the rule's applicability (the specification declares 401, the server answered another status).",
+      }),
+    ]);
   });
 
   it('rejects the removed checkAllSecured option instead of silently ignoring it', async () => {

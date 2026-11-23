@@ -80,7 +80,7 @@ Here `launchCreated` is `failed`: the server dropped the `Location` header the f
 
 Two things make a transaction `skipped` in `test`, each with a `reason`, because the tester does not ask the rule about it:
 
-- **The server answers another status than the transaction declares.** `thymian test` skips such a transaction too.
+- **The live pair is outside the rule's applicability.** `thymian test` skips such a transaction too.
 - **The request cannot be built**, for example for a path parameter without an example: give its schema one, `createRequiredParameter({ schema: createStringSchema({ examples: ['apollo-11'] }) })`.
 
 ### The traffic in `analytics`
@@ -166,7 +166,7 @@ expect(await createRuleTester(resourcesSendEtagConsistently).runLint(format)).to
 ]);
 ```
 
-The key is what the context grouped by, spelled as that context spells it: grouped by `url()`, `static` and `test` give `https://localhost:443/launches` where `analytics` gives `https://localhost/launches`. In `test` the tester sends the requests of a group together, so a server that answers one member with another status than declared makes every member of the group `skipped`.
+The key is what the context grouped by, spelled as that context spells it: grouped by `url()`, `static` and `test` give `https://localhost:443/launches` where `analytics` gives `https://localhost/launches`. In `test` the tester sends the requests of a group together. A member the server answers outside the rule's applicability is not judged. It reads `passed` unless no member of its group applies; then every member is `skipped`.
 
 ### What comes back
 

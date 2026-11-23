@@ -90,9 +90,15 @@ describe('rfc9110/origin-server-should-generate-vary-header (test)', () => {
     expect(results).toEqual([]);
   });
 
-  it('stays silent when the live request carried no negotiation header', async () => {
+  it('skips, without a violation, when the live request carried no negotiation header', async () => {
     const results = await runTest({}, responseWithoutVary);
 
-    expect(results).toEqual([]);
+    // Not applicable to the live pair: skipped, not passed (ADR-0028).
+    expect(results).toEqual([
+      expect.objectContaining({
+        findings: [expect.objectContaining({ kind: 'rule-skip' })],
+      }),
+    ]);
+    expect(results[0]?.violation).toBeUndefined();
   });
 });

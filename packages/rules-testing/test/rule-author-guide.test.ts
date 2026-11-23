@@ -195,7 +195,7 @@ describe('the rule-author guide: testing a rule', () => {
       });
     });
 
-    it('skips the transaction the server answers with another status than declared', async () => {
+    it("skips the transaction whose live status puts it outside the rule's applicability, with a reason", async () => {
       const executions = await createRuleTester(
         createdResponsesHaveLocation,
       ).runTest(format, {
@@ -209,8 +209,37 @@ describe('the rule-author guide: testing a rule', () => {
         location: { elementId: launchCreated },
         status: 'skipped',
         reason: expect.stringContaining(
-          'Expected status code 201, but received 500',
+          'the specification declares 201, the server answered 500',
         ),
+      });
+    });
+
+    it("judges the transaction whose live status stays inside the rule's applicability, and reports the status drift", async () => {
+      const executions = await createRuleTester(
+        clientErrorsAreProblemJson,
+      ).runTest(format, {
+        respond: ({ transaction, conforming }) =>
+          transaction === astronautRejected
+            ? {
+                ...conforming,
+                statusCode: 404,
+                headers: {
+                  ...conforming.headers,
+                  'content-type': 'application/problem+json',
+                },
+              }
+            : conforming,
+      });
+
+      expect(executions[5]).toMatchObject({
+        location: { elementId: astronautRejected },
+        status: 'passed',
+        findings: expect.arrayContaining([
+          expect.objectContaining({
+            kind: 'informational',
+            title: 'Status drift',
+          }),
+        ]),
       });
     });
 

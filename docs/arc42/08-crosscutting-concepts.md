@@ -239,8 +239,11 @@ rule's Applicability, a filter expression saying which transactions it speaks ab
 a function returning results, and runs only on transactions `appliesTo` accepts. Both are evaluated
 against whatever the context observes: the specification in `Lint`, the recorded pair in `Analyze`,
 and in `Test` `appliesTo` is evaluated twice, against the specification to choose which requests to
-send and against the pair that came back. A fact only live traffic carries, such as
-`Content-Length`, belongs in `violatedWhen`.
+send and against the pair that came back. That second check replaces the status-code gate: a pair
+it rejects is reported as skipped, naming the declared and the live status where they differ, and
+a judged pair whose status drifted carries an informational finding
+([ADR-0028](adr/0028-rule-context-calls-judge-the-live-status.md)). A fact only live traffic
+carries, such as `Content-Length`, belongs in `violatedWhen`.
 
 ### 8.4.4 Rule Runner Adapter
 

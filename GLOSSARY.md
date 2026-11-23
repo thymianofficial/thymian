@@ -157,6 +157,12 @@ applicability it would also be asked of a specification, which cannot answer it.
 _In code_: `violatedWhen`.
 _Avoid_: check, assertion, validation
 
+**Status Drift**:
+A live response in `Test` whose status code differs from the one the specification declares
+for the `Transaction` it was sent for, while the pair stays inside the rule's `Applicability`
+and is judged. Reported as an informational finding, never a violation and never a skip.
+_Avoid_: status mismatch
+
 **Fixture**:
 The proof that a rule's declared `Validation Context` really observes what the rule asserts:
 for one rule in one context, an input it must flag, one it must pass, and — where the rule can

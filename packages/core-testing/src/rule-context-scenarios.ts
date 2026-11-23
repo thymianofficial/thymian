@@ -69,6 +69,12 @@ export interface RuleContextDriver {
   notApplicable?: Partial<
     Record<RuleContextMethod | HttpFilterExpression['type'], string>
   >;
+  /**
+   * The context re-checks `appliesTo` on the live pair and reports what it
+   * found: a `rule-skip` for a pair it rejects, a `Status drift` finding for
+   * a pair it judges with another status than declared (ADR-0028).
+   */
+  reportsLiveChecks?: boolean;
   setup(transactions: ScenarioTransaction[]): Promise<RuleContextScenarioSetup>;
 }
 
@@ -84,7 +90,7 @@ type TransactionOptions = {
 
 type ActualOverrides = Pick<
   TransactionOptions,
-  'path' | 'method' | 'requestHeaders' | 'responseHeaders'
+  'path' | 'method' | 'statusCode' | 'requestHeaders' | 'responseHeaders'
 >;
 
 function transaction(
@@ -103,6 +109,7 @@ function transaction(
   const actual = {
     path,
     method,
+    statusCode,
     requestHeaders,
     responseHeaders,
     ...actualOverrides,
@@ -138,7 +145,7 @@ function transaction(
         ),
       },
       response: {
-        statusCode,
+        statusCode: actual.statusCode,
         headers: {
           // As described: the response factory declares a JSON body.
           'content-type': 'application/json',
@@ -161,6 +168,16 @@ type RuleContextScenario = {
   applicable: number[];
   /** The actual pair differs from the described one beyond name casing. */
   actualDiffersFromDescribed?: boolean;
+  /**
+   * Indexes of the transactions sent for their described pair whose actual
+   * pair `appliesTo` rejects, which a context that reports live checks skips.
+   */
+  skipped?: number[];
+  /**
+   * Indexes of the judged transactions whose actual status differs from the
+   * described one, for which a context that reports live checks reports a finding.
+   */
+  drifted?: number[];
 };
 
 // The Violation Condition every scenario uses: a `Deprecation` response header.
@@ -198,6 +215,7 @@ const scenarios: RuleContextScenario[] = [
     appliesTo: responseHeader('x-rate-limit'),
     applicable: [],
     actualDiffersFromDescribed: true,
+    skipped: [0],
   },
   {
     name: 'only the pair whose described pair matches appliesTo is validated',
@@ -227,6 +245,41 @@ const scenarios: RuleContextScenario[] = [
     appliesTo: responseHeader('x-rate-limit'),
     applicable: [0],
     actualDiffersFromDescribed: true,
+    skipped: [1],
+  },
+  {
+    name: 'a live status the description does not declare is still judged',
+    transactions: [
+      transaction({ responseHeaders: [VIOLATING_HEADER] }, { statusCode: 501 }),
+    ],
+    appliesTo: method('GET'),
+    applicable: [0],
+    actualDiffersFromDescribed: true,
+    drifted: [0],
+  },
+  {
+    name: 'a live status that does not match appliesTo is not judged',
+    transactions: [
+      transaction({ responseHeaders: [VIOLATING_HEADER] }, { statusCode: 500 }),
+    ],
+    appliesTo: statusCode(200),
+    applicable: [],
+    actualDiffersFromDescribed: true,
+    skipped: [0],
+  },
+  {
+    name: 'one live status that does not match appliesTo leaves the others judged',
+    transactions: [
+      transaction({ path: '/a', responseHeaders: [VIOLATING_HEADER] }),
+      transaction(
+        { path: '/b', responseHeaders: [VIOLATING_HEADER] },
+        { statusCode: 500 },
+      ),
+    ],
+    appliesTo: statusCode(200),
+    applicable: [0],
+    actualDiffersFromDescribed: true,
+    skipped: [1],
   },
   {
     name: 'method("GET") applies to a request sent as "get"',
@@ -433,6 +486,55 @@ async function validate(
   }
 }
 
+/**
+ * What a context that reports live checks returns besides violations: a
+ * `rule-skip` per skipped pair and a `Status drift` finding per drifted one. A
+ * grouped call skips on the group, and only when it skips every pair sent;
+ * `groupBy: method()` puts every pair of a scenario in one group.
+ */
+function liveCheckResults(
+  driver: RuleContextDriver,
+  scenario: RuleContextScenario,
+  contextMethod: RuleContextMethod,
+  locationOf: RuleContextScenarioSetup['locationOf'],
+): unknown[] {
+  if (!driver.reportsLiveChecks) {
+    return [];
+  }
+
+  const skipped = scenario.skipped ?? [];
+  const skip = [expect.objectContaining({ kind: 'rule-skip' })];
+  const skips =
+    contextMethod === 'validateGroupedCommonHttpTransactions'
+      ? skipped.length > 0 && scenario.applicable.length === 0
+        ? [
+            expect.objectContaining({
+              location: expect.objectContaining({ elementType: 'group' }),
+              findings: skip,
+            }),
+          ]
+        : []
+      : skipped.map((index) =>
+          expect.objectContaining({
+            location: locationOf(index, contextMethod),
+            findings: skip,
+          }),
+        );
+  const drifts = (scenario.drifted ?? []).map((index) =>
+    expect.objectContaining({
+      location: locationOf(index, contextMethod),
+      findings: [
+        expect.objectContaining({
+          kind: 'informational',
+          title: 'Status drift',
+        }),
+      ],
+    }),
+  );
+
+  return [...skips, ...drifts];
+}
+
 function notApplicableReason(
   driver: RuleContextDriver,
   scenario: RuleContextScenario,
@@ -494,13 +596,22 @@ export function describeRuleContextScenarios(driver: RuleContextDriver): void {
                     : [],
               );
 
-              expect(results).toEqual(
-                violated.map((index) =>
+              const expected = [
+                ...violated.map((index) =>
                   expect.objectContaining({
                     location: locationOf(index, contextMethod),
+                    violation: expect.anything(),
                   }),
                 ),
-              );
+                ...liveCheckResults(
+                  driver,
+                  scenario,
+                  contextMethod,
+                  locationOf,
+                ),
+              ];
+              expect(results).toHaveLength(expected.length);
+              expect(results).toEqual(expect.arrayContaining(expected));
 
               if (form === 'function') {
                 expect(reached).toEqual(

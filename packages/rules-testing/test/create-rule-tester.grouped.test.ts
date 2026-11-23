@@ -200,7 +200,36 @@ describe('createRuleTester(rule) with a grouped rule', () => {
     });
   });
 
-  it('skips every member of a group in test when the server answers one of them with another status', async () => {
+  it("skips every member of a group in test when no member's live status is inside the rule's applicability", async () => {
+    const api = spaceAgency();
+
+    const executions = await createRuleTester(
+      resourcesSendEtagConsistently,
+    ).runTest(api.format, {
+      respond: ({ transaction, conforming }) =>
+        transaction === api.launchRead || transaction === api.launchReplaced
+          ? { ...conforming, statusCode: 500 }
+          : conforming,
+    });
+
+    const skipped = {
+      status: 'skipped',
+      reason: expect.stringContaining(
+        'the specification declares 200, the server answered 500',
+      ),
+      group: expect.stringContaining('/launches'),
+    };
+    expect(executions).toMatchObject([
+      { location: { elementId: api.launchRead }, ...skipped },
+      { location: { elementId: api.launchReplaced }, ...skipped },
+      { location: { elementId: api.launchCreated }, status: 'notApplicable' },
+      { location: { elementId: api.astronautRead }, status: 'passed' },
+      { location: { elementId: api.astronautReplaced }, status: 'passed' },
+    ]);
+    expect(executions).toHaveLength(5);
+  });
+
+  it("judges the members of a group in test whose live status is inside the rule's applicability", async () => {
     const api = spaceAgency();
 
     const executions = await createRuleTester(
@@ -213,12 +242,15 @@ describe('createRuleTester(rule) with a grouped rule', () => {
     });
 
     expect(executions).toMatchObject([
-      { location: { elementId: api.launchRead }, status: 'skipped' },
-      { location: { elementId: api.launchReplaced }, status: 'skipped' },
+      { location: { elementId: api.launchRead }, status: 'passed' },
+      // Not judged: the live re-check rejects it, and the tester lists a
+      // member the rule said nothing about with the status of its group.
+      { location: { elementId: api.launchReplaced }, status: 'passed' },
       { location: { elementId: api.launchCreated }, status: 'notApplicable' },
       { location: { elementId: api.astronautRead }, status: 'passed' },
       { location: { elementId: api.astronautReplaced }, status: 'passed' },
     ]);
+    expect(executions).toHaveLength(5);
   });
 
   it('lists a blamed group once per recording in analytics, although two recordings are of one transaction', async () => {

@@ -279,7 +279,7 @@ describe('createRuleTester(rule).runTest(format)', () => {
       expect(executions).toHaveLength(2);
     });
 
-    it('skips the transaction the server answers with another status, with a reason', async () => {
+    it("skips the transaction whose live status puts it outside the rule's applicability, with a reason", async () => {
       const format = createThymianFormat();
       const launchCreated = addTransaction(
         format,
@@ -306,12 +306,41 @@ describe('createRuleTester(rule).runTest(format)', () => {
           location: { elementId: launchCreated },
           status: 'skipped',
           reason: expect.stringContaining(
-            'Expected status code 201, but received 500',
+            'the specification declares 201, the server answered 500',
           ),
         },
         { location: { elementId: astronautCreated }, status: 'failed' },
       ]);
       expect(executions).toHaveLength(2);
+    });
+
+    it("judges the transaction whose live status stays inside the rule's applicability, and reports the status drift", async () => {
+      const format = createThymianFormat();
+      const astronautRejected = addTransaction(
+        format,
+        createPostRequest({ path: '/astronauts' }),
+        createBadRequestResponse({ mediaType: 'application/problem+json' }),
+      );
+
+      const executions = await createRuleTester(
+        clientErrorsAreProblemJson,
+      ).runTest(format, {
+        respond: ({ conforming }) => ({ ...conforming, statusCode: 404 }),
+      });
+
+      expect(executions).toMatchObject([
+        {
+          location: { elementId: astronautRejected },
+          status: 'passed',
+          findings: expect.arrayContaining([
+            expect.objectContaining({
+              kind: 'informational',
+              title: 'Status drift',
+            }),
+          ]),
+        },
+      ]);
+      expect(executions).toHaveLength(1);
     });
 
     it('changes many answers with one condition', async () => {
