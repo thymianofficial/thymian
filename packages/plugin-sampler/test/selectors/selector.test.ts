@@ -60,6 +60,15 @@ describe('selector rendering', () => {
     ).toBe('POST /ping (text/plain) -> 200 (text/plain)');
   });
 
+  it('renders a default response as the literal lowercase default', () => {
+    expect(
+      selectorOf(
+        { method: 'POST', path: '/v2/clock', mediaType: 'application/json' },
+        { statusCode: 'default', mediaType: 'application/json' },
+      ),
+    ).toBe('POST /v2/clock (application/json) -> default (application/json)');
+  });
+
   it('uppercases the method and supplies a missing leading slash', () => {
     expect(
       selectorOf(
@@ -182,6 +191,39 @@ describe('selector parsing', () => {
     expect(suggestions[0]).toContain('Did you mean "GET /launches -> 200"?');
   });
 
+  it('parses the literal default back as the status', () => {
+    expect(
+      parseSelector(
+        'POST /v2/clock (application/json) -> default (application/json)',
+      ),
+    ).toMatchObject({
+      status: 'default',
+      responseMediaType: 'application/json',
+    });
+    expect(parseSelector('GET /launches -> default')).toMatchObject({
+      status: 'default',
+    });
+  });
+
+  it('treats any other casing of default as a near miss, with a "Did you mean"', () => {
+    for (const status of ['DEFAULT', 'Default']) {
+      let suggestions: string[] = [];
+
+      try {
+        parseSelector(`GET /launches -> ${status} (application/json)`);
+      } catch (e) {
+        suggestions =
+          (e as { options?: { suggestions?: string[] } }).options
+            ?.suggestions ?? [];
+      }
+
+      expect(suggestions[0], status).toContain('default in lowercase');
+      expect(suggestions[0], status).toContain(
+        'Did you mean "GET /launches -> default (application/json)"?',
+      );
+    }
+  });
+
   it('does not invent a path out of a URL', () => {
     let suggestions: string[] = [];
 
@@ -250,14 +292,22 @@ describe('rendering is total and injective', () => {
     'text/plain; nl\nhere',
     'application/vnd.thymian+json; version=1',
   ];
-  const statuses = [200, 204, 599, 0, Number.NaN, 1.5];
+  const statuses: (number | 'default')[] = [
+    200,
+    204,
+    599,
+    0,
+    Number.NaN,
+    1.5,
+    'default',
+  ];
 
   const responseBase = createHttpResponse();
 
   function render(
     requestBase: ReturnType<typeof createHttpRequest>,
     requestMediaType: string,
-    status: number,
+    status: number | 'default',
     responseMediaType: string,
   ): string {
     return formatSelector(

@@ -24,7 +24,7 @@ const okResponse: OpenAPIV3_1.ResponseObject = { description: 'ok' };
 
 function statusCodesOf(
   responsesObject: OpenAPIV3_1.ResponsesObject | undefined,
-): number[] {
+): (number | 'default')[] {
   return processResponsesObject(responsesObject, parameters, document)
     .flatMap(({ responses }) => responses)
     .map(({ statusCode }) => statusCode);
@@ -39,8 +39,8 @@ describe('processResponsesObject', () => {
     expect(statusCodesOf({ '200': okResponse })).toStrictEqual([200]);
   });
 
-  it('should ignore the default key', () => {
-    expect(statusCodesOf({ default: okResponse })).toStrictEqual([]);
+  it('should keep the default key as a default response', () => {
+    expect(statusCodesOf({ default: okResponse })).toStrictEqual(['default']);
   });
 
   it('should expand an uppercase status code range', () => {
@@ -51,7 +51,7 @@ describe('processResponsesObject', () => {
     expect(statusCodes).toContain(204);
     expect(
       statusCodes.every(
-        (code) => Number.isInteger(code) && code >= 200 && code <= 299,
+        (code) => typeof code === 'number' && code >= 200 && code <= 299,
       ),
     ).toBe(true);
   });
@@ -63,7 +63,7 @@ describe('processResponsesObject', () => {
     } as unknown as OpenAPIV3_1.ResponsesObject);
 
     expect(statusCodes).toStrictEqual([200]);
-    expect(statusCodes.some((code) => Number.isNaN(code))).toBe(false);
+    expect(statusCodes.some((code) => Number.isNaN(Number(code)))).toBe(false);
   });
 
   it('should skip an object valued specification extension without resolving it as a response', () => {

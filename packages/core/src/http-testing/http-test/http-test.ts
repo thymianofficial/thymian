@@ -1,6 +1,9 @@
 import { from } from 'rxjs';
 
-import { type ThymianHttpTransaction } from '../../index.js';
+import {
+  isTestableTransaction,
+  type ThymianHttpTransaction,
+} from '../../index.js';
 import { type HttpTestCase } from './http-test-case.js';
 import type {
   HttpTestContext,
@@ -25,7 +28,11 @@ export function httpTest<
     const start = performance.now();
     const testCases: HttpTestCase[] = [];
 
-    const transactions = ctx.format.getThymianHttpTransactions();
+    // A `default` Transaction names no status a request could be aimed at,
+    // so it never becomes a test case (ADR-0027).
+    const transactions = ctx.format
+      .getThymianHttpTransactions()
+      .filter(isTestableTransaction);
     const items = transactions.map<
       PipelineItem<ThymianHttpTransaction, Locals>
     >((transaction) => ({

@@ -38,8 +38,9 @@ export type RecordedOverrides = {
  * with the examples it carries, answered as the format declares it. `overrides`
  * replace fields of the request and of the response.
  *
- * Throws when the format has no transaction with that id, and when the request
- * cannot be built from the format.
+ * Throws when the format has no transaction with that id, when the request
+ * cannot be built from the format, and when the transaction's response is the
+ * `default` one and `overrides.response.statusCode` names no status for it.
  *
  * @example
  * ```typescript
@@ -66,8 +67,16 @@ export function recorded(
 
   const { thymianReq, thymianRes } = transaction;
   const request = { ...conformingRequest(transaction), ...overrides.request };
+  const statusCode = overrides.response?.statusCode ?? thymianRes.statusCode;
+
+  if (statusCode === 'default') {
+    throw new Error(
+      `Cannot record "${transactionId}": its response is the default one, which declares no status code. Name one as response.statusCode in the overrides.`,
+    );
+  }
+
   const response = {
-    ...conformingResponse(thymianRes),
+    ...conformingResponse(thymianRes, statusCode),
     ...overrides.response,
   };
 

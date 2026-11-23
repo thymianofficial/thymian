@@ -63,7 +63,10 @@ function locationHeader(value?: string): Record<string, Parameter> {
 }
 
 // A declared redirect, to the pinned target when one is given.
-function redirect(statusCode: number, target?: string): ThymianHttpResponse {
+function redirect(
+  statusCode: ThymianHttpResponse['statusCode'],
+  target?: string,
+): ThymianHttpResponse {
   return createHttpResponse({
     statusCode,
     headers: target === undefined ? {} : locationHeader(target),
@@ -313,6 +316,11 @@ describe.each(redirectRules)('$rule.meta.name', ({ rule, severity }) => {
       'a redirect that is not permanent',
       302,
       'declares a 302, a redirect that is not permanent',
+    ],
+    [
+      'a default response',
+      'default',
+      'declares a default response, which names no redirect status',
     ],
   ])(
     'flags, in static, %s declared beside a permanent redirect',

@@ -5,6 +5,7 @@ import {
   type HttpResponse,
   type HttpTestCaseResult,
   type HttpTestHooks,
+  isTestableTransaction,
   type Logger,
   serializeRequest,
   ThymianFormat,
@@ -12,6 +13,7 @@ import {
 } from '@thymian/core';
 
 import type { Selector } from '../selectors/selector.js';
+import { defaultResponseSeedError } from '../selectors/selector-errors.js';
 import { TransactionCatalog } from '../selectors/transaction-catalog.js';
 import {
   createHookUtils,
@@ -381,6 +383,14 @@ export class HookRunner {
 
     const runHooks = options.runHooks ?? true;
     const transaction = this.catalog.resolve(selector);
+
+    if (!isTestableTransaction(transaction)) {
+      throw defaultResponseSeedError(
+        selector,
+        this.catalog.concreteStatusesOf(transaction),
+      );
+    }
+
     const nested: SelectorChain = [...chain, selector];
     const template = applyArgs(
       await this.ports.sampleRequest(transaction),

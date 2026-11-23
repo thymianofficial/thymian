@@ -34,6 +34,7 @@ This chapter documents the significant architectural decisions made for Thymian.
 | [ADR-0024](adr/0024-a-per-transaction-problem-must-not-end-the-run.md)         | A per-transaction problem must not end the run                            | Accepted | 2026-09-04 | [10.2.1](10-quality-requirements.md#102-quality-scenarios)                                                             |
 | [ADR-0025](adr/0025-applicability-and-violation-condition.md)                  | Rule validation calls name applicability and violation condition          | Accepted | 2026-09-24 | —                                                                                                                      |
 | [ADR-0026](adr/0026-rules-are-tested-through-each-contexts-real-engine.md)     | Rules are tested through each context's real engine                       | Accepted | 2026-11-13 | [10.1](10-quality-requirements.md#101-quality-requirements-overview): Reliability                                      |
+| [ADR-0027](adr/0027-default-is-a-response-node-and-matching-is-staged.md)      | `default` is a response node; matching resolves the operation first       | Accepted | 2026-11-16 | —                                                                                                                      |
 
 ## Creating New ADRs
 

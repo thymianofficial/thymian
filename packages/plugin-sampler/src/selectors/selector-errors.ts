@@ -189,3 +189,45 @@ export function malformedSelectorError(
     },
   );
 }
+
+/** What `sampler show` prints for a `default` Selector instead of a sample. */
+export const DEFAULT_RESPONSE_NOT_TESTED =
+  'default response: not tested, no sample is derived';
+
+/**
+ * Why a `default` Selector cannot be targeted, in the one sentence a hook
+ * diagnostic and a seed error both print (ADR-0027).
+ *
+ * A `default` Transaction names no status a request could be aimed at, so the
+ * remedy is always the same: one of the operation's concrete statuses.
+ */
+export function defaultResponseTargetMessage(
+  selector: string,
+  role: 'hook' | 'seed',
+  concreteStatuses: readonly number[],
+): string {
+  const instead =
+    concreteStatuses.length > 0
+      ? `Target one of the operation's documented statuses instead: ${concreteStatuses.join(', ')}.`
+      : 'The operation documents no other status, so nothing on it can be targeted.';
+
+  return `"${selector}" names a default response. Thymian does not test default responses, so it cannot be a ${role} target. ${instead}`;
+}
+
+/**
+ * `utils.request` was aimed at a `default` Selector. Raised from inside a hook,
+ * so it reaches the run as a hook error — `errored`, and the run goes on
+ * (ADR-0024).
+ */
+export function defaultResponseSeedError(
+  selector: string,
+  concreteStatuses: readonly number[],
+): ThymianBaseError {
+  return new ThymianBaseError(
+    defaultResponseTargetMessage(selector, 'seed', concreteStatuses),
+    {
+      name: 'DefaultResponseTargetError',
+      ref: 'https://thymian.dev/references/errors/default-response-target-error/',
+    },
+  );
+}

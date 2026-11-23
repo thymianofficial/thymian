@@ -386,7 +386,7 @@ expect(kept.response.headers).toEqual({
 expect(replaced.response.headers).toEqual({ 'content-type': 'text/html' });
 ```
 
-A recording that names another `content-type` than the format declares is therefore no longer a recording of that transaction. The transaction is `notApplicable`, and what the rule says about the recording comes last, on its label:
+A recording that names another `content-type` than the format declares is therefore no longer a recording of that transaction. The transaction is `notApplicable`. The request still belongs to its operation, so what the rule says about the recording comes last, on the operation's request node:
 
 ```typescript
 const executions = await createRuleTester(clientErrorsAreProblemJson).runAnalyze(format, {
@@ -404,7 +404,7 @@ expect(executions).toMatchObject([
   { location: { elementId: launchMissing }, status: 'notApplicable' },
   { location: { elementId: astronautCreated }, status: 'notApplicable' },
   { location: { elementId: astronautRejected }, status: 'notApplicable' },
-  { location: expect.stringContaining('/launches'), status: 'failed' },
+  { location: { elementType: 'node', label: 'GET /launches/{id}' }, status: 'failed' },
 ]);
 ```
 

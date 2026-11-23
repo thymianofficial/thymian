@@ -41,6 +41,30 @@ describe('sampler show', () => {
     ],
   ]);
 
+  it('resolves a default selector, and says it is not tested instead of printing a sample', async () => {
+    const harness = await sampler();
+    const withDefault = createThymianFormatWithTransactions([
+      [
+        createHttpRequest({ method: 'GET', path: '/launches' }),
+        createHttpResponse({ statusCode: 'default', mediaType: '' }),
+      ],
+    ]);
+
+    await harness.loadFormat(withDefault);
+
+    // Through the action itself: the harness's `show` promises a request.
+    const shown = await harness.emitter.emitAction(
+      'sampler.show',
+      { selector: 'GET /launches -> default' },
+      { strategy: 'first' },
+    );
+
+    expect(shown).toEqual({
+      selector: 'GET /launches -> default',
+      notTested: 'default response: not tested, no sample is derived',
+    });
+  });
+
   it('prints the freshly generated request for a selector', async () => {
     const harness = await sampler();
     await harness.loadFormat(format);

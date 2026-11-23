@@ -11,10 +11,20 @@ import {
  * the declared status, every declared header (required or not) with a value,
  * the declared media type as `content-type`, and a body where the format
  * declares a schema for one.
+ *
+ * A `default` response declares no status, so `statusCode` names the one to
+ * answer with; without it, a `default` response throws.
  */
 export function conformingResponse(
   declared: ThymianHttpResponse,
+  statusCode: number | 'default' = declared.statusCode,
 ): HttpResponse {
+  if (statusCode === 'default') {
+    throw new Error(
+      'A default response declares no status code, so it has no conforming response: name the status to answer with.',
+    );
+  }
+
   const headers: HttpResponse['headers'] = {};
 
   for (const [name, { schema, style }] of Object.entries(declared.headers)) {
@@ -36,7 +46,7 @@ export function conformingResponse(
       : serializeBody(valueOf(declared.schema));
 
   return {
-    statusCode: declared.statusCode,
+    statusCode,
     headers,
     ...(body === undefined ? {} : { body }),
     trailers: {},

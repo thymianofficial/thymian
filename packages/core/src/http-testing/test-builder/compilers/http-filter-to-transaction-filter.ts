@@ -1,4 +1,5 @@
 import {
+  isStatusCodeInRange,
   type RequestFilterExpression,
   thymianRequestToOrigin,
 } from '../../../index.js';
@@ -152,9 +153,7 @@ export function responseScopeHttpFilterToTransactionFilter(
         reqId: string,
         res: ThymianHttpResponse,
       ) =>
-        Number.isInteger(res.statusCode) &&
-        res.statusCode >= expression.start &&
-        res.statusCode <= expression.end;
+        isStatusCodeInRange(res.statusCode, expression.start, expression.end);
   }
 }
 
