@@ -1,0 +1,23 @@
+parameters:
+  - name: id
+    in: path
+    required: true
+    schema:
+      type: string
+get:
+  responses:
+    '200':
+      description: The user
+      content:
+        application/json:
+          schema:
+            type: object
+put:
+  requestBody:
+    content:
+      application/json:
+        schema:
+          type: object
+  responses:
+    '204':
+      description: Updated

@@ -1,0 +1,49 @@
+openapi: 3.1.0
+info:
+  title: Loc mapper fixture
+  version: 1.0.0
+paths:
+  /inline:
+    get:
+      operationId: getInline
+      responses:
+        '200':
+          description: OK
+  /inline-without-id:
+    post:
+      responses:
+        '204':
+          description: No content
+  /whole:
+    $ref: ./paths/whole.yaml
+  /pointer:
+    $ref: ./paths/many.yaml#/pointed
+  /internal:
+    $ref: '#/components/pathItems/Internal'
+  /chain:
+    $ref: ./paths/chain.yaml
+  /siblings:
+    $ref: ./paths/many.yaml#/siblingTarget
+    get:
+      responses:
+        '200':
+          description: Ignored sibling
+  /cycle:
+    $ref: ./paths/cycle-a.yaml
+  /missing:
+    $ref: ./paths/does-not-exist.yaml
+  /absent-pointer:
+    $ref: ./paths/many.yaml#/nope
+  /remote:
+    $ref: https://example.com/paths.yaml
+  '/users/{id}':
+    $ref: ./paths/many.yaml#/paths/~1users~1%7Bid%7D
+  /tilde:
+    $ref: ./paths/many.yaml#/a~01b
+components:
+  pathItems:
+    Internal:
+      put:
+        responses:
+          '200':
+            description: OK

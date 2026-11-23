@@ -88,6 +88,35 @@ describe('processSchema', () => {
     });
   });
 
+  it('keeps the siblings of a ref whose target is itself a ref', () => {
+    const document: OpenApiV31.Document = {
+      ...emptyDocument,
+      components: {
+        schemas: {
+          // a 2020-12 schema may carry siblings next to its $ref
+          Described: {
+            $ref: '#/components/schemas/Name',
+            description: 'kept',
+          } as OpenApiV31.SchemaObject,
+          Name: { type: 'string' },
+        },
+      },
+    };
+
+    expect(
+      processSchema(
+        { $ref: '#/components/schemas/Described' } as Draft202012SchemaObject,
+        { document },
+      ),
+    ).toMatchObject({
+      $ref: '#/$defs/Described',
+      $defs: {
+        Described: { $ref: '#/$defs/Name', description: 'kept' },
+        Name: { type: 'string' },
+      },
+    });
+  });
+
   it('should preserve recursive references through localized $defs', () => {
     const document: OpenApiV31.Document = {
       openapi: '3.1.0',

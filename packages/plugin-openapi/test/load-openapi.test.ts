@@ -384,6 +384,63 @@ describe('load-openapi', () => {
   });
 
   describe('openapiToThymianFormat', () => {
+    const dir = join(import.meta.dirname, 'fixtures/loc-mapper/split');
+
+    async function splitSpecFormat(): Promise<ThymianFormat> {
+      const { document, filePath } = await loadAndUpgrade(
+        join(dir, 'openapi.yaml'),
+        process.cwd(),
+        new NoopLogger(),
+      );
+
+      return openapiToThymianFormat(document, {
+        filter: constant(true),
+        filePath,
+        serverInfo: {
+          basePath: '/api',
+          port: 8080,
+          host: 'localhost',
+          protocol: 'http',
+        },
+      });
+    }
+
+    it('locates an operation defined in a file referenced from a path item', async () => {
+      const format = await splitSpecFormat();
+
+      const transactions = format.getThymianHttpTransactions();
+      const get = transactions.find(
+        (t) =>
+          t.thymianReq.method === 'get' &&
+          t.thymianReq.path === '/api/users/{id}',
+      );
+      const put = transactions.find((t) => t.thymianReq.method === 'put');
+      expect(get?.thymianRes.sourceLocation).toMatchObject({
+        path: join(dir, 'paths/user.yaml'),
+        position: { line: 7, column: 1 },
+      });
+      expect(put?.thymianReq.sourceLocation).toMatchObject({
+        path: join(dir, 'paths/user.yaml'),
+        position: { line: 15, column: 1 },
+      });
+    });
+
+    it('turns an operation behind a chain of path item refs into a transaction', async () => {
+      const format = await splitSpecFormat();
+
+      const transaction = format
+        .getThymianHttpTransactions()
+        .find(
+          (t) =>
+            t.thymianReq.method === 'get' &&
+            t.thymianReq.path === '/api/teams/{id}',
+        );
+      expect(transaction?.thymianRes.sourceLocation).toMatchObject({
+        path: join(dir, 'paths/team.yaml'),
+        position: { line: 7, column: 1 },
+      });
+    });
+
     it('throws error for non supported openapi version', async () => {
       await expect(
         async () =>

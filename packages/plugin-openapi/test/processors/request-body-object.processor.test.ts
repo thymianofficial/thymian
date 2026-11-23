@@ -1,7 +1,7 @@
 import type { OpenAPIV3_1 } from 'openapi-types';
 import { describe, expect, it, vi } from 'vitest';
 
-import { LocMapper } from '../../src/loc-mapper/loc-mapper.js';
+import type { LocMapper } from '../../src/loc-mapper/loc-mapper.js';
 import { processRequestBodyObjet } from '../../src/processors/request-body-object.processor.js';
 import type { Parameters } from '../../src/processors/utils.js';
 
@@ -14,12 +14,8 @@ const emptyDocument: OpenAPIV3_1.Document = {
   paths: {},
 };
 
-class MockLocMapper extends LocMapper {
-  constructor() {
-    super('', '');
-  }
-
-  positionForOperationId = vi.fn();
+class MockLocMapper implements LocMapper {
+  locationForOperation = vi.fn();
 }
 
 describe('processRequestBodyObjet', () => {
@@ -32,7 +28,8 @@ describe('processRequestBodyObjet', () => {
   };
   const baseContext = {
     path: '/test',
-    method: 'GET',
+    pathTemplate: '/test',
+    method: 'get',
     host: 'localhost',
     port: 8080,
     protocol: 'http' as const,
@@ -55,7 +52,7 @@ describe('processRequestBodyObjet', () => {
         port: 8080,
         protocol: 'http',
         path: '/test',
-        method: 'GET',
+        method: 'get',
         mediaType: '',
         extensions: {
           openapi: {
@@ -96,7 +93,7 @@ describe('processRequestBodyObjet', () => {
         port: 8080,
         protocol: 'http',
         path: '/test',
-        method: 'GET',
+        method: 'get',
         description: 'Test body object',
         bodyRequired: true,
         body: { type: 'object', properties: { key: { type: 'string' } } },
@@ -134,11 +131,14 @@ describe('processRequestBodyObjet', () => {
     expect(result).toEqual([]);
   });
 
-  it('handles location mapping when operationId is provided and locMapper has position', () => {
-    mockLocMapper.positionForOperationId.mockReturnValueOnce({
-      line: 10,
-      column: 5,
-      offset: 105,
+  it('looks up the location by path template and method', () => {
+    mockLocMapper.locationForOperation.mockReturnValueOnce({
+      path: '/specs/paths/test.yaml',
+      position: {
+        line: 10,
+        column: 5,
+        offset: 105,
+      },
     });
 
     const mockRequestBodyObject: OpenAPIV3_1.RequestBodyObject = {
@@ -149,7 +149,11 @@ describe('processRequestBodyObjet', () => {
       },
     };
 
-    const context = { ...baseContext, operationId: 'mappedOperation' };
+    const context = {
+      ...baseContext,
+      path: '/api/v1/test',
+      pathTemplate: '/test',
+    };
 
     const result = processRequestBodyObjet(
       mockRequestBodyObject,
@@ -159,8 +163,12 @@ describe('processRequestBodyObjet', () => {
       emptyDocument,
     );
 
+    expect(mockLocMapper.locationForOperation).toHaveBeenCalledWith(
+      '/test',
+      'get',
+    );
     expect(result[0]?.sourceLocation).toEqual({
-      path: '',
+      path: '/specs/paths/test.yaml',
       position: {
         line: 10,
         column: 5,
