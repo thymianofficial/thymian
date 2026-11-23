@@ -38,6 +38,12 @@ describe('plugin-har', () => {
     time: 42,
   };
 
+  function withoutHeaders(part: object): object {
+    return Object.fromEntries(
+      Object.entries(part).filter(([key]) => key !== 'headers'),
+    );
+  }
+
   it('should ignore non-har type inputs and not reply', async () => {
     const plugin = createHarPlugin();
 
@@ -359,6 +365,74 @@ describe('plugin-har', () => {
     expect(logger.warn).toHaveBeenCalledWith(
       expect.stringContaining('Skipped 1 HAR entry'),
     );
+  });
+
+  it('should load valid entries and name the missing headers of skipped ones when validation is disabled', async () => {
+    const harFile = join(tmpDir, 'headerless.har');
+    await writeFile(
+      harFile,
+      createValidHar([
+        validEntry,
+        { ...validEntry, request: withoutHeaders(validEntry.request) },
+        { ...validEntry, response: withoutHeaders(validEntry.response) },
+      ]),
+    );
+
+    const plugin = createHarPlugin();
+    const emitter = createMockEmitter();
+    const logger = createMockLogger();
+
+    await plugin.plugin(emitter, logger, { cwd: tmpDir });
+
+    const handler = vi
+      .mocked(emitter.onAction)
+      .mock.calls.find((call) => call[0] === 'core.traffic.load')![1];
+
+    const replied = vi.fn();
+    await handler(
+      {
+        inputs: [{ type: 'har', location: harFile }],
+        validateTrafficSource: false,
+      },
+      { reply: replied } as any,
+    );
+
+    expect(replied).toHaveBeenCalledWith({
+      transactions: [expect.any(Object)],
+    });
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.stringContaining('HAR schema validation failed'),
+    );
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.stringContaining(
+        'Skipped 2 HAR entries in ' +
+          harFile +
+          ' due to: missing request headers, missing response headers',
+      ),
+    );
+  });
+
+  it('should reject a HAR file with an entry without headers when validation is enabled', async () => {
+    const harFile = join(tmpDir, 'headerless.har');
+    await writeFile(
+      harFile,
+      createValidHar([
+        { ...validEntry, request: withoutHeaders(validEntry.request) },
+      ]),
+    );
+
+    const plugin = createHarPlugin();
+
+    const thymian = new Thymian().register(plugin);
+
+    await thymian.ready();
+
+    await expect(() =>
+      thymian.loadTraffic({
+        inputs: [{ type: 'har', location: harFile }],
+        validateTrafficSource: true,
+      }),
+    ).rejects.toThrowError(/Invalid HAR structure.*headers/);
   });
 
   it('should reject HAR files exceeding maxFileSize', async () => {

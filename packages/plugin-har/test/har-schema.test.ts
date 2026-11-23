@@ -55,6 +55,36 @@ describe('har-schema', () => {
     expect(validateHar(har)).toBe(true);
   });
 
+  it('validateHar should reject an entry without request headers', () => {
+    const har = createValidHar();
+    // @ts-expect-error test invalid payload
+    delete har.log.entries[0]!.request.headers;
+
+    expect(validateHar(har)).toBe(false);
+    expect(getValidationErrors()).toContain('/log/entries/0/request');
+    expect(getValidationErrors()).toContain('headers');
+  });
+
+  it('validateHar should reject an entry without response headers', () => {
+    const har = createValidHar();
+    // @ts-expect-error test invalid payload
+    delete har.log.entries[0]!.response!.headers;
+
+    expect(validateHar(har)).toBe(false);
+    expect(getValidationErrors()).toContain('/log/entries/0/response');
+    expect(getValidationErrors()).toContain('headers');
+  });
+
+  it('validateHar should accept a minimal entry with only request and response headers', () => {
+    expect(
+      validateHar({
+        log: {
+          entries: [{ request: { headers: [] }, response: { headers: [] } }],
+        },
+      }),
+    ).toBe(true);
+  });
+
   it('validateHar should accept sparse HAR objects with all fields omitted', () => {
     expect(validateHar({})).toBe(true);
   });
