@@ -423,6 +423,7 @@ describe('transformHar', () => {
   });
 
   it('should report another malformed entry as malformed entry', () => {
+    // No `method`: lowercasing it throws while transforming the entry.
     const har = {
       log: {
         version: '1.2',
