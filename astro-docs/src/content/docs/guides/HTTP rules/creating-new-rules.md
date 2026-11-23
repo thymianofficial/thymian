@@ -366,7 +366,7 @@ function hasValidDirectives(directives: any) {
    singleTestCase()
      .forTransactionsWith(statusCode(401))
      .run({ authorize: false, checkStatusCode: false })
-     .skipIf(not(statusCode(401)), 'The specification declares 401; the server answered another status.')
+     .skipIf(not(statusCode(401)), "The live pair is outside the rule's applicability (the specification declares 401, the server answered another status).")
      .expectForTransactions(responseHeader('www-authenticate'))
      .done();
    ```

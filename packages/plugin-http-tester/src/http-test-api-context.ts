@@ -74,8 +74,20 @@ type LivePair = {
 
 type LiveApplicability = ReturnType<typeof httpFilterToTransactionValidationFn>;
 
-function declaredVersusLiveStatus({ source, response }: LivePair): string {
-  return `the specification declares ${source.thymianRes.statusCode}, the server answered ${response.statusCode}`;
+/** How the live status differs from the declared one; `undefined` when not. */
+function declaredVersusLiveStatus({
+  source,
+  response,
+}: LivePair): string | undefined {
+  return source.thymianRes.statusCode === response.statusCode
+    ? undefined
+    : `the specification declares ${source.thymianRes.statusCode}, the server answered ${response.statusCode}`;
+}
+
+/** The parenthesis a message adds for the clauses given; none for none. */
+function inParentheses(clauses: (string | undefined)[]): string {
+  const given = clauses.filter((clause) => clause !== undefined);
+  return given.length === 0 ? '' : ` (${given.join('; ')})`;
 }
 
 /**
@@ -88,7 +100,8 @@ function statusDriftResult(
   pair: LivePair,
   transactionIndex: number,
 ): RuleFnResult | undefined {
-  if (pair.source.thymianRes.statusCode === pair.response.statusCode) {
+  const drift = declaredVersusLiveStatus(pair);
+  if (drift === undefined) {
     return undefined;
   }
 
@@ -98,7 +111,7 @@ function statusDriftResult(
       {
         kind: 'informational',
         title: 'Status drift',
-        message: `The live status differs from the declared one: ${declaredVersusLiveStatus(pair)}.`,
+        message: `The live status differs from the declared one${inParentheses([drift])}.`,
         transactionIndex,
       },
     ],
@@ -169,22 +182,16 @@ export class HttpTestApiContext<
 
   /**
    * A pair the live re-check rejects was not judged: it is reported as a
-   * `rule-skip` naming the declared and the live status (ADR-0026), not as a
-   * pass.
+   * `rule-skip` saying so, and naming the declared and the live status where
+   * they differ (ADR-0026), not as a pass.
    */
   private notApplicableResult(
     location: RuleViolationLocation,
-    reason: string,
+    message: string,
   ): RuleFnResult {
     return {
       location,
-      findings: [
-        {
-          kind: 'rule-skip',
-          title: this.name,
-          message: `The rule does not apply to the live response: ${reason}.`,
-        },
-      ],
+      findings: [{ kind: 'rule-skip', title: this.name, message }],
     };
   }
 
@@ -210,7 +217,7 @@ export class HttpTestApiContext<
         judge: false,
         result: this.notApplicableResult(
           location,
-          declaredVersusLiveStatus(pair),
+          `The live pair is outside the rule's applicability${inParentheses([declaredVersusLiveStatus(pair)])}.`,
         ),
       };
     }
@@ -305,19 +312,19 @@ export class HttpTestApiContext<
 
       if (liveAppliesTo && applicable.length === 0) {
         const sent = transactions.filter(hasSource);
-        const reasons = sent.flatMap(({ source, response }) =>
-          response
-            ? [
-                `${thymianHttpTransactionToString(source.thymianReq, source.thymianRes)}: ${declaredVersusLiveStatus({ source, response })}`,
-              ]
-            : [],
-        );
+        const differing = sent.map(({ source, response }) => {
+          const difference =
+            response && declaredVersusLiveStatus({ source, response });
+          return difference
+            ? `${thymianHttpTransactionToString(source.thymianReq, source.thymianRes)}: ${difference}`
+            : undefined;
+        });
         // Located on the group, so the skip names every member it covers.
         const results = locateOnGroup(
           [
             this.notApplicableResult(
               source.key,
-              `none of the group's pairs matches (${reasons.join('; ')})`,
+              `No live pair of the group is inside the rule's applicability${inParentheses(differing)}.`,
             ),
           ],
           source.key,

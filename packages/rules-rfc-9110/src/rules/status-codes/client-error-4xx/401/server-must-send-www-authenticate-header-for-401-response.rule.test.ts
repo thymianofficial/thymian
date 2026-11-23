@@ -100,7 +100,7 @@ describe('rfc9110/server-must-send-www-authenticate-header-for-401-response (tes
       expect.objectContaining({
         status: 'skipped',
         reason:
-          'The specification declares 401; the server answered another status.',
+          "The live pair is outside the rule's applicability (the specification declares 401, the server answered another status).",
       }),
     ]);
   });

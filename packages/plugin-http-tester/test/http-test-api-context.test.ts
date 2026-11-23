@@ -1056,7 +1056,13 @@ describe('HttpTestApiContext', () => {
   );
 
   describe('a live status that differs from the declared one', () => {
-    function contextAnswering(...statusCodes: [path: string, live: number][]): {
+    function contextAnswering(
+      ...statusCodes: [
+        path: string,
+        live: number,
+        headers?: HttpResponse['headers'],
+      ][]
+    ): {
       context: HttpTestApiContext;
       transactionIds: string[];
     } {
@@ -1072,13 +1078,15 @@ describe('HttpTestApiContext', () => {
 
       const mockContext = createMockHttpTestContext({
         format,
-        runRequest: async (req: HttpRequest): Promise<HttpResponse> => ({
-          statusCode:
-            statusCodes.find(([path]) => path === req.path)?.[1] ?? 401,
-          duration: 0,
-          trailers: {},
-          headers: {},
-        }),
+        runRequest: async (req: HttpRequest): Promise<HttpResponse> => {
+          const answer = statusCodes.find(([path]) => path === req.path);
+          return {
+            statusCode: answer?.[1] ?? 401,
+            duration: 0,
+            trailers: {},
+            headers: answer?.[2] ?? {},
+          };
+        },
       });
 
       return {
@@ -1122,6 +1130,30 @@ describe('HttpTestApiContext', () => {
             result: results[0],
             testCaseIndex: 0,
             stepIndex: 0,
+          }),
+        ]);
+      });
+
+      it('skips a pair the live re-check rejects with the declared status, naming no status', async () => {
+        const { context } = contextAnswering([
+          '/users',
+          401,
+          { 'x-rate-limit': '10' },
+        ]);
+
+        const results = await context[validate]({
+          appliesTo: not(responseHeader('x-rate-limit')),
+          violatedWhen: statusCode(401),
+        });
+
+        expect(results).toEqual([
+          expect.objectContaining({
+            findings: [
+              expect.objectContaining({
+                kind: 'rule-skip',
+                message: "The live pair is outside the rule's applicability.",
+              }),
+            ],
           }),
         ]);
       });

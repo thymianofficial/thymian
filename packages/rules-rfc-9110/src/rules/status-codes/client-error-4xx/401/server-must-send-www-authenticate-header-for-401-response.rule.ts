@@ -42,7 +42,7 @@ export default httpRule(
         .run({ authorize: false, checkStatusCode: false })
         .skipIf(
           not(statusCode(401)),
-          'The specification declares 401; the server answered another status.',
+          "The live pair is outside the rule's applicability (the specification declares 401, the server answered another status).",
         )
         .expectForTransactions(responseHeader('www-authenticate'))
         .done(),
