@@ -97,6 +97,8 @@ The analyzer recognises a transaction in a recording by method, origin, path, st
 
 A request that cannot be built, for example for a path parameter without an example, makes `analytics` throw and name the transaction: there is nothing to record for it. Give the parameter's schema an example, as for `test`.
 
+A `default` transaction is not recorded: its response declares no status to answer with. It is listed with the transactions that were never recorded, as `notApplicable`. To record one, name the status it answers with in `recorded`.
+
 **Traffic you hand in** replaces it. `traffic` is a list of recorded pairs, each a request and its response as plain HTTP objects. `recorded(format, transactionId, overrides?)` gives the conforming pair of a transaction, so you write only what deviates:
 
 ```typescript
@@ -116,7 +118,7 @@ expect(executions).toMatchObject([
 
 A transaction may be recorded several times, and each recording is judged on its own: here the second one dropped the `Location` header the format declares. The list is then in another order than for `static`: one entry per recording, in traffic order; then the transactions that were never recorded, as `notApplicable`; then executions on any other location.
 
-An override replaces a field of the conforming request or response as a whole: `{ request: { headers: { authorization: 'Bearer apollo' } } }` records exactly that request header, which is how a rule about a request header is tested. One thing is kept: the media type the format declares is still named as `content-type`, because the analyzer recognises the transaction by it, unless the headers you give name a `content-type` themselves. `recorded` throws for an id the format has no transaction with, and for a request that cannot be built.
+An override replaces a field of the conforming request or response as a whole: `{ request: { headers: { authorization: 'Bearer apollo' } } }` records exactly that request header, which is how a rule about a request header is tested. One thing is kept: the media type the format declares is still named as `content-type`, because the analyzer recognises the transaction by it, unless the headers you give name a `content-type` themselves. `recorded` throws for an id the format has no transaction with, for a request that cannot be built, and for a `default` transaction unless the override names its status: `{ response: { statusCode: 503 } }`.
 
 A recording that the analyzer matches to no transaction of the format, for example one with another path or status, has no transaction to appear on. What the rule says about it is located on a free string, the label of the recording, and comes last:
 

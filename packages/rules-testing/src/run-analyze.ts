@@ -1,5 +1,6 @@
 import {
   httpTransactionToLabel,
+  isDefaultResponse,
   NoopLogger,
   type RuleRunnerAdapter,
   runRules,
@@ -56,7 +57,8 @@ type Analysis = {
 
 /**
  * Runs a rule in `analytics` against the traffic: every transaction of the
- * format recorded once, conforming, unless traffic is handed in.
+ * format recorded once, conforming, unless traffic is handed in. A `default`
+ * transaction declares no status to answer with, so it is not recorded.
  *
  * The list is the recordings in traffic order, each on the transaction of the
  * format it matches, then the transactions that were never recorded, then the
@@ -74,7 +76,9 @@ export async function runAnalyze(
   const transactions = format.getThymianHttpTransactions();
   const traffic =
     handedIn ??
-    transactions.map(({ transactionId }) => recorded(format, transactionId));
+    transactions
+      .filter(({ thymianRes }) => !isDefaultResponse(thymianRes))
+      .map(({ transactionId }) => recorded(format, transactionId));
   // Per recording, in traffic order: the id of the transaction it matches.
   const matched = traffic.map((pair) => matchedTransaction(format, pair));
   // The analyzer locates what a rule returns about a recorded pair on the

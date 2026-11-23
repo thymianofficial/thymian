@@ -15,6 +15,7 @@ import {
   createBadRequestResponse,
   createCreatedResponse,
   createGetRequest,
+  createHttpResponse,
   createObjectSchema,
   createOkResponse,
   createOptionalParameter,
@@ -236,6 +237,22 @@ describe('createRuleTester(rule).runAnalyze(format)', () => {
       expect(pairs).toHaveLength(2);
     });
 
+    it('leaves a default transaction unrecorded, since it declares no status to answer with', async () => {
+      const format = createThymianFormat();
+      const request = createGetRequest({ path: '/launches' });
+      addTransaction(format, request, createOkResponse());
+      addTransaction(
+        format,
+        request,
+        createHttpResponse({ statusCode: 'default' }),
+      );
+
+      const pairs = await recordedPairsOf(format);
+
+      expect(pairs).toMatchObject([{ response: { statusCode: 200 } }]);
+      expect(pairs).toHaveLength(1);
+    });
+
     it('records a request that matches its transaction when the format declares a request body', async () => {
       const format = createThymianFormat();
       const astronautCreated = addTransaction(
@@ -370,6 +387,34 @@ describe('createRuleTester(rule).runAnalyze(format)', () => {
       ).rejects.toThrow(
         /^Cannot record ".*\/launches\/\{id\}.*": Missing value for path parameter "id"\./,
       );
+    });
+  });
+
+  describe('recorded(format, transactionId)', () => {
+    it('cannot record a default transaction without a status, and says which', () => {
+      const format = createThymianFormat();
+      const fallback = addTransaction(
+        format,
+        createGetRequest({ path: '/launches' }),
+        createHttpResponse({ statusCode: 'default' }),
+      );
+
+      expect(() => recorded(format, fallback)).toThrow(
+        /^Cannot record ".*": its response is the default one, which declares no status code\./,
+      );
+    });
+
+    it('records a default transaction answered with the status the overrides name', () => {
+      const format = createThymianFormat();
+      const fallback = addTransaction(
+        format,
+        createGetRequest({ path: '/launches' }),
+        createHttpResponse({ statusCode: 'default' }),
+      );
+
+      expect(
+        recorded(format, fallback, { response: { statusCode: 503 } }),
+      ).toMatchObject({ response: { statusCode: 503 } });
     });
   });
 
