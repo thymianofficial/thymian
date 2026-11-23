@@ -119,6 +119,15 @@ describe('proxy-must-not-transform-content-with-no-transform-directive', () => {
     expect(runOnTrace(mustRule, trace)).toHaveLength(1);
   });
 
+  it('reports a proxy that strips no-transform before changing the content', () => {
+    const trace = proxyTrace(
+      { body: 'HELLO', headers: {} },
+      { body: 'hello', headers: noTransform },
+    );
+
+    expect(runOnTrace(mustRule, trace)).toHaveLength(1);
+  });
+
   it('does not report changed content without the no-transform directive', () => {
     const trace = proxyTrace(
       { body: 'HELLO' },

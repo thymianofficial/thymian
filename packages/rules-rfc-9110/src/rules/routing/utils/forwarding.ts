@@ -156,10 +156,12 @@ type CapturedContent = Pick<HttpResponse, 'body' | 'bodyEncoding'>;
 
 export type ContentComparison = 'same' | 'different' | 'undeterminable';
 
+const BASE64 = /^[A-Za-z0-9+/]*={0,2}$/;
+
 /**
  * The bytes a captured body stands for, or `undefined` when they cannot be
- * known: the body was not captured (a Capture Gap) or its `bodyEncoding` is
- * not one this helper decodes.
+ * known: the body was not captured (a Capture Gap), its `bodyEncoding` is
+ * not one this helper decodes, or it is not valid base64.
  */
 function decodeContent({
   body,
@@ -171,7 +173,9 @@ function decodeContent({
   if (bodyEncoding === undefined) {
     return Buffer.from(body, 'utf8');
   }
-  if (bodyEncoding.toLowerCase() === 'base64') {
+  // Buffer.from is lenient and silently drops characters outside the base64
+  // alphabet, so a malformed body is rejected rather than decoded by guesswork.
+  if (bodyEncoding.toLowerCase() === 'base64' && BASE64.test(body)) {
     return Buffer.from(body, 'base64');
   }
   return undefined;

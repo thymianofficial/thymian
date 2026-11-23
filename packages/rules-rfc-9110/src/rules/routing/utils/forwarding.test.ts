@@ -287,6 +287,15 @@ describe('compareContent', () => {
     ).toBe('undeterminable');
   });
 
+  it('cannot tell when a base64 body is malformed', () => {
+    expect(
+      compareContent(
+        { body: 'not base64!', bodyEncoding: 'base64' },
+        { body: 'hello' },
+      ),
+    ).toBe('undeterminable');
+  });
+
   it('compares an empty body as real content', () => {
     expect(compareContent({ body: '' }, { body: '' })).toBe('same');
     expect(compareContent({ body: '' }, { body: 'hello' })).toBe('different');
