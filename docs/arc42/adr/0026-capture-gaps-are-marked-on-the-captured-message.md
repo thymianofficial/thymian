@@ -47,8 +47,9 @@ We will mark Capture Gaps on the captured message, not in its data.
   the dropped names, are left to the Envoy receiver work
   (thymianofficial/thymian-workspace#611). `HttpRequest` and
   `HttpResponse` are unchanged, and `data.headers` stays an object.
-- **Rule contract.** Rules ask `isHeaderCaptured(message, name)`, which lives in core next
-  to `getHeader`. They never read `meta.captureGaps` themselves. The question is per field
+- **Rule contract.** Rules ask `isHeaderCaptured(message, name)`, or
+  `isHeaderCapturedOnBoth(a, b, name)` for a field compared across two messages; both live
+  in core next to `getHeader`. They never read `meta.captureGaps` themselves. The question is per field
   name, so when a filtered header set arrives, the answer changes per name without editing
   any rule.
 - **The marker wins.** A message marked `headers-not-captured` answers `false` for every

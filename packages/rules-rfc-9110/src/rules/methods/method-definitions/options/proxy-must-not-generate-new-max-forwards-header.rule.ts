@@ -1,6 +1,9 @@
-import { getHeader, httpRule, type RuleFnResult } from '@thymian/core';
-
-import { isHeaderCapturedOnBoth } from '../../../routing/utils/forwarding.js';
+import {
+  getHeader,
+  httpRule,
+  isHeaderCapturedOnBoth,
+  type RuleFnResult,
+} from '@thymian/core';
 
 // The MUST NOT is about a proxy *generating* a Max-Forwards field it did not
 // receive. This is observable by correlating adjacent hops of the same request

@@ -1,6 +1,10 @@
-import { getHeader, httpRule, type RuleFnResult } from '@thymian/core';
+import {
+  getHeader,
+  httpRule,
+  isHeaderCapturedOnBoth,
+  type RuleFnResult,
+} from '@thymian/core';
 
-import { isHeaderCapturedOnBoth } from '../../../routing/utils/forwarding.js';
 import { equalHeaderValues } from '../../utils/header-value-equality.js';
 
 export default httpRule('rfc9110/proxy-must-not-modify-www-authenticate')

@@ -1,10 +1,11 @@
-import { getHeader, httpRule, type RuleFnResult } from '@thymian/core';
-
 import {
-  forwardingHops,
+  getHeader,
+  httpRule,
   isHeaderCapturedOnBoth,
-  parseMaxForwards,
-} from '../../utils/forwarding.js';
+  type RuleFnResult,
+} from '@thymian/core';
+
+import { forwardingHops, parseMaxForwards } from '../../utils/forwarding.js';
 
 export default httpRule(
   'rfc9110/intermediary-must-generate-updated-max-forwards-when-forwarding',

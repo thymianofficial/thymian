@@ -2,13 +2,11 @@ import {
   getHeader,
   httpRule,
   isHeaderCaptured,
+  isHeaderCapturedOnBoth,
   type RuleFnResult,
 } from '@thymian/core';
 
-import {
-  forwardingHops,
-  isHeaderCapturedOnBoth,
-} from '../../routing/utils/forwarding.js';
+import { forwardingHops } from '../../routing/utils/forwarding.js';
 
 // Fields a proxy may legitimately drop, so they are never treated as a
 // non-forwarded end-to-end field: hop-by-hop controls plus routing metadata a

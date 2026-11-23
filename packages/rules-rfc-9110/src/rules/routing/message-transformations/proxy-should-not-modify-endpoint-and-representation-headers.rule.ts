@@ -1,10 +1,11 @@
-import { getHeader, httpRule, type RuleFnResult } from '@thymian/core';
-
 import {
-  equalHeaderValues,
-  forwardingHops,
+  getHeader,
+  httpRule,
   isHeaderCapturedOnBoth,
-} from '../utils/forwarding.js';
+  type RuleFnResult,
+} from '@thymian/core';
+
+import { equalHeaderValues, forwardingHops } from '../utils/forwarding.js';
 
 const REPRESENTATION_HEADERS = [
   'content-type',

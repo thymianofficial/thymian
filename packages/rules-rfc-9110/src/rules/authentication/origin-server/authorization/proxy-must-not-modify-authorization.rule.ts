@@ -1,9 +1,11 @@
-import { getHeader, httpRule, type RuleFnResult } from '@thymian/core';
-
 import {
-  forwardingHops,
+  getHeader,
+  httpRule,
   isHeaderCapturedOnBoth,
-} from '../../../routing/utils/forwarding.js';
+  type RuleFnResult,
+} from '@thymian/core';
+
+import { forwardingHops } from '../../../routing/utils/forwarding.js';
 import { equalHeaderValues } from '../../utils/header-value-equality.js';
 
 export default httpRule('rfc9110/proxy-must-not-modify-authorization')

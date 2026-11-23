@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { CapturedHttpRequest } from '../src/rules/traffic.js';
-import { isHeaderCaptured } from '../src/utils.js';
+import { isHeaderCaptured, isHeaderCapturedOnBoth } from '../src/utils.js';
 
 function request(
   headers: CapturedHttpRequest['data']['headers'],
@@ -43,5 +43,30 @@ describe('isHeaderCaptured', () => {
     );
 
     expect(isHeaderCaptured(message, 'accept')).toBe(false);
+  });
+});
+
+describe('isHeaderCapturedOnBoth', () => {
+  const notCaptured = request(
+    {},
+    { captureGaps: [{ kind: 'headers-not-captured' }] },
+  );
+
+  it('answers true when the field was captured on both messages', () => {
+    expect(isHeaderCapturedOnBoth(request({}), request({}), 'accept')).toBe(
+      true,
+    );
+  });
+
+  it('answers false when the first message did not capture the field', () => {
+    expect(isHeaderCapturedOnBoth(notCaptured, request({}), 'accept')).toBe(
+      false,
+    );
+  });
+
+  it('answers false when the second message did not capture the field', () => {
+    expect(isHeaderCapturedOnBoth(request({}), notCaptured, 'accept')).toBe(
+      false,
+    );
   });
 });
