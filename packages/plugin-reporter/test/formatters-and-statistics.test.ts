@@ -114,6 +114,7 @@ describe('analyze statistics', () => {
       passed: 2,
       failed: 2,
       skipped: 2,
+      notApplicable: 0,
     });
     // Each failed execution counted once at its resolved severity (host=error).
     expect(statistics.severityCounts).toEqual({
@@ -182,5 +183,93 @@ describe('MarkdownFormatter rendering', () => {
       `|  | passed | ${ruleLink} | Requests must carry a Host header |`,
     );
     expect(output).toContain('| info | noted |');
+  });
+});
+
+describe('notApplicable executions (ADR-0030)', () => {
+  // A rule that applied to nothing (one case without steps) and a case whose
+  // live response fell outside the rule's applicability (a case with a step).
+  const notApplicableReport = createReport([
+    createToolRun({
+      tool: { name: '@thymian/plugin-http-tester' },
+      runType: 'test',
+      rules,
+      executions: [
+        createTestCaseExecution({
+          name: 'no applicable transaction',
+          ruleId: 'rfc9110/host',
+          status: {
+            kind: 'notApplicable',
+            reason: 'The input has no transaction this rule applies to.',
+          },
+          steps: [],
+        }),
+        createTestCaseExecution({
+          name: 'POST /pets ruled out',
+          ruleId: 'rfc9110/host',
+          status: { kind: 'notApplicable' },
+          steps: [
+            createTestStep({
+              name: 'Step 1',
+              location: { type: 'custom', value: 'POST /pets' },
+              findings: [],
+            }),
+          ],
+        }),
+        createTestCaseExecution({
+          name: 'GET /pets returns 200',
+          ruleId: 'rfc9110/host',
+          status: { kind: 'passed' },
+          steps: [],
+        }),
+      ],
+    }),
+  ]);
+
+  it('counts them in the statistics, never as a severity', () => {
+    const { statistics } = analyze([notApplicableReport]);
+
+    expect(statistics.statusCounts).toEqual({
+      passed: 1,
+      failed: 0,
+      skipped: 0,
+      notApplicable: 2,
+    });
+    expect(statistics.severityCounts).toEqual({
+      error: 0,
+      warn: 0,
+      hint: 0,
+      info: 0,
+    });
+  });
+
+  it('gives each one a CSV row with its status and reason', () => {
+    const rows = reportToCsvLines(notApplicableReport).filter((line) =>
+      line.includes(',execution,notApplicable,'),
+    );
+
+    expect(rows).toHaveLength(2);
+    expect(rows[0]).toContain(
+      'The input has no transaction this rule applies to.',
+    );
+  });
+
+  it('lists the rule-level one with its reason and only counts the case-level one in markdown', async () => {
+    const formatter = new MarkdownFormatter(new NoopLogger());
+    formatter.init({ cwd: join(process.cwd(), 'tmp', 'formatters-na') });
+    await formatter.report(notApplicableReport);
+
+    const output = (await formatter.flush()) ?? '';
+
+    expect(output).toContain(
+      '| @thymian/plugin-http-tester | test | ✖ 0 failed · ⏭ 0 skipped · ∅ 2 not applicable · ✓ 1 passed |',
+    );
+    expect(output).toContain(
+      '### no applicable transaction · _∅ notApplicable_',
+    );
+    expect(output).toContain(
+      'The input has no transaction this rule applies to.',
+    );
+    expect(output).not.toContain('POST /pets ruled out');
   });
 });

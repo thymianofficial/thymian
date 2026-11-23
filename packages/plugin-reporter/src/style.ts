@@ -2,6 +2,7 @@ export {
   errorSymbol,
   hintSymbol,
   infoSymbol,
+  notApplicableSymbol,
   SEVERITY_COLORS,
   skippedSymbol,
   successSymbol,

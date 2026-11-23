@@ -16,6 +16,7 @@ import {
   compareSeverityGroupKeys,
   findingDetails,
   httpStatusCodeToPhrase,
+  isListedExecution,
   isValidHttpStatusCode,
   pluralizeSeverity,
   resolveExecutionSeverity,
@@ -39,6 +40,7 @@ import {
   errorSymbol,
   hintSymbol,
   infoSymbol,
+  notApplicableSymbol,
   SEVERITY_COLORS,
   skippedSymbol,
   successSymbol,
@@ -153,8 +155,8 @@ function groupHeadingText(
   }
   if (sortReportsBy === 'severity') {
     const symbol =
-      key === 'skipped'
-        ? SEVERITY_SYMBOLS.skipped
+      key === 'skipped' || key === 'notApplicable'
+        ? SEVERITY_SYMBOLS[key]
         : SEVERITY_SYMBOLS[key as Severity];
     return `${symbol} ${pluralizeSeverity(key).toUpperCase()}`;
   }
@@ -326,31 +328,23 @@ function buildRollupLine(
   return `${parts.join(' · ')} — across ${totalRuns} runs · generated ${formatGeneratedDate(reports)}`;
 }
 
-function countOutcomes(executions: Execution[] | undefined): {
-  failed: number;
-  skipped: number;
-  passed: number;
-} {
-  let failed = 0;
-  let skipped = 0;
-  let passed = 0;
+function countOutcomes(
+  executions: Execution[] | undefined,
+): Record<Execution['status']['kind'], number> {
+  const counts = { failed: 0, skipped: 0, notApplicable: 0, passed: 0 };
 
   for (const execution of walkExecutions(executions)) {
-    if (execution.status.kind === 'failed') {
-      failed += 1;
-    } else if (execution.status.kind === 'skipped') {
-      skipped += 1;
-    } else {
-      passed += 1;
-    }
+    counts[execution.status.kind] += 1;
   }
 
-  return { failed, skipped, passed };
+  return counts;
 }
 
 function buildOverviewRow(run: ToolRun): string {
-  const { failed, skipped, passed } = countOutcomes(run.executions);
-  const outcome = `${errorSymbol} ${failed} failed · ${skippedSymbol} ${skipped} skipped · ${successSymbol} ${passed} passed`;
+  const { failed, skipped, notApplicable, passed } = countOutcomes(
+    run.executions,
+  );
+  const outcome = `${errorSymbol} ${failed} failed · ${skippedSymbol} ${skipped} skipped · ${notApplicableSymbol} ${notApplicable} not applicable · ${successSymbol} ${passed} passed`;
   const duration =
     run.duration !== undefined ? `${(run.duration / 1000).toFixed(2)}s` : '';
 
@@ -389,7 +383,7 @@ function buildLintAnalyzeSection(
     // bucket) and is not a violation, so exclude it and its informational
     // findings — matching the CLI grouped renderer, which skips passed
     // executions. `endpoint` groups by location and keeps them.
-    if (sortReportsBy !== 'endpoint' && execution.status.kind === 'passed') {
+    if (sortReportsBy !== 'endpoint' && !isListedExecution(execution)) {
       continue;
     }
 
@@ -412,8 +406,9 @@ function buildLintAnalyzeSection(
       }
     }
 
-    // A passed execution earns a row only through a finding worth showing.
-    if (execution.status.kind === 'passed' && findings.length === 0) {
+    // An execution that is only counted earns a row only through a finding
+    // worth showing.
+    if (!isListedExecution(execution) && findings.length === 0) {
       continue;
     }
 
@@ -449,7 +444,10 @@ function buildLintAnalyzeSection(
         rule?.summary?.text ??
         rule?.description?.text ??
         '';
-    } else if (execution.status.kind === 'skipped') {
+    } else if (
+      execution.status.kind === 'skipped' ||
+      execution.status.kind === 'notApplicable'
+    ) {
       message = execution.status.reason ?? rule?.summary?.text ?? '';
     } else {
       message = rule?.summary?.text ?? '';
@@ -544,7 +542,7 @@ function formatHttpTransaction(transaction: ReportHttpTransaction): string {
   return lines.join('\n').trimEnd();
 }
 
-/** Renders one failed/skipped test case under the given heading prefix (`###`/`####`). */
+/** Renders one listed test case under the given heading prefix (`###`/`####`). */
 function renderTestCase(
   execution: TestCaseExecution,
   headingPrefix: string,
@@ -557,7 +555,11 @@ function renderTestCase(
   const lines: string[] = [];
 
   const statusGlyph =
-    execution.status.kind === 'failed' ? errorSymbol : skippedSymbol;
+    execution.status.kind === 'failed'
+      ? errorSymbol
+      : execution.status.kind === 'notApplicable'
+        ? notApplicableSymbol
+        : skippedSymbol;
   lines.push(
     `${headingPrefix} ${execution.name} · _${statusGlyph} ${execution.status.kind}_`,
   );
@@ -572,7 +574,8 @@ function renderTestCase(
         rule?.summary?.text ??
         rule?.description?.text ??
         '')
-      : execution.status.kind === 'skipped'
+      : execution.status.kind === 'skipped' ||
+          execution.status.kind === 'notApplicable'
         ? (execution.status.reason ?? rule?.summary?.text ?? '')
         : '';
 
@@ -656,7 +659,7 @@ function buildTestSection(
 
   const cases = [...walkExecutions(run.executions)].filter(
     (execution): execution is TestCaseExecution =>
-      execution.kind === 'test' && execution.status.kind !== 'passed',
+      execution.kind === 'test' && isListedExecution(execution),
   );
 
   // `endpoint` keeps the flat, per-case `###` layout unchanged.
@@ -857,7 +860,7 @@ export class MarkdownFormatter implements Formatter<MarkdownFormatterOptions> {
     );
     lines.push('');
     lines.push(
-      `<sub>${errorSymbol} error · ${warnSymbol} warning · ${hintSymbol} hint · ${infoSymbol} info · ${successSymbol} passed · ${skippedSymbol} skipped</sub>`,
+      `<sub>${errorSymbol} error · ${warnSymbol} warning · ${hintSymbol} hint · ${infoSymbol} info · ${successSymbol} passed · ${skippedSymbol} skipped · ${notApplicableSymbol} not applicable</sub>`,
     );
     lines.push('');
     lines.push('| Run | Type | Outcome | Duration |');

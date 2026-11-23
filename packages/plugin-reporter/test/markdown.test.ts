@@ -150,7 +150,7 @@ describe('MarkdownFormatter legend (AC2)', () => {
     const output = await render(report);
 
     expect(output).toContain(
-      '<sub>✖ error · ⚠ warning · ✎ hint · ℹ info · ✓ passed · ⏭ skipped</sub>',
+      '<sub>✖ error · ⚠ warning · ✎ hint · ℹ info · ✓ passed · ⏭ skipped · ∅ not applicable</sub>',
     );
     expect(output.split('<sub>').length - 1).toBe(1);
   });
@@ -184,7 +184,7 @@ describe('MarkdownFormatter run overview (AC3, AC4)', () => {
     const output = await render(report);
 
     expect(output).toContain(
-      '| @thymian/plugin-http-linter | lint | ✖ 4 failed · ⏭ 1 skipped · ✓ 5 passed | 1.23s |',
+      '| @thymian/plugin-http-linter | lint | ✖ 4 failed · ⏭ 1 skipped · ∅ 0 not applicable · ✓ 5 passed | 1.23s |',
     );
     expect(output).toContain('## @thymian/plugin-http-linter · lint');
     expect(output).not.toContain('Ran ');
@@ -1002,6 +1002,91 @@ describe('MarkdownFormatter --sort-reports-by grouping', () => {
     // The skipped case lands under SKIPPED, the failing one under ERRORS.
     expect(output).toContain('#### skipped case · _⏭ skipped_');
     expect(output).toContain('#### failing case · _✖ failed_');
+  });
+
+  it('files a rule-level notApplicable under its own severity group, never SKIPPED, and hides a case-level one', async () => {
+    const report = createReport([
+      createToolRun({
+        tool: { name: '@thymian/plugin-http-tester' },
+        runType: 'test',
+        rules: [{ id: 'lifecycle', severity: 'error' }],
+        executions: [
+          createTestCaseExecution({
+            name: 'skipped case',
+            ruleId: 'lifecycle',
+            status: { kind: 'skipped', reason: 'n/a' },
+            steps: [],
+          }),
+          createTestCaseExecution({
+            name: 'no applicable transaction',
+            ruleId: 'lifecycle',
+            status: { kind: 'notApplicable', reason: 'nothing matched' },
+            steps: [],
+          }),
+          createTestCaseExecution({
+            name: 'ruled-out case',
+            ruleId: 'lifecycle',
+            status: { kind: 'notApplicable' },
+            steps: [
+              createTestStep({
+                name: 'Step 1',
+                location: { type: 'custom', value: 'GET /x' },
+                findings: [],
+              }),
+            ],
+          }),
+        ],
+      }),
+    ]);
+
+    for (const sortReportsBy of ['severity', 'rule'] as const) {
+      const output = await renderSorted(report, sortReportsBy);
+      expect(output).not.toContain('ruled-out case');
+    }
+
+    const output = await renderSorted(report, 'severity');
+    expect(output).toContain('### ∅ NOT APPLICABLE');
+    expect(output.indexOf('#### skipped case')).toBeLessThan(
+      output.indexOf('### ∅ NOT APPLICABLE'),
+    );
+    expect(output.indexOf('### ∅ NOT APPLICABLE')).toBeLessThan(
+      output.indexOf('#### no applicable transaction · _∅ notApplicable_'),
+    );
+  });
+
+  it('lists a case-level notApplicable that carries a reason, with that reason', async () => {
+    const report = createReport([
+      createToolRun({
+        tool: { name: '@thymian/plugin-http-tester' },
+        runType: 'test',
+        rules: [{ id: 'lifecycle', severity: 'error' }],
+        executions: [
+          createTestCaseExecution({
+            name: 'rejected case',
+            ruleId: 'lifecycle',
+            status: {
+              kind: 'notApplicable',
+              reason: "The live pair is outside the rule's applicability.",
+            },
+            steps: [
+              createTestStep({
+                name: 'Step 1',
+                location: { type: 'custom', value: 'GET /x' },
+                findings: [],
+              }),
+            ],
+          }),
+        ],
+      }),
+    ]);
+
+    for (const sortReportsBy of ['severity', 'rule'] as const) {
+      const output = await renderSorted(report, sortReportsBy);
+      expect(output).toContain('#### rejected case · _∅ notApplicable_');
+      expect(output).toContain(
+        'The live pair is outside the rule&#39;s applicability.',
+      );
+    }
   });
 });
 

@@ -317,12 +317,13 @@ export function reportToCsvLines(report: Report): string[] {
       const severity = resolveExecutionSeverity(execution, ruleIndex);
       const reason = status.kind === 'passed' ? '' : (status.reason ?? '');
       const duration =
-        status.kind !== 'skipped' && status.durationMilliseconds !== undefined
+        'durationMilliseconds' in status &&
+        status.durationMilliseconds !== undefined
           ? `duration=${status.durationMilliseconds}ms`
           : '';
       const label = executionLabel(execution, resolveLocation, runVersion);
 
-      // One row per execution so failed/skipped executions stay visible even
+      // One row per execution so failed/skipped/notApplicable executions stay visible even
       // when they carry no detail findings.
       lines.push(
         `${csvSafe(run.runId)},${csvSafe(run.runType)},${csvSafe(run.tool.name)},${csvSafe(ruleId)},${csvSafe(label)},execution,${csvSafe(status.kind)},${csvSafe(severity)},,,,${csvSafe(reason)},${csvSafe(duration)}\n`,
