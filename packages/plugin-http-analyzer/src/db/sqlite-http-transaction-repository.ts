@@ -67,6 +67,12 @@ function sortTraceTransactions(
 
 export class SqliteHttpTransactionRepository implements HttpTransactionRepository {
   readonly db: Database;
+  // Prepared on first use, because preparing fails until init() has created
+  // the tables; reused after that, since gaps are read for every message.
+  private readonly captureGapStatements = new Map<
+    `${'insert' | 'read'}:${MessageKind}`,
+    Statement
+  >();
   private isSecured?: (request: HttpRequest, response: HttpResponse) => boolean;
 
   constructor(
@@ -789,11 +795,7 @@ export class SqliteHttpTransactionRepository implements HttpTransactionRepositor
       return;
     }
 
-    const { table, column } = CAPTURE_GAP_TABLE[messageKind];
-    const gapStmt = this.db.prepare(`
-      INSERT INTO ${table} (${column}, kind, detail)
-      VALUES (?, ?, ?)
-    `);
+    const gapStmt = this.captureGapStatement('insert', messageKind);
 
     for (const { kind, ...detail } of gaps) {
       gapStmt.run(
@@ -810,16 +812,9 @@ export class SqliteHttpTransactionRepository implements HttpTransactionRepositor
     messageKind: MessageKind,
     messageId: number,
   ): { captureGaps?: CaptureGap[] } {
-    const { table, column } = CAPTURE_GAP_TABLE[messageKind];
-    const rows = this.db
-      .prepare<[number], { kind: string; detail: string | null }>(
-        `
-        SELECT kind, detail FROM ${table}
-        WHERE ${column} = ?
-        ORDER BY id ASC
-      `,
-      )
-      .all(messageId);
+    const rows = this.captureGapStatement('read', messageKind).all(
+      messageId,
+    ) as { kind: string; detail: string | null }[];
 
     if (rows.length === 0) {
       return {};
@@ -834,6 +829,24 @@ export class SqliteHttpTransactionRepository implements HttpTransactionRepositor
           }) as CaptureGap,
       ),
     };
+  }
+
+  private captureGapStatement(
+    operation: 'insert' | 'read',
+    messageKind: MessageKind,
+  ): Statement {
+    const key = `${operation}:${messageKind}` as const;
+    let statement = this.captureGapStatements.get(key);
+    if (!statement) {
+      const { table, column } = CAPTURE_GAP_TABLE[messageKind];
+      statement = this.db.prepare(
+        operation === 'insert'
+          ? `INSERT INTO ${table} (${column}, kind, detail) VALUES (?, ?, ?)`
+          : `SELECT kind, detail FROM ${table} WHERE ${column} = ? ORDER BY id ASC`,
+      );
+      this.captureGapStatements.set(key, statement);
+    }
+    return statement;
   }
 
   private getRoleId(roleName: string | undefined | null): number | null {
