@@ -381,15 +381,16 @@ describe('load-openapi', () => {
   });
 
   describe('openapiToThymianFormat', () => {
-    it('locates an operation defined in a file referenced from a path item', async () => {
-      const dir = join(import.meta.dirname, 'fixtures/loc-mapper/split');
+    const dir = join(import.meta.dirname, 'fixtures/loc-mapper/split');
+
+    async function splitSpecFormat(): Promise<ThymianFormat> {
       const { document, filePath } = await loadAndUpgrade(
         join(dir, 'openapi.yaml'),
         process.cwd(),
         new NoopLogger(),
       );
 
-      const format = await openapiToThymianFormat(document, {
+      return openapiToThymianFormat(document, {
         filter: constant(true),
         filePath,
         serverInfo: {
@@ -399,6 +400,10 @@ describe('load-openapi', () => {
           protocol: 'http',
         },
       });
+    }
+
+    it('locates an operation defined in a file referenced from a path item', async () => {
+      const format = await splitSpecFormat();
 
       const transactions = format.getThymianHttpTransactions();
       const get = transactions.find(
@@ -418,23 +423,7 @@ describe('load-openapi', () => {
     });
 
     it('turns an operation behind a chain of path item refs into a transaction', async () => {
-      const dir = join(import.meta.dirname, 'fixtures/loc-mapper/split');
-      const { document, filePath } = await loadAndUpgrade(
-        join(dir, 'openapi.yaml'),
-        process.cwd(),
-        new NoopLogger(),
-      );
-
-      const format = await openapiToThymianFormat(document, {
-        filter: constant(true),
-        filePath,
-        serverInfo: {
-          basePath: '/api',
-          port: 8080,
-          host: 'localhost',
-          protocol: 'http',
-        },
-      });
+      const format = await splitSpecFormat();
 
       const transaction = format
         .getThymianHttpTransactions()

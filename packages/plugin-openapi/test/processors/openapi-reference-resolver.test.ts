@@ -7,22 +7,24 @@ import {
 } from '../../src/processors/openapi-reference-resolver.js';
 
 function documentWith(
-  components: Record<string, unknown>,
+  components: OpenApiV31.ComponentsObject,
 ): OpenApiV31.Document {
   return {
     openapi: '3.1.0',
     info: { title: 'Refs', version: '1.0.0' },
-    components: { pathItems: components },
-  } as OpenApiV31.Document;
+    components,
+  };
 }
 
 describe('resolveOpenApiReference', () => {
   it('follows a chain of three internal refs to the object at its end', () => {
     const target = { get: { responses: {} } };
     const document = documentWith({
-      A: { $ref: '#/components/pathItems/B' },
-      B: { $ref: '#/components/pathItems/C' },
-      C: target,
+      pathItems: {
+        A: { $ref: '#/components/pathItems/B' },
+        B: { $ref: '#/components/pathItems/C' },
+        C: target,
+      },
     });
 
     expect(
@@ -36,8 +38,10 @@ describe('resolveOpenApiReference', () => {
 
   it('throws when the refs form a cycle', () => {
     const document = documentWith({
-      A: { $ref: '#/components/pathItems/B' },
-      B: { $ref: '#/components/pathItems/A' },
+      pathItems: {
+        A: { $ref: '#/components/pathItems/B' },
+        B: { $ref: '#/components/pathItems/A' },
+      },
     });
 
     expect(() =>
@@ -53,7 +57,9 @@ describe('resolveOpenApiReference', () => {
 
   it('throws naming an external ref met in the middle of a chain', () => {
     const document = documentWith({
-      A: { $ref: './other.yaml' },
+      pathItems: {
+        A: { $ref: './other.yaml' },
+      },
     });
 
     expect(() =>
@@ -70,15 +76,14 @@ describe('resolveOpenApiReference', () => {
 
 describe('resolveOpenApiReferenceOnce', () => {
   it('stops at one level, keeping a target that is itself a ref', () => {
-    const middle = { $ref: '#/components/pathItems/C', description: 'kept' };
+    const middle = { $ref: '#/components/schemas/C', description: 'kept' };
     const document = documentWith({
-      B: middle,
-      C: { type: 'string' },
+      schemas: { B: middle, C: { type: 'string' } },
     });
 
     expect(
       resolveOpenApiReferenceOnce(
-        { $ref: '#/components/pathItems/B' },
+        { $ref: '#/components/schemas/B' },
         document,
         'schema',
       ),
