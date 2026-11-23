@@ -1051,18 +1051,22 @@ describe('load-openapi', () => {
     });
 
     it('names a missing external file when dereferencing a schema-invalid document', async () => {
-      await expect(
-        loadAndUpgrade(
+      try {
+        await loadAndUpgrade(
           'fixtures/missing-ref-with-schema-error.yaml',
           import.meta.dirname,
           new NoopLogger(),
           false,
-        ),
-      ).rejects.toMatchObject({
-        options: { name: 'OpenAPIDereferenceError' },
-        message:
+        );
+        expect.fail('Error should have been thrown');
+      } catch (error) {
+        expect(error).toBeInstanceOf(ThymianBaseError);
+        const thymianError = error as ThymianBaseError;
+        expect(thymianError.options.name).toBe('OpenAPIDereferenceError');
+        expect(thymianError.message).toBe(
           "Referenced file could not be loaded: './schemas/missing.yaml' (resolved relative to the document containing the $ref).",
-      });
+        );
+      }
     });
 
     it('names a missing external file and an unresolved pointer when dereferencing a schema-invalid document', async () => {
@@ -1071,17 +1075,22 @@ describe('load-openapi', () => {
         'missing-ref-and-pointer-with-schema-error.yaml',
       );
 
-      await expect(
-        loadAndUpgrade(
+      try {
+        await loadAndUpgrade(
           'fixtures/missing-ref-and-pointer-with-schema-error.yaml',
           import.meta.dirname,
           new NoopLogger(),
           false,
-        ),
-      ).rejects.toMatchObject({
-        options: { name: 'OpenAPIDereferenceError' },
-        message: `Referenced file could not be loaded: './schemas/missing.yaml' (resolved relative to the document containing the $ref). Resolving the $refs in '${label}' failed: Can't resolve reference: #/components/schemas/NonExistent.`,
-      });
+        );
+        expect.fail('Error should have been thrown');
+      } catch (error) {
+        expect(error).toBeInstanceOf(ThymianBaseError);
+        const thymianError = error as ThymianBaseError;
+        expect(thymianError.options.name).toBe('OpenAPIDereferenceError');
+        expect(thymianError.message).toBe(
+          `Referenced file could not be loaded: './schemas/missing.yaml' (resolved relative to the document containing the $ref). Resolving the $refs in '${label}' failed: Can't resolve reference: #/components/schemas/NonExistent.`,
+        );
+      }
     });
 
     it('throws OpenAPIDereferenceError for a missing external file when validateSpecs is enabled', async () => {

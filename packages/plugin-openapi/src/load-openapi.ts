@@ -68,6 +68,7 @@ function plural(count: number, word: string): string {
 const URL_REF_PATTERN = /^[a-z][a-z\d+.-]*:\/\//i;
 
 // A relative ref is resolved against the document containing it; a URL or an absolute path is not.
+// win32.isAbsolute accepts both POSIX (`/x`) and Windows (`C:\x`) absolute paths, on every platform.
 function isRelativeRef(ref: string): boolean {
   return !URL_REF_PATTERN.test(ref) && !win32.isAbsolute(ref);
 }
