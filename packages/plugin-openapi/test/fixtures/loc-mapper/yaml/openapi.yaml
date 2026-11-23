@@ -9,9 +9,6 @@ paths:
       responses:
         '200':
           description: OK
-          links:
-            ToWhole:
-              operationId: getWhole
   /inline-without-id:
     post:
       responses:

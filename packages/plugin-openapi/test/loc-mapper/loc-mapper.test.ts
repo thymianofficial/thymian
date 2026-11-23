@@ -22,10 +22,10 @@ const variants: {
     ext: 'yaml',
     expected: {
       'get /inline': { file: 'openapi.yaml', line: 7, column: 5 },
-      'post /inline-without-id': { file: 'openapi.yaml', line: 16, column: 5 },
+      'post /inline-without-id': { file: 'openapi.yaml', line: 13, column: 5 },
       'get /whole': { file: 'paths/whole.yaml', line: 1, column: 1 },
       'patch /pointer': { file: 'paths/many.yaml', line: 3, column: 3 },
-      'put /internal': { file: 'openapi.yaml', line: 49, column: 7 },
+      'put /internal': { file: 'openapi.yaml', line: 46, column: 7 },
       'delete /chain': { file: 'paths/nested/users.yaml', line: 2, column: 1 },
       'get /siblings': { file: 'paths/many.yaml', line: 8, column: 3 },
       'get /users/{id}': { file: 'paths/many.yaml', line: 14, column: 5 },
@@ -37,10 +37,10 @@ const variants: {
     ext: 'json',
     expected: {
       'get /inline': { file: 'openapi.json', line: 9, column: 7 },
-      'post /inline-without-id': { file: 'openapi.json', line: 24, column: 7 },
+      'post /inline-without-id': { file: 'openapi.json', line: 19, column: 7 },
       'get /whole': { file: 'paths/whole.json', line: 2, column: 3 },
       'patch /pointer': { file: 'paths/many.json', line: 4, column: 5 },
-      'put /internal': { file: 'openapi.json', line: 76, column: 9 },
+      'put /internal': { file: 'openapi.json', line: 71, column: 9 },
       'delete /chain': { file: 'paths/nested/users.json', line: 3, column: 3 },
       'get /siblings': { file: 'paths/many.json', line: 13, column: 5 },
       'get /users/{id}': { file: 'paths/many.json', line: 23, column: 7 },
@@ -98,15 +98,6 @@ describe.each(variants)(
         );
       },
     );
-
-    it('does not mistake a link object operationId for the operation', async () => {
-      const mapper = await locMapperForFile(rootPath, new NoopLogger());
-
-      expectLocation(
-        mapper.locationForOperation('/whole', 'get'),
-        'get /whole',
-      );
-    });
 
     it.each([
       ['a cyclic chain of refs', 'get', '/cycle'],

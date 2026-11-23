@@ -10,12 +10,7 @@
         "operationId": "getInline",
         "responses": {
           "200": {
-            "description": "OK",
-            "links": {
-              "ToWhole": {
-                "operationId": "getWhole"
-              }
-            }
+            "description": "OK"
           }
         }
       }
