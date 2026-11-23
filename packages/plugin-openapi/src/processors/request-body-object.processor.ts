@@ -11,6 +11,7 @@ export function processRequestBodyObjet(
   locMapper: LocMapper,
   context: {
     path: string;
+    pathTemplate: string;
     operationId?: string;
     method: string;
     host: string;
@@ -60,9 +61,10 @@ export function processRequestBodyObjet(
           isMultipart,
         );
 
-        const sourceLocation = context.operationId
-          ? locMapper.locationForOperationId(context.operationId)
-          : undefined;
+        const sourceLocation = locMapper.locationForOperation(
+          context.pathTemplate,
+          context.method,
+        );
 
         return {
           type: 'http-request',

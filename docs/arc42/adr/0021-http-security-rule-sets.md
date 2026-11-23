@@ -193,7 +193,9 @@ _impossible with a named reason_.
   first sentence of this section forbids.
 - **Impossibility reasons are a closed vocabulary in two tiers.** Tier 1 makes a rule
   informational and lives in the rule file; tier 2 excludes one context and lives in
-  `coverage.ts`.
+  `coverage.ts`. An informational rule whose tier-1 reason is `tool-limitation` may also
+  record tier-2 reasons, other than `tool-limitation`, for some of its contexts, as long as
+  at least one keeps the whole-rule reason. _(Amended 2026-11-18; see Status History.)_
 
   | Tier  | Code                        | Claim                                                                |
   | ----- | --------------------------- | -------------------------------------------------------------------- |
@@ -259,9 +261,15 @@ of this.
 - **The record is authored per rule, not per unit.** A rule's entry carries what it `covers`,
   a declared-type-and-severity stamp, and cells only for the contexts it does _not_ declare —
   a declared context defaults to `observable`; the only value ever written for one is
-  `heuristic`. There is no `.covers()` on the rule builder: what a rule discharges is a
-  second, driftable claim if restated on the rule itself, so it is declared exactly once,
-  here.
+  `heuristic`. An informational rule's entry carries cells only under a
+  `tool-limitation` reason: each cell names the tier-2 reason that holds in its context, a
+  context without such a cell renders the whole-rule reason, and the checker refuses cells
+  under a world-claim, a cell that restates `tool-limitation`, and an entry whose
+  well-formed cells name a reason other than `tool-limitation` in every context, because
+  each would contradict the rule's own reason. A cell the checker refuses never renders.
+  _(Amended 2026-11-18; see Status History.)_ There is no `.covers()` on the rule builder:
+  what a rule discharges is a second, driftable claim if restated on the rule itself, so it
+  is declared exactly once, here.
 - **The numerator is derived, not asserted.** Rules and source units are N:M _both ways_ —
   all 14 rules on `#name-expect` discharge one unit. Each rule's entry declares `covers`, and
   the headline renders **two numbers** ("9 of 14 statements, covered by 21 rules") rather
@@ -408,3 +416,5 @@ of this.
 | 2026-09-18 | Amended  | §4: a BCP 14 `MAY` is checkable at `hint` and is never `nothing-to-check`; `nothing-to-check` narrowed to statements of fact, definitions, and requirements on specification authors                                                                                                                                                                                                 |
 | 2026-09-22 | Amended  | §5: corrected to the shipped shape — the record is authored per rule (no `.covers()` on the builder), a declared context defaults to `observable`, the denominator is counted from the document and never from a package's own rules, `.url()`'s anchor belongs to the document the rule set's own `url` names, and the package's own meta-test — not a bare `--check` — is the gate |
 | 2026-10-16 | Amended  | §1: a source that is still an Internet-Draft carries its slug as rule-id prefix and `RuleSet.name`, cites its versioned revision, and is renamed to the RFC's name, as a breaking change announced in the release, once the RFC is published; §5: the Cookies denominator example corrected to the recount of draft-22                                                               |
+| 2026-11-18 | Amended  | §4, §5: an informational rule whose reason is `tool-limitation` records the tier-2 reason that holds in each of its other contexts in `coverage.ts`; at least one context keeps the whole-rule reason, and the checker refuses cells that contradict it                                                                                                                              |
+| 2026-11-18 | Amended  | Consequences: the `test`-context status-code gate cited as a prerequisite is resolved by [ADR-0028](0028-rule-context-calls-judge-the-live-status.md) for named-form rule-context calls; positional calls stay gated until thymian-workspace#779                                                                                                                                     |

@@ -30,6 +30,7 @@ import {
   createHttpResponse,
   createThymianFormat,
   createThymianFormatWithTransaction,
+  createThymianFormatWithTransactions,
 } from '@thymian/core-testing';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -117,6 +118,29 @@ describe('HttpTestApiContext', () => {
       );
 
       expect(result).toHaveLength(1);
+    });
+
+    it('never tests a default transaction, not even through a negated status filter', async () => {
+      const format = createThymianFormatWithTransactions([
+        [
+          createHttpRequest({ method: 'get', path: '/users' }),
+          createHttpResponse({ statusCode: 200, headers: {} }),
+        ],
+        [
+          createHttpRequest({ method: 'get', path: '/users' }),
+          createHttpResponse({ statusCode: 'default', headers: {} }),
+        ],
+      ]);
+      const mockContext = createMockHttpTestContext({ format });
+      const context = new HttpTestApiContext('test-rule', mockContext);
+
+      const result = await context.validateCommonHttpTransactions(
+        not(statusCode(200)),
+        method('get'),
+      );
+
+      expect(result).toHaveLength(0);
+      expect(mockContext.runRequest).toHaveBeenCalledTimes(0);
     });
 
     it('should return empty array when no transactions match', async () => {
@@ -398,6 +422,52 @@ describe('HttpTestApiContext', () => {
           }),
         ]),
       );
+    });
+
+    it('locates a result on the group key on the group, naming its member transactions', async () => {
+      const format = createThymianFormat();
+      const [, , usersListed] = format.addHttpTransaction(
+        createHttpRequest({ method: 'get', path: '/users' }),
+        createHttpResponse({ statusCode: 200, headers: {} }),
+        'test-source',
+      );
+      const [, , postsListed] = format.addHttpTransaction(
+        createHttpRequest({ method: 'get', path: '/posts' }),
+        createHttpResponse({ statusCode: 200, headers: {} }),
+        'test-source',
+      );
+
+      const context = new HttpTestApiContext(
+        'test-rule',
+        createMockHttpTestContext({ format }),
+      );
+
+      const result = await context.validateGroupedCommonHttpTransactions({
+        appliesTo: statusCode(200),
+        groupBy: method(),
+        violatedWhen: (key) => [
+          { location: key, violation: { message: 'flagged' }, findings: [] },
+        ],
+      });
+
+      expect(result).toEqual([
+        {
+          location: {
+            elementType: 'group',
+            key: 'GET',
+            members: [
+              { elementType: 'edge', elementId: usersListed },
+              { elementType: 'edge', elementId: postsListed },
+            ],
+          },
+          violation: { message: 'flagged' },
+          findings: [],
+        },
+      ]);
+      // The result fails the test case of its group.
+      expect(context.getRuleExecutionDiagnostics()?.[0]?.placements).toEqual([
+        { result: result[0], testCaseIndex: 0, stepIndex: 0 },
+      ]);
     });
   });
 
@@ -984,6 +1054,259 @@ describe('HttpTestApiContext', () => {
       );
     },
   );
+
+  describe('a live status that differs from the declared one', () => {
+    function contextAnswering(
+      ...statusCodes: [
+        path: string,
+        live: number,
+        headers?: HttpResponse['headers'],
+      ][]
+    ): {
+      context: HttpTestApiContext;
+      transactionIds: string[];
+    } {
+      const format = new ThymianFormat();
+      const transactionIds = statusCodes.map(([path]) => {
+        const [, , transactionId] = format.addHttpTransaction(
+          createHttpRequest({ method: 'GET', path }),
+          createHttpResponse({ statusCode: 401 }),
+          'test-source',
+        );
+        return transactionId;
+      });
+
+      const mockContext = createMockHttpTestContext({
+        format,
+        runRequest: async (req: HttpRequest): Promise<HttpResponse> => {
+          const answer = statusCodes.find(([path]) => path === req.path);
+          return {
+            statusCode: answer?.[1] ?? 401,
+            duration: 0,
+            trailers: {},
+            headers: answer?.[2] ?? {},
+          };
+        },
+      });
+
+      return {
+        context: new HttpTestApiContext('test-rule', mockContext),
+        transactionIds,
+      };
+    }
+
+    describe.each([
+      'validateCommonHttpTransactions',
+      'validateHttpTransactions',
+    ] as const)('%s, named form', (validate) => {
+      it('skips a pair the live re-check rejects, naming both statuses', async () => {
+        const { context, transactionIds } = contextAnswering(['/users', 200]);
+
+        const results = await context[validate]({
+          appliesTo: statusCode(401),
+          violatedWhen: not(responseHeader('www-authenticate')),
+        });
+
+        expect(results).toEqual([
+          expect.objectContaining({
+            location: expect.objectContaining({
+              elementType: 'edge',
+              elementId: transactionIds[0],
+            }),
+            findings: [
+              expect.objectContaining({
+                kind: 'rule-skip',
+                title: 'test-rule',
+                message: expect.stringContaining(
+                  'the specification declares 401, the server answered 200',
+                ),
+              }),
+            ],
+          }),
+        ]);
+        expect(results[0]?.violation).toBeUndefined();
+        expect(context.getRuleExecutionDiagnostics()?.[0]?.placements).toEqual([
+          expect.objectContaining({
+            result: results[0],
+            testCaseIndex: 0,
+            stepIndex: 0,
+          }),
+        ]);
+      });
+
+      it('skips a pair the live re-check rejects with the declared status, naming no status', async () => {
+        const { context } = contextAnswering([
+          '/users',
+          401,
+          { 'x-rate-limit': '10' },
+        ]);
+
+        const results = await context[validate]({
+          appliesTo: not(responseHeader('x-rate-limit')),
+          violatedWhen: statusCode(401),
+        });
+
+        expect(results).toEqual([
+          expect.objectContaining({
+            findings: [
+              expect.objectContaining({
+                kind: 'rule-skip',
+                message: "The live pair is outside the rule's applicability.",
+              }),
+            ],
+          }),
+        ]);
+      });
+
+      it('judges an applicable pair and notes the status drift', async () => {
+        const { context, transactionIds } = contextAnswering(['/users', 501]);
+
+        const results = await context[validate]({
+          appliesTo: method('GET'),
+          violatedWhen: statusCode(501),
+        });
+
+        expect(results).toEqual([
+          expect.objectContaining({ violation: {}, findings: [] }),
+          {
+            location: expect.objectContaining({
+              elementType: 'edge',
+              elementId: transactionIds[0],
+            }),
+            findings: [
+              expect.objectContaining({
+                kind: 'informational',
+                message: expect.stringContaining(
+                  'the specification declares 401, the server answered 501',
+                ),
+              }),
+            ],
+          },
+        ]);
+        expect(
+          context.getRuleExecutionDiagnostics()?.[0]?.placements,
+        ).toHaveLength(2);
+      });
+
+      it('notes no drift when the live status is the declared one', async () => {
+        const { context } = contextAnswering(['/users', 401]);
+
+        const results = await context[validate]({
+          appliesTo: method('GET'),
+          violatedWhen: statusCode(501),
+        });
+
+        expect(results).toEqual([]);
+      });
+    });
+
+    describe.each([
+      'validateCommonHttpTransactions',
+      'validateHttpTransactions',
+    ] as const)('%s, positional form', (validate) => {
+      it('keeps skipping the test case on a status mismatch', async () => {
+        const { context } = contextAnswering(['/users', 501]);
+
+        const results = await context[validate](method('GET'), statusCode(501));
+
+        expect(results).toEqual([]);
+        expect(
+          context.getRuleExecutionDiagnostics()?.[0]?.testResult.cases[0],
+        ).toMatchObject({ status: 'skipped' });
+      });
+    });
+
+    describe('validateGroupedCommonHttpTransactions', () => {
+      it('skips a group none of whose pairs passes the live re-check, on the group, naming both statuses', async () => {
+        const { context, transactionIds } = contextAnswering(
+          ['/a', 200],
+          ['/b', 500],
+        );
+
+        const results = await context.validateGroupedCommonHttpTransactions({
+          appliesTo: statusCode(401),
+          groupBy: method(),
+          violatedWhen: () => [],
+        });
+
+        expect(results).toEqual([
+          expect.objectContaining({
+            location: expect.objectContaining({
+              elementType: 'group',
+              members: [
+                { elementType: 'edge', elementId: transactionIds[0] },
+                { elementType: 'edge', elementId: transactionIds[1] },
+              ],
+            }),
+            findings: [
+              expect.objectContaining({
+                kind: 'rule-skip',
+                message: expect.stringMatching(
+                  /the specification declares 401, the server answered 200.*the specification declares 401, the server answered 500/,
+                ),
+              }),
+            ],
+          }),
+        ]);
+        expect(context.getRuleExecutionDiagnostics()?.[0]?.placements).toEqual([
+          expect.objectContaining({ result: results[0], stepIndex: 0 }),
+        ]);
+      });
+
+      it('judges the applicable pairs of a partly applicable group and says nothing about the rest', async () => {
+        const { context, transactionIds } = contextAnswering(
+          ['/a', 401],
+          ['/b', 500],
+        );
+        const judged: unknown[] = [];
+
+        const results = await context.validateGroupedCommonHttpTransactions({
+          appliesTo: statusCode(401),
+          groupBy: method(),
+          violatedWhen: (_key, pairs) => {
+            judged.push(...pairs.map(([, , location]) => location));
+            return [];
+          },
+        });
+
+        expect(judged).toEqual([
+          expect.objectContaining({ elementId: transactionIds[0] }),
+        ]);
+        expect(results).toEqual([]);
+      });
+
+      it('notes the status drift of a judged pair', async () => {
+        const { context, transactionIds } = contextAnswering(
+          ['/a', 401],
+          ['/b', 501],
+        );
+
+        const results = await context.validateGroupedCommonHttpTransactions({
+          appliesTo: method('GET'),
+          groupBy: method(),
+          violatedWhen: () => [],
+        });
+
+        expect(results).toEqual([
+          {
+            location: expect.objectContaining({
+              elementType: 'edge',
+              elementId: transactionIds[1],
+            }),
+            findings: [
+              expect.objectContaining({
+                kind: 'informational',
+                transactionIndex: 1,
+                message: expect.stringContaining(
+                  'the specification declares 401, the server answered 501',
+                ),
+              }),
+            ],
+          },
+        ]);
+      });
+    });
+  });
 
   describe('selecting by protocol on the specification side', () => {
     it('sends requests only for transactions described with that protocol', async () => {

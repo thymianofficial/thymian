@@ -88,12 +88,12 @@ Draft-22 defines HttpOnly, in a non-normative section, without requiring it of a
 
 ### cookie-header
 
-| Rule                                                             | static                           | analytics                        | test                             |
-| ---------------------------------------------------------------- | -------------------------------- | -------------------------------- | -------------------------------- |
-| rfc-6265bis/server-must-be-tolerant-of-multiple-cookie-headers   | impossible (tool-limitation)     | impossible (tool-limitation)     | impossible (tool-limitation)     |
-| rfc-6265bis/server-should-avoid-large-cookies                    | heuristic                        | heuristic                        | heuristic                        |
-| rfc-6265bis/server-should-degrade-gracefully-without-cookies     | impossible (only-origin-knows)   | impossible (only-origin-knows)   | impossible (only-origin-knows)   |
-| rfc-6265bis/server-should-not-rely-on-cookie-serialization-order | impossible (peer-not-observable) | impossible (peer-not-observable) | impossible (peer-not-observable) |
+| Rule                                                             | static                           | analytics                              | test                             |
+| ---------------------------------------------------------------- | -------------------------------- | -------------------------------------- | -------------------------------- |
+| rfc-6265bis/server-must-be-tolerant-of-multiple-cookie-headers   | impossible (not-representable)   | impossible (requires-controlled-input) | impossible (tool-limitation)     |
+| rfc-6265bis/server-should-avoid-large-cookies                    | heuristic                        | heuristic                              | heuristic                        |
+| rfc-6265bis/server-should-degrade-gracefully-without-cookies     | impossible (only-origin-knows)   | impossible (only-origin-knows)         | impossible (only-origin-knows)   |
+| rfc-6265bis/server-should-not-rely-on-cookie-serialization-order | impossible (peer-not-observable) | impossible (peer-not-observable)       | impossible (peer-not-observable) |
 
 ### prefixes
 

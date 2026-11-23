@@ -1,6 +1,10 @@
 import type { Logger } from '../logger/logger.js';
 import type { ApiContext } from './contexts.js';
-import type { RuleFnResult } from './rule-violation.js';
+import type {
+  RuleFnResult,
+  RuleViolationGroupLocation,
+  RuleViolationLocation,
+} from './rule-violation.js';
 
 export type RuleFn<
   Context extends ApiContext,
@@ -9,4 +13,6 @@ export type RuleFn<
   context: Context,
   options: Options & { mode: 'static' | 'analytics' | 'test' },
   logger: Logger,
-) => RuleFnResult[] | Promise<RuleFnResult[]>;
+) =>
+  | RuleFnResult<RuleViolationLocation | RuleViolationGroupLocation>[]
+  | Promise<RuleFnResult<RuleViolationLocation | RuleViolationGroupLocation>[]>;

@@ -1,10 +1,4 @@
-import {
-  checkCoverage,
-  type CoverageEntry,
-  type CoverageViolation,
-  loadRules,
-  type Rule,
-} from '@thymian/core';
+import { checkCoverage, type CoverageEntry, loadRules } from '@thymian/core';
 import { describe, expect, it } from 'vitest';
 
 import coverage from './coverage.js';
@@ -20,6 +14,12 @@ async function loadBaselineRules() {
   return loadRules('@thymian/rules-rfc-6265bis', undefined, {}, undefined, {
     '@thymian/rules-rfc-6265bis': BASELINE_PROFILE_SENTINEL,
   });
+}
+
+// Read as a plain string array: the informational and executable branches'
+// tuple types leave `includes` no argument type to accept.
+function isInformational(entry: CoverageEntry): boolean {
+  return (entry.declared.types as readonly string[]).includes('informational');
 }
 
 // The gate: the real loader against the real package, the same seam
@@ -199,11 +199,11 @@ describe('coverage record', () => {
     // The units no context can check: one on the browser's store, four that
     // only the origin knows, two that the server's peer would have to show,
     // and one a tool limitation (thymianofficial/thymian-workspace#502).
-    it('has 8 informational entries, carrying no cells', () => {
-      // Read as a plain string array: the informational and executable
-      // branches' tuple types leave `includes` no argument type to accept.
+    // Only that one carries cells: `static` and `analytics` are impossible
+    // for reasons of their own, and `test` keeps the tool limitation.
+    it('has 8 informational entries, one carrying two cells', () => {
       const informational = Object.entries(coverage.rules).filter(([, entry]) =>
-        (entry.declared.types as readonly string[]).includes('informational'),
+        isInformational(entry),
       );
 
       expect(informational.map(([name]) => name).sort()).toEqual([
@@ -216,17 +216,40 @@ describe('coverage record', () => {
         'rfc-6265bis/server-should-not-share-sensitive-cookies-across-distrusting-ports',
         'rfc-6265bis/user-agent-must-not-let-insecure-cookie-overlay-secure-cookie',
       ]);
-      for (const [, entry] of informational) {
-        expect(entry.contexts).toBeUndefined();
-      }
+      const withCells = informational.filter(
+        ([, entry]) => entry.contexts !== undefined,
+      );
+      const note = expect.stringMatching(/\S/);
+      expect(Object.fromEntries(withCells)).toEqual({
+        'rfc-6265bis/server-must-be-tolerant-of-multiple-cookie-headers': {
+          covers: ['4.2.1/2'],
+          declared: { types: ['informational'], severity: 'error' },
+          contexts: {
+            static: {
+              verdict: 'impossible',
+              reason: 'not-representable',
+              note,
+            },
+            analytics: {
+              verdict: 'impossible',
+              reason: 'requires-controlled-input',
+              note,
+            },
+          },
+        },
+      });
     });
 
-    // The cells the record carries, keyed by rule and context, keeping the
-    // ones `keep` accepts: a heuristic cell marks a declared context no
-    // single exchange settles, an impossible cell an undeclared one.
+    // The cells the executable rules' entries carry, keyed by rule and
+    // context, keeping the ones `keep` accepts: a heuristic cell marks a
+    // declared context no single exchange settles, an impossible cell an
+    // undeclared one. The informational entry's cells are asserted above.
     function cellsWhere(keep: (cell: unknown) => boolean) {
       return Object.fromEntries(
         Object.entries(coverage.rules).flatMap(([name, entry]) => {
+          if (isInformational(entry)) {
+            return [];
+          }
           const cells = Object.entries(entry.contexts ?? {}).filter(
             ([, cell]) => keep(cell),
           );
@@ -357,55 +380,26 @@ describe('coverage record', () => {
   });
 
   // `recommended` promotes §8.3's Secure clause from its keyword's `warn` to
-  // `error`. The checker reads a promotion only off a rule that ships `off`,
-  // so the clause is held to the same assertion by handing the checker the
-  // rule and its entry as if both shipped `off`: a concern tag, no heuristic
-  // cell in a declared context, and an explanation. The workaround lasts
-  // until the checker reads every promotion above a rule's shipped severity
-  // (thymianofficial/thymian-workspace#614).
+  // `error`, and the zero-violation run above passes the checker's promotion
+  // assertion on it; this proves the assertion read the real `warn` rule
+  // rather than skipped it: take the explanation away and the clause is
+  // reported.
   describe('the promoted Secure clause', () => {
     const SET_SECURE =
       'rfc-6265bis/server-should-set-secure-on-every-cookie-over-secure-channel';
 
-    async function promotionViolations(
-      meta: Partial<Rule['meta']> = {},
-    ): Promise<CoverageViolation[]> {
+    it('is reported without its explanation, so the assertion read it', async () => {
       const rules = (await loadBaselineRules()).map((rule) =>
         rule.meta.name === SET_SECURE
-          ? {
-              ...rule,
-              meta: { ...rule.meta, severity: 'off' as const, ...meta },
-            }
+          ? { ...rule, meta: { ...rule.meta, explanation: undefined } }
           : rule,
       );
-      const entries: Record<string, CoverageEntry> = coverage.rules;
-      const entry = entries[SET_SECURE];
-      if (entry === undefined) {
-        throw new Error(`no coverage entry for ${SET_SECURE}`);
-      }
 
-      return checkCoverage({
-        record: {
-          ...coverage,
-          rules: {
-            ...entries,
-            [SET_SECURE]: {
-              ...entry,
-              declared: { ...entry.declared, severity: 'off' },
-            } as CoverageEntry,
-          },
-        },
+      const violations = checkCoverage({
+        record: coverage,
         rules,
         profiles: rfc6265bis.profiles,
       });
-    }
-
-    it('passes the checker’s promotion assertion', async () => {
-      expect(await promotionViolations()).toEqual([]);
-    }, 30_000);
-
-    it('is reported without its explanation, so the assertion read it', async () => {
-      const violations = await promotionViolations({ explanation: undefined });
 
       expect(violations.map(({ rule, code }) => [rule, code])).toEqual([
         [SET_SECURE, 'undocumented-promoted-rule'],

@@ -12,6 +12,7 @@ import {
   hasRequestBody,
   hasResponseBody,
   method,
+  not,
   or,
   origin,
   path,
@@ -24,6 +25,7 @@ import {
   responseMediaType,
   statusCode,
   statusCodeRange,
+  successfulStatusCode,
   url,
 } from '../../src/index.js';
 
@@ -475,6 +477,36 @@ describe('http-filter-expression-to-transaction-filter', () => {
 
       expect(result).toHaveLength(1);
       expect(result[0].thymianRes.statusCode).toBe(200);
+    });
+  });
+
+  describe('default responses', () => {
+    const statusesMatching = (
+      expression: Parameters<typeof httpFilterExpressionToTransactionFilter>[0],
+    ): (number | 'default')[] => {
+      const format = createFormatWithTransactions([
+        [{}, { statusCode: 200 }],
+        [{}, { statusCode: 'default' }],
+      ]);
+      const filter = httpFilterExpressionToTransactionFilter(expression);
+      const transactions = format.getThymianHttpTransactions();
+
+      return transactions
+        .filter((t) => filter(t, transactions, format))
+        .map((t) => t.thymianRes.statusCode);
+    };
+
+    it('are never matched by a status filter', () => {
+      expect(statusesMatching(statusCode(200))).toStrictEqual([200]);
+      expect(statusesMatching(statusCodeRange(100, 599))).toStrictEqual([200]);
+      expect(statusesMatching(successfulStatusCode())).toStrictEqual([200]);
+    });
+
+    it('are matched by the negation of a status filter', () => {
+      expect(statusesMatching(not(statusCode(200)))).toStrictEqual(['default']);
+      expect(statusesMatching(not(statusCodeRange(100, 599)))).toStrictEqual([
+        'default',
+      ]);
     });
   });
 

@@ -33,6 +33,15 @@ import { isServerFallbackOrigin, serverFallbackSkip } from './transport.js';
 const PERMANENT_REDIRECTS: readonly number[] = [301, 308];
 const OTHER_REDIRECTS: readonly number[] = [302, 303, 307];
 
+// A declared `default` response has no status, so it is no redirect of
+// either kind (ADR-0027).
+function isOneOf(
+  statuses: readonly number[],
+  status: number | 'default',
+): boolean {
+  return typeof status === 'number' && statuses.includes(status);
+}
+
 const SHOULD_REDIRECT =
   'A request over non-secure transport should be answered with a permanent redirect (301 or 308) to the resource over https.';
 
@@ -74,12 +83,15 @@ const ANSWERED: Wording = {
 // `analytics`. Every one of them must name an https URI.
 function redirectProblem(
   wording: Wording,
-  status: number,
+  status: number | 'default',
   locations: string[],
   base: string,
 ): string | undefined {
-  if (!PERMANENT_REDIRECTS.includes(status)) {
-    return OTHER_REDIRECTS.includes(status)
+  if (status === 'default') {
+    return `${wording.answered} default response, which names no redirect status. ${SHOULD_REDIRECT}`;
+  }
+  if (!isOneOf(PERMANENT_REDIRECTS, status)) {
+    return isOneOf(OTHER_REDIRECTS, status)
       ? `${wording.answered} ${status}, a redirect that is not permanent, which the user agent follows again over plain http on every visit. ${SHOULD_REDIRECT}`
       : `${wording.answered} ${status}, not a redirect. ${SHOULD_REDIRECT}`;
   }
@@ -126,7 +138,7 @@ function staticRedirectVerdict(
   const locations = pinnedHeaderValues(res, 'location');
   if (
     locations === undefined &&
-    PERMANENT_REDIRECTS.includes(res.statusCode) &&
+    isOneOf(PERMANENT_REDIRECTS, res.statusCode) &&
     declaresHeader(res, 'location')
   ) {
     return {

@@ -1,0 +1,17 @@
+openapi: 3.1.0
+info: { title: split, version: '1' }
+paths:
+  /users/{id}:
+    $ref: './paths/user.yaml'
+  /nodes:
+    get:
+      operationId: listNodes
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: './schemas/node.yaml' }
+components:
+  schemas:
+    Error: { type: object, properties: { msg: { type: string } } }

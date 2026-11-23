@@ -1,0 +1,15 @@
+parameters:
+  - $ref: '../schemas/common.yaml#/UserId'
+get:
+  operationId: getUser
+  responses:
+    '200':
+      description: ok
+      content:
+        application/json:
+          schema: { $ref: '../schemas/user.yaml#/User' }
+    '404':
+      description: nf
+      content:
+        application/json:
+          schema: { $ref: '../openapi.yaml#/components/schemas/Error' }

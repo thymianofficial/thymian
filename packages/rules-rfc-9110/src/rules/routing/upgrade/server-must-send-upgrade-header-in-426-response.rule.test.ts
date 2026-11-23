@@ -61,7 +61,7 @@ describe('rfc9110/server-must-send-upgrade-header-in-426-response (test)', () =>
     expect(results).toEqual([]);
   });
 
-  it('reports no violation when the server answers with another status', async () => {
+  it('skips, without a violation, when the server answers with another status', async () => {
     const results = await runTest({
       statusCode: 200,
       headers: {},
@@ -69,7 +69,13 @@ describe('rfc9110/server-must-send-upgrade-header-in-426-response (test)', () =>
       duration: 0,
     });
 
-    expect(results).toEqual([]);
+    // Not applicable to the live pair: skipped, not passed (ADR-0028).
+    expect(results).toEqual([
+      expect.objectContaining({
+        findings: [expect.objectContaining({ kind: 'rule-skip' })],
+      }),
+    ]);
+    expect(results[0]?.violation).toBeUndefined();
   });
 
   it('reports a violation when the live 426 response omits Upgrade', async () => {

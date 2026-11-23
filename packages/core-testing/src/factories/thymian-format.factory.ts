@@ -20,6 +20,39 @@ export function createThymianFormat(): ThymianFormat {
 }
 
 /**
+ * Adds an HTTP transaction to a ThymianFormat and returns its id, which is how
+ * a test names the transaction from then on.
+ *
+ * Adding a second response to the same request gives a second transaction on
+ * that request: one operation with two answers.
+ *
+ * @param format - The format to add the transaction to
+ * @param request - The request of the transaction
+ * @param response - The response of the transaction
+ * @returns The id of the added transaction
+ *
+ * @example
+ * ```typescript
+ * const format = createThymianFormat();
+ * const createAstronaut = createPostRequest({ path: '/astronauts' });
+ * const astronautCreated = addTransaction(format, createAstronaut, createCreatedResponse());
+ * const astronautRejected = addTransaction(format, createAstronaut, createBadRequestResponse());
+ * ```
+ */
+export function addTransaction(
+  format: ThymianFormat,
+  request: Parameters<ThymianFormat['addHttpTransaction']>[0],
+  response: Parameters<ThymianFormat['addHttpTransaction']>[1],
+): string {
+  const [, , transactionId] = format.addHttpTransaction(
+    request,
+    response,
+    'test-source',
+  );
+  return transactionId;
+}
+
+/**
  * Creates a ThymianFormat with a single HTTP transaction.
  *
  * @param request - Optional request override

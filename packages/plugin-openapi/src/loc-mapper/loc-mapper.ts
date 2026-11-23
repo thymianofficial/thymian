@@ -3,30 +3,25 @@ import type {
   ThymianFormatPosition,
 } from '@thymian/core';
 
-export abstract class LocMapper {
-  protected constructor(
-    protected readonly text: string,
-    protected readonly path: string,
-  ) {}
+export interface LocMapper {
+  /**
+   * The location of the operation `method` under `paths[pathTemplate]`,
+   * following the path item's `$ref`s into the files that hold it.
+   */
+  locationForOperation(
+    pathTemplate: string,
+    method: string,
+  ): ThymianFormatLocation | undefined;
+}
 
-  abstract positionForOperationId(
-    operationId: string,
-  ): ThymianFormatPosition | undefined;
+/**
+ * One parsed file, as the format adapters (YAML, JSON) expose it.
+ * A pointer is a list of already unescaped JSON pointer segments.
+ */
+export interface LocDocument {
+  /** The plain value at `pointer`, or `undefined` if there is none. */
+  valueAt(pointer: readonly string[]): unknown;
 
-  locationForOperationId(
-    operationId: string,
-  ): ThymianFormatLocation | undefined {
-    const pos = this.positionForOperationId(operationId);
-
-    return pos
-      ? {
-          path: this.path,
-          position: {
-            line: pos.line,
-            column: pos.column,
-            offset: pos.offset,
-          },
-        }
-      : undefined;
-  }
+  /** The position of the key that `pointer`'s last segment names. */
+  keyPositionAt(pointer: readonly string[]): ThymianFormatPosition | undefined;
 }

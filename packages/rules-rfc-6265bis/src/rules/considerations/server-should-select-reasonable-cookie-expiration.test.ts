@@ -1,14 +1,6 @@
-import type { HttpResponse, RuleFnResult } from '@thymian/core';
 import { describe, expect, it } from 'vitest';
 
-import {
-  apiDescription,
-  header,
-  recorded,
-  setCookieHeader,
-  setCookieLines,
-} from '../../test/builders.js';
-import { runInContext } from '../../test/harness.js';
+import { onOneResponse } from '../../test/set-cookie.js';
 import rule from './server-should-select-reasonable-cookie-expiration.rule.js';
 
 // An Expires is measured from the Date of the response that carries it, as
@@ -21,38 +13,25 @@ const THIRTY_DAYS =
 const TEN_DAYS =
   '__Host-SID=31d4; Secure; Path=/; Expires=Sat, 31 Oct 2015 07:28:00 GMT';
 
-const violations = (results: RuleFnResult[]) =>
-  results.filter((result) => result.violation !== undefined);
+// The Date is recorded with the response in `analytics`, and pinned by the
+// API description in `static`.
+describe.each(['analytics', 'static'] as const)(
+  'in %s, a session identifier with an Expires',
+  (context) => {
+    it('is flagged when it lies 30 days after the Date of its response', async () => {
+      expect(
+        await onOneResponse(rule, context, [THIRTY_DAYS], {
+          headers: { Date: DATE },
+        }),
+      ).toMatchObject({ status: 'failed' });
+    });
 
-const recordedWith = (line: string) =>
-  runInContext('analytics', rule, {
-    transactions: [
-      recorded({
-        headers: {
-          ...setCookieLines([line]),
-          Date: DATE,
-        } as HttpResponse['headers'],
-      }),
-    ],
-  });
-
-const describedWith = (line: string) =>
-  runInContext('static', rule, {
-    format: apiDescription({
-      response: {
-        headers: { ...setCookieHeader(line), ...header('Date', DATE) },
-      },
-    }),
-  });
-
-describe('a session identifier with an Expires', () => {
-  it('is flagged when it lies 30 days after the Date of its response', async () => {
-    expect(violations(await recordedWith(THIRTY_DAYS))).toHaveLength(1);
-    expect(violations(await describedWith(THIRTY_DAYS))).toHaveLength(1);
-  });
-
-  it('passes when it lies 10 days after that Date', async () => {
-    expect(violations(await recordedWith(TEN_DAYS))).toEqual([]);
-    expect(violations(await describedWith(TEN_DAYS))).toEqual([]);
-  });
-});
+    it('passes when it lies 10 days after that Date', async () => {
+      expect(
+        await onOneResponse(rule, context, [TEN_DAYS], {
+          headers: { Date: DATE },
+        }),
+      ).toMatchObject({ status: 'passed' });
+    });
+  },
+);

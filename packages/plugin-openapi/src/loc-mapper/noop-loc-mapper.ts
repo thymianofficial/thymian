@@ -1,11 +1,7 @@
-import { LocMapper } from './loc-mapper.js';
+import type { LocMapper } from './loc-mapper.js';
 
-export class NoopLocMapper extends LocMapper {
-  constructor() {
-    super('', '');
-  }
-
-  positionForOperationId(): undefined {
+export class NoopLocMapper implements LocMapper {
+  locationForOperation(): undefined {
     return undefined;
   }
 }

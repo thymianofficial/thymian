@@ -3,6 +3,9 @@ import {
   type HttpTestCase,
   type HttpTestCaseResult,
   isRequestSerializationError,
+  isTestableTransaction,
+  type TestableThymianHttpTransaction,
+  type ThymianFormat,
   type ThymianHttpTransaction,
   thymianHttpTransactionToString,
 } from '@thymian/core';
@@ -33,6 +36,17 @@ import type { Selector } from '../selectors/selector.js';
  * wall of unrelated red.
  */
 export type Outcome = 'passed' | 'failed' | 'skipped' | 'errored';
+
+/**
+ * The Transactions `sampler check` runs, in format order: every one but a
+ * `default` Transaction, which is not tested and so gets no line and no
+ * Outcome (ADR-0027).
+ */
+export function transactionsToCheck(
+  format: ThymianFormat,
+): TestableThymianHttpTransaction[] {
+  return format.getThymianHttpTransactions().filter(isTestableTransaction);
+}
 
 /** One Transaction's result — and the documented shape `--json` emits. */
 export type CheckedTransaction = {
@@ -91,7 +105,7 @@ export function reportOf(checked: readonly CheckedTransaction[]): CheckReport {
  */
 export function checkedFromTestCase(
   testCase: HttpTestCase,
-  transaction: ThymianHttpTransaction,
+  transaction: TestableThymianHttpTransaction,
 ): CheckedTransaction {
   const actualStatus = testCase.steps[0]?.transactions[0]?.response?.statusCode;
   const seed = seedAnomaly(testCase, transaction);
@@ -147,7 +161,7 @@ const FALLBACK: Record<Outcome, string> = {
  */
 export function checkedFromError(
   error: unknown,
-  transaction: ThymianHttpTransaction,
+  transaction: TestableThymianHttpTransaction,
 ): CheckedTransaction {
   return {
     selector: selectorOf(transaction),
@@ -169,7 +183,7 @@ export function checkedFromError(
  * leaving the totals silently short of what the description promises.
  */
 export function checkedAsUncheckable(
-  transaction: ThymianHttpTransaction,
+  transaction: TestableThymianHttpTransaction,
 ): CheckedTransaction {
   return {
     selector: selectorOf(transaction),

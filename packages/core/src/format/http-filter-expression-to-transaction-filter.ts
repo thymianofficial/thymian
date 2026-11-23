@@ -3,6 +3,7 @@ import {
   createFilterVisitor,
   visitHttpFilter,
 } from '../http-filter-visitor.js';
+import { isStatusCodeInRange } from '../http-status-codes/http-status-code-ranges.js';
 import { equalsIgnoreCase } from '../utils.js';
 import { ThymianFormat, type ThymianHttpTransaction } from './index.js';
 
@@ -108,9 +109,7 @@ const visitor = createFilterVisitor<TransactionFilterFn>({
   visitStatusCodeRange({ start, end }) {
     return (transaction: ThymianHttpTransaction) => {
       const statusCode = transaction.thymianRes.statusCode;
-      return (
-        Number.isInteger(statusCode) && statusCode >= start && statusCode <= end
-      );
+      return isStatusCodeInRange(statusCode, start, end);
     };
   },
   visitResponseMediaType({ mediaType }) {

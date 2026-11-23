@@ -1,6 +1,6 @@
 import type { Rule } from './rule.js';
 import type { RuleType } from './rule-meta.js';
-import { type RuleSeverity, severityLevelValues } from './rule-severity.js';
+import { compareRuleSeverities, type RuleSeverity } from './rule-severity.js';
 
 export type RuleFilter = (rule: Rule) => boolean;
 
@@ -19,8 +19,7 @@ export function createRuleFilter({
   const ruleFilters: RuleFilter[] = [];
 
   ruleFilters.push(
-    (rule) =>
-      severityLevelValues[rule.meta.severity] <= severityLevelValues[severity],
+    (rule) => compareRuleSeverities(rule.meta.severity, severity) >= 0,
   );
 
   ruleFilters.push((rule) => type.some((t) => rule.meta.type.includes(t)));

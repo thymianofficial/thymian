@@ -17,6 +17,8 @@ This is usually caused by:
 - The format being modified after the rule collected the element ID
 - A bug in the rule implementation
 
+It is also thrown when a rule returns a group location (`elementType: 'group'`) itself, or a copy of one. Only a validation context makes a group location: a grouped rule that finds the whole group at fault returns the group key as its location.
+
 ## The Solution
 
-If you're developing a rule, ensure you're using valid element IDs from the current format state. If you're a user encountering this error, please report it as a bug.
+If you're developing a rule, ensure you're using valid element IDs from the current format state, and return the group key rather than a group location. If you're a user encountering this error, please report it as a bug.

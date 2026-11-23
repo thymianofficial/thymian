@@ -105,7 +105,7 @@ Both keys are evaluated against whatever the command observes:
 | `analyze` | the recorded request and response                                                                                    | the same recorded pair            |
 | `test`    | the specification, to choose which requests to send, **and then again** against the response that actually came back | the response that came back       |
 
-In `test`, `appliesTo` therefore acts twice. A rule for 405 responses sends requests to operations the specification describes as answering 405, but stays silent when the server answers 204.
+In `test`, `appliesTo` therefore acts twice. A rule for 405 responses sends requests to operations the specification describes as answering 405, but does not judge a server that answers 204: that transaction is reported as skipped, with a reason saying the live pair is outside the rule's applicability and naming the declared and the live status where they differ. A transaction that is still applicable is judged even when its live status differs from the declared one, and carries an informational status-drift finding that neither skips nor fails it.
 
 :::caution
 Put a fact that only live traffic carries in `violatedWhen`, not in `appliesTo`. A header such as `Content-Length` or `Content-Type` is never declared in an OpenAPI description, so a specification cannot answer `responseHeader('content-length')`. In `appliesTo` it would select nothing in `test`, and no request would be sent. Select the transactions by what the specification does know, such as status code and method, and state the live-only part in `violatedWhen`.
@@ -203,6 +203,8 @@ Use the grouped variant when a violation depends on several transactions togethe
   })
 )
 ```
+
+The location you return says what is at fault. Return the location of one member, as above, when that transaction is wrong. Return the group key, the first argument of `violatedWhen`, when the group as a whole is: Thymian then knows which transactions the violation is about, and a report shows it under the key.
 
 ## Common Filter Expressions
 
@@ -330,6 +332,47 @@ function hasValidDirectives(directives: any) {
 }
 ```
 
+## Advanced: Overriding the Test and `checkStatusCode`
+
+`.overrideTest()` replaces the `test` behaviour with a test-builder pipeline. Its `.run()` takes a `checkStatusCode` option, which defaults to `true`: when the live status differs from the status the specification declares for the transaction, the test case is skipped before any assertion runs. That guard suits a test that compares the response against the declared one, and hides everything else. Decide it explicitly in every override:
+
+1. **Rule-context calls handle it for you.** `validateCommonHttpTransactions`, `validateHttpTransactions` and `validateGroupedCommonHttpTransactions`, called with `{ appliesTo, violatedWhen }`, do not apply the guard; they ask `appliesTo` again of the live response instead. Prefer them over an override.
+2. **An override that asserts only on the live response opts out.** When the selection does not depend on the declared status, pass `checkStatusCode: false`, or a server answering an undeclared status is never judged:
+
+   ```typescript
+   singleTestCase()
+     .forTransactionsWith(or(method('get'), method('head')))
+     .run({ checkStatusCode: false })
+     .expectForTransactions(not(statusCode(501)))
+     .done();
+   ```
+
+3. **A replay opts out on its replayed step.** A replay that expects another status than the declared one — a `304`, a `412`, a `4xx` — would otherwise be skipped exactly when the server behaves correctly. Keep the guard on the seeding step, which must produce the declared response the replay is built from:
+
+   ```typescript
+   singleTestCase()
+     .forTransactionsWith(and(method('GET'), statusCode(200)))
+     .run() // seeding step: keeps the guard
+     .replayStep((step) => step.set(requestHeader('if-none-match'), responseHeader('etag')).run({ checkStatusCode: false }).done())
+     .transactions(([, replayed]) => {
+       /* expect 304 on replayed.response */
+     })
+     .done();
+   ```
+
+4. **An override that selects by declared status states its applicability on the live response.** Pass `checkStatusCode: false` and skip with `skipIf(not(statusCode(…)), reason)`, so the skip reads like the rule-context calls' skip:
+
+   ```typescript
+   singleTestCase()
+     .forTransactionsWith(statusCode(401))
+     .run({ authorize: false, checkStatusCode: false })
+     .skipIf(not(statusCode(401)), "The live pair is outside the rule's applicability (the specification declares 401, the server answered another status).")
+     .expectForTransactions(responseHeader('www-authenticate'))
+     .done();
+   ```
+
+An override that compares the response against the declared one, with `checkBody`, `checkHeaders` or `expectStatusCode`, keeps the default.
+
 ## Common Pitfalls
 
 ### 1. Forgetting `.done()`
@@ -367,6 +410,7 @@ or(method('GET'), method('POST'));
 
 Now that you know how to create rules:
 
+- [Test your rule](/guides/http-rules/testing-rules/) in every validation context it declares
 - Explore [rule types in depth](/concepts/rule-types/) to understand context-specific features
 - Learn about [combining rule types](/guides/http-rules/combining-types/) for hybrid rules
 - See [how to use rules](/guides/http-rules/how-to-use-rules/) in your projects

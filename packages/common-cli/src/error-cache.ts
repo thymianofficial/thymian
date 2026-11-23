@@ -6,7 +6,15 @@ import type { Command } from '@oclif/core';
 import type { BaseCliRunCommand } from './base-cli-run-command.js';
 import type { ThymianBaseCommand } from './thymian-base-command.js';
 
+/**
+ * The format of the error record this CLI writes. Only the error-record
+ * writer, which redacts what the user typed, stamps a record with it, so a
+ * record carrying it went through redaction. Bump it when the shape changes.
+ */
+export const ERROR_RECORD_VERSION = 1;
+
 export type CachedError = {
+  recordVersion: typeof ERROR_RECORD_VERSION;
   name: string;
   message: string;
   stack?: string | undefined;
@@ -46,16 +54,51 @@ export class ErrorCache {
     }
   }
 
+  /**
+   * Returns the record only if it carries exactly the record version this CLI
+   * writes. A record from a newer CLI (a higher version) is left in place
+   * unread: that CLI redacted it, and it can still report it. Anything else is
+   * deleted unread: a record without the version was written before redaction
+   * and may hold a typed secret in clear, and one with a lower or malformed
+   * version, or that does not parse, cannot be vouched for.
+   */
   async read(): Promise<CachedError | undefined> {
     const cacheFile = path.join(this.dir, 'last_error.json');
 
+    let content: string;
     try {
-      const error = await fs.readFile(cacheFile, 'utf-8');
-
-      return JSON.parse(error);
-    } catch (e) {
+      content = await fs.readFile(cacheFile, 'utf-8');
+    } catch {
       return undefined;
     }
+
+    try {
+      const record = JSON.parse(content);
+      const recordVersion = record?.recordVersion;
+      if (recordVersion === ERROR_RECORD_VERSION) {
+        return record;
+      }
+      if (
+        Number.isInteger(recordVersion) &&
+        recordVersion > ERROR_RECORD_VERSION
+      ) {
+        return undefined;
+      }
+    } catch {
+      /* fall through to deletion */
+    }
+
+    // Between the readFile above and this rm, a failing command may write a
+    // fresh, stamped record, and the rm then deletes it. That costs the report
+    // of one error, and only in a race between two thymian processes, so it is
+    // not worth a lock.
+    // Best effort. A file that cannot be deleted is still not returned, and is
+    // at least no longer readable by others.
+    await fs
+      .rm(cacheFile, { force: true })
+      .catch(() => fs.chmod(cacheFile, 0o600))
+      .catch(() => undefined);
+    return undefined;
   }
 
   async reset(): Promise<void> {

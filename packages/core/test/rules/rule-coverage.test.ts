@@ -293,7 +293,40 @@ describe('coverage record shape', () => {
     });
   });
 
-  it('refuses cells on an informational entry', () => {
+  it('accepts per-context impossible cells on an informational entry', () => {
+    const record = defineCoverage({
+      source: {
+        revision: 'r1',
+        countingRule: 'one per statement',
+        hasKeywordBasis: true,
+      },
+      units: { '1.1': 'text' },
+      rules: {
+        'split-header': {
+          covers: ['1.1'],
+          declared: { types: ['informational'], severity: 'error' },
+          contexts: {
+            static: {
+              verdict: 'impossible',
+              reason: 'not-representable',
+              note: 'n',
+            },
+            analytics: {
+              verdict: 'impossible',
+              reason: 'requires-controlled-input',
+              note: 'n',
+            },
+          },
+        },
+      },
+    });
+
+    expect(record.rules['split-header'].contexts?.static).toMatchObject({
+      reason: 'not-representable',
+    });
+  });
+
+  it('refuses a tool-limitation cell on an informational entry', () => {
     defineCoverage({
       source: {
         revision: 'r1',
@@ -302,17 +335,37 @@ describe('coverage record shape', () => {
       },
       units: { '1.1': 'text' },
       rules: {
-        // @ts-expect-error an informational entry's cells all come from the whole-rule reason already; contexts is not allowed
-        'informational-with-cells': {
+        // @ts-expect-error the rule's own reason already states its tool gap; a cell may not restate it
+        'informational-tool-limitation-cell': {
           covers: ['1.1'],
           declared: { types: ['informational'], severity: 'off' },
           contexts: {
-            static: {
+            test: {
               verdict: 'impossible',
-              reason: 'not-representable',
+              reason: 'tool-limitation',
+              issue: 'thymianofficial/thymian#1',
               note: 'n',
             },
           },
+        },
+      },
+    });
+  });
+
+  it('refuses a bare literal cell on an informational entry', () => {
+    defineCoverage({
+      source: {
+        revision: 'r1',
+        countingRule: 'one per statement',
+        hasKeywordBasis: true,
+      },
+      units: { '1.1': 'text' },
+      rules: {
+        // @ts-expect-error an informational rule observes nothing; only an impossible cell is allowed
+        'informational-bare-cell': {
+          covers: ['1.1'],
+          declared: { types: ['informational'], severity: 'off' },
+          contexts: { static: 'heuristic' },
         },
       },
     });

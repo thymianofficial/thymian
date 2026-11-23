@@ -1,0 +1,200 @@
+# ADR-0026: Rules are tested through each context's real engine
+
+| Status   | Date       | Supersedes | Superseded by |
+| -------- | ---------- | ---------- | ------------- |
+| Accepted | 2026-11-13 | —          | —             |
+
+## Context
+
+A rule declares the validation contexts it runs in: `static`, `test` and `analytics`. A rule
+author wants to show, in ordinary unit tests, that the rule does the right thing in each of
+them. Three things made that harder than it should be.
+
+**Calling the rule function directly proves little.** What a rule means in a context is
+decided by that context's engine: the linter asks `appliesTo` of the specification, the
+analyzer of the recorded pair, the tester of both
+([ADR-0025](0025-applicability-and-violation-condition.md)). A test that hands the rule a
+hand-made context tests the hand-made context.
+
+**Counting violations is not enough.** With two transactions and "exactly one violation", a
+rule that flags the wrong transaction passes too. A test has to say _which_ transaction was
+flagged, and it has to show the rule's scope: what it flags, what it looks at and accepts,
+and what it does not speak about at all. Rules that apply to only some endpoints are the
+normal case.
+
+**The engines cannot tell "accepted" from "ignored".** The linter and the analyzer report
+what a rule returns, and a rule returns its violations
+([ADR-0014](0014-rule-results-carry-violations-and-findings.md)). A transaction the rule
+looked at and found in order, and one outside its applicability, both simply do not appear.
+
+The `Fixture` of [ADR-0021](0021-http-security-rule-sets.md) answered a narrower question,
+one input a rule must flag and one it must pass per declared context, and was tied to the
+rule sets of this repository and their test runner. It does not give a third-party rule
+author a way to test a rule, and it does not show a rule's scope.
+
+## Decision
+
+We will test a rule by running it through the real engine of each validation context it
+declares, and return what the rule said about **every transaction** of the input.
+
+- **One package, plain data.** `@thymian/rules-testing` exports `createRuleTester(rule)`, which gives
+  one method per context: `runLint` for `static`, `runTest` for `test` and
+  `runAnalyze` for `analytics`. The input is a Thymian
+  format built with the `@thymian/core-testing` factories; a transaction is named by the id
+  that adding it returns. The output is a list of executions as plain data, with no
+  dependency on a test framework.
+- **The context's own engine evaluates the rule.** In `static` that is the linter's context,
+  driven by core's rule runner and report builder as `thymian lint` drives it. In `test` it
+  is the tester's context and the tester's report builder; the requests the tester builds
+  are answered in-process, by default with the response the format declares, so no sampler
+  plugin, dispatcher, port or network is involved. In `analytics` it is the analyzer's
+  context over the analyzer's own store, held in memory, driven by core's rule runner and
+  report builder as `thymian analyze` drives it; the traffic is every transaction of the
+  format recorded once, the request the tester would send answered with the response the
+  format declares, or the recorded pairs the author hands in, so no traffic plugin and no
+  recording on disk is involved. The harness does not reimplement what a context does with
+  a rule.
+- **Any rule runs, as it ships.** The rule runner leaves a rule with severity `off` out, so
+  the harness hands it to the engine enabled, on a copy, and reports the severity the rule
+  declares. `createRuleTester(rule, { options })` passes the rule's options through the rules
+  configuration, checked against the rule's options schema first, which is the way the
+  options of a config reach a rule.
+- **Four statuses.** `failed`, `passed` and `skipped` as the engines know them, and
+  `notApplicable` for a transaction outside the rule's `Applicability`. `notApplicable`
+  exists only in what `createRuleTester` returns; the engines and the report format keep three.
+- **The harness works out `passed` and `notApplicable` itself,** because the linter and the
+  analyzer report only violations. It reads the `appliesTo` the rule states in its
+  rule-context calls and asks it through the context, in a call of its own: of the format in
+  `static`, of the recorded pair in `analytics`. A transaction it accepts that the engine
+  reported nothing on is `passed`; one it rejects is `notApplicable`. A rule whose
+  applicability cannot be read from outside, because it decides in a plain callback or
+  reads whole traces, gets `passed` for every transaction it did not flag.
+  The tester does report `passed` and `skipped`, so in `test` the harness takes its
+  executions as reported and adds only `notApplicable`, for every transaction the tester
+  reported nothing on, whatever form the rule's applicability has.
+- **Locations are the engine's.** An execution carries the location the engine reported: a
+  transaction, a node, or a free string. The one addition is the readable label: where a
+  node or transaction location has none, the harness fills in the label a report prints for
+  it, so a failing comparison names the transaction although ids are hashes. An execution
+  also carries the findings the report builder gives it, on a pass as on a violation.
+  `notApplicable` and `passed` are filled in for transactions only, and only for a transaction
+  no execution is about. In `analytics` the analyzer locates what a rule returns from
+  `validateCapturedHttpTransactions`, and from `validateCapturedHttpTraces` for a trace of one
+  pair, on the recorded pair's label, a free string. Such an execution is about the transaction
+  that pair matched: it is listed in that transaction's place and keeps the label as its
+  location. A label that recordings of two transactions share is about neither, and its
+  execution comes after the transactions.
+- **A group is a location that names its members.** A grouped rule
+  (`validateGroupedCommonHttpTransactions`) returns one location, and that choice is read as
+  its statement of what is at fault: a member, or the group, for which it returns the group
+  key. The rule contract stays as it is: a rule returns the locations it always could, and
+  only a context makes a group location. The three contexts turn a result on the group key
+  into a result on a group location that carries the key and the locations of the members,
+  where they used to pass the bare key on. The harness lists such an execution once per
+  member, on the member, with the key as `group`; a member the rule returned nothing on is
+  `passed` when a sibling was blamed. The analyzer also hands a grouped rule the transaction
+  each recorded pair matches as its location, as it does for the ungrouped forms, so a
+  blamed member is a transaction of the format in every context. A report shows a group by
+  its key, as before: the report format has no group location.
+- **Rule tests replace the `Fixture`** as the way to show that a rule works in a context.
+  The fixture modules of the existing rule sets, and the records that describe them, stay
+  as they are until those rule sets are moved onto rule tests.
+
+### Rejected alternative: `runRule(rule)` with methods named as in `.type(...)`
+
+The entry point could be `runRule(rule)`, returning one method per context named after the
+`RuleType` value a rule declares: `static`, `test` and `analytics`. That was the name first
+agreed for this harness. Rejected:
+
+- The methods take the words this project uses for the contexts everywhere else: Lint, Test
+  and Analyze, as in `thymian lint`, `thymian test` and `thymian analyze`, and in the rule
+  functions `lintRule`, `testRule` and `analyzeRule` a rule author has just written. Only the
+  `RuleType` value says `static` and `analytics`, and a rule test should not carry that
+  mismatch into every call.
+- `createRuleTester(rule)` names what it returns: a tester, kept and called once per context,
+  as rule authors know it from ESLint's `RuleTester`. `runRule(rule)` reads as running the
+  rule right away, while it runs nothing until a context is called.
+
+### Rejected alternative: the engines report passes
+
+The linter and the analyzer could emit a `passed` execution for every applicable
+transaction, and the harness would only add `notApplicable`. Rejected:
+
+- It changes what every normal run produces. A lint of a real API would carry one execution
+  per rule per applicable transaction, in the report, in every formatter and in every
+  summary count, to serve a test harness.
+- It still leaves `notApplicable` to the harness, so the harness reads the stated
+  `appliesTo` either way.
+- It does not help the rule that decides in a callback: such a rule returns nothing for a
+  transaction it accepts, and no engine can report a pass it was never told about.
+
+## Consequences
+
+**Positive:**
+
+- A rule test states an API and the executions expected, and fails when the rule flags the
+  wrong transaction or reaches outside its scope.
+- A third-party rule author tests a rule with one package next to `@thymian/core-testing`,
+  in any test framework.
+- The report format is unchanged by rule testing, and so is what the engines report, with
+  two exceptions that also serve normal runs: the analyzer locates a result on the
+  transaction a recorded pair matches, and a result on a group names the group's members.
+
+**Negative:**
+
+- The harness evaluates `appliesTo` in a call of its own, beside the engine's evaluation of
+  the rule, so the `passed`/`notApplicable` split is the harness's reading and not the
+  engine's. In `static` both calls go through the linter's filter, and in `analytics` through
+  the analyzer's, so a fault in that filter moves both sides alike and a rule test does not
+  expose it. Accepted: a rule test tests the
+  rule, and the engines' filters have tests of their own.
+- For a rule that decides applicability in a plain callback, `passed` cannot be told from
+  `notApplicable`. Stating `appliesTo` as a filter expression is what makes a rule's scope
+  testable.
+- The harness observes the rule-context calls a rule makes. A new rule-context method that
+  takes an applicability has to be made known to it, per context: `validateHttpTransactions`
+  takes a plain callback in `static` and a filter expression in `analytics`.
+- The analyzer locates an execution on the transaction a recorded pair matches, not on the
+  pair. Where the author records one transaction several times, the harness learns which
+  recording an execution is about by running the rule on each of those recordings alone as
+  well. A rule that compares recordings with each other says something else about one that
+  stands alone; the harness notices by the number of executions and then shows what the
+  rule reported on the transaction, with all traffic present, on every recording of it.
+- The traffic of a rule test in `analytics` is recorded as a user agent talking to an origin
+  server, the roles traffic read from a HAR file gets by default. A rule that speaks only
+  about an intermediary is not asked about it.
+- In `analytics` an execution in a transaction's place can carry the recorded pair's label
+  rather than the transaction id, so a comparison on `elementId` does not match it; the place
+  in the list says which transaction it is about. Where recordings of two transactions share a
+  label, the execution on it is listed after the transactions, and both transactions are filled
+  in as if the rule had said nothing about them.
+
+**Neutral:**
+
+- `@thymian/rules-testing` is not a rule set although it carries the `rules-` prefix of
+  [ADR-0008](0008-package-naming-conventions.md), as `core-testing` is not core.
+- Whether a spec rule set must still prove something per rule per declared context, the
+  fixture bar of [ADR-0021](0021-http-security-rule-sets.md), and how that would be
+  enforced with rule tests, is not decided here.
+
+## Related
+
+- [ADR-0025](0025-applicability-and-violation-condition.md): the `appliesTo` the harness
+  reads, and what it means in each context
+- [ADR-0014](0014-rule-results-carry-violations-and-findings.md): what a rule returns, and
+  why a pass usually leaves no trace
+- [ADR-0021](0021-http-security-rule-sets.md): the `Fixture` this replaces
+- [ADR-0009](0009-rule-system-as-core-concern.md): the core rule runner the harness drives
+- [Chapter 8](../08-crosscutting-concepts.md): rule contexts
+
+---
+
+## Status History
+
+| Date       | Status   | Notes                                                                                   |
+| ---------- | -------- | --------------------------------------------------------------------------------------- |
+| 2026-11-13 | Accepted | Initial draft                                                                           |
+| 2026-11-13 | Accepted | `analytics` added: traffic recorded from the format                                     |
+| 2026-11-13 | Accepted | `analytics` takes handed-in traffic                                                     |
+| 2026-11-13 | Accepted | A group is a location that names its members                                            |
+| 2026-11-20 | Accepted | analytics: an execution on a recorded pair's label is listed in its transaction's place |

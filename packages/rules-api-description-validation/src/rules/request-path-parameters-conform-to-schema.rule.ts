@@ -9,6 +9,12 @@ import {
   validateRequestPathParameters,
 } from '@thymian/core';
 
+import {
+  missingElementMessage,
+  requestAt,
+  unknownOperationSkip,
+} from './graph-location.js';
+
 const NAME = 'thymian/request-path-parameters-must-conform-to-schema';
 
 // eslint-disable-next-line thymian-internal/require-rule-tags -- schema-conformance check against the API description, not a security or privacy concern
@@ -28,6 +34,12 @@ export default httpRule(NAME)
         location: RuleViolationLocation,
       ): RuleFnResult[] => {
         if (typeof location === 'string') {
+          return unknownOperationSkip(location, NAME);
+        }
+
+        const thymianReq = requestAt(ctx.format, location);
+
+        if (!thymianReq) {
           return [
             {
               location,
@@ -35,36 +47,14 @@ export default httpRule(NAME)
                 {
                   title: NAME,
                   kind: 'rule-skip',
-                  message: `No matching endpoint found in corresponding API description document.`,
+                  message: missingElementMessage(location),
                 },
               ],
             },
           ];
         }
 
-        const transaction = ctx.format.getThymianHttpTransactionById(
-          location.elementId,
-        );
-
-        if (!transaction) {
-          return [
-            {
-              location,
-              findings: [
-                {
-                  title: NAME,
-                  kind: 'rule-skip',
-                  message: `Can't find transaction with given ID ${location.elementId} in Thymian format.`,
-                },
-              ],
-            },
-          ];
-        }
-
-        const results = validateRequestPathParameters(
-          request.path,
-          transaction.thymianReq,
-        );
+        const results = validateRequestPathParameters(request.path, thymianReq);
         const failures = results.filter((r) => r.type === 'assertion-failure');
 
         if (failures.length > 0) {

@@ -140,4 +140,89 @@ describe('OpenapiProcessor', () => {
       expect(headerNamesPerTransaction()).toContainEqual(['X-Declared']);
     });
   });
+
+  describe('default responses', () => {
+    const errorSchema = {
+      type: 'object',
+      properties: { message: { type: 'string' } },
+    } as const;
+
+    const responsesOf = (
+      // Typed through the path item: OpenAPI 3.1's own `ResponsesObject` is
+      // not assignable to the path item `openapi-types` declares.
+      responses: NonNullable<OpenApiV31.PathItemObject['get']>['responses'],
+    ): { statusCode: number | 'default'; mediaType: string }[] =>
+      new OpenapiProcessor(
+        new NoopLogger(),
+        serverInfoWithBasePath,
+        new NoopLocMapper(),
+      )
+        .process(
+          {
+            openapi: '3.1.0',
+            info: { title: 'Test API', version: '1.0.0' },
+            paths: { '/pets': { get: { responses } } },
+          },
+          constant(true),
+        )
+        .getThymianHttpTransactions()
+        .map(({ thymianRes }) => ({
+          statusCode: thymianRes.statusCode,
+          mediaType: thymianRes.mediaType,
+        }));
+
+    it('becomes one response node per declared media type, each joined by a transaction edge', () => {
+      const transactions = responsesOf({
+        '200': { description: 'OK' },
+        default: {
+          description: 'Error',
+          content: {
+            'application/json': { schema: errorSchema },
+            'application/problem+json': { schema: errorSchema },
+          },
+        },
+      });
+
+      expect(transactions).toHaveLength(3);
+      expect(transactions).toContainEqual({ statusCode: 200, mediaType: '' });
+      expect(transactions).toContainEqual({
+        statusCode: 'default',
+        mediaType: 'application/json',
+      });
+      expect(transactions).toContainEqual({
+        statusCode: 'default',
+        mediaType: 'application/problem+json',
+      });
+    });
+
+    it('becomes a single node with media type "" when it declares no content', () => {
+      expect(responsesOf({ default: { description: 'Error' } })).toStrictEqual([
+        { statusCode: 'default', mediaType: '' },
+      ]);
+    });
+
+    it('leaves range expansion alone, with an explicit code still winning over its range', () => {
+      const transactions = responsesOf({
+        '4XX': { description: 'Client error' },
+        '404': {
+          description: 'Not found',
+          content: { 'text/plain': {} },
+        },
+        default: { description: 'Error' },
+      });
+
+      expect(transactions).toContainEqual({
+        statusCode: 404,
+        mediaType: 'text/plain',
+      });
+      expect(transactions).not.toContainEqual({
+        statusCode: 404,
+        mediaType: '',
+      });
+      expect(transactions).toContainEqual({ statusCode: 400, mediaType: '' });
+      expect(
+        transactions.filter(({ statusCode }) => statusCode === 'default'),
+      ).toStrictEqual([{ statusCode: 'default', mediaType: '' }]);
+    });
+  });
 });

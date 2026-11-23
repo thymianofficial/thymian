@@ -1,17 +1,24 @@
 import {
+  createHttpTestContext,
   httpRule,
   type HttpTestCase,
   type HttpTestCaseStep,
+  locateOnGroup,
   type Logger,
   type RuleFnResult,
+  type RuleViolationGroupLocation,
+  type RuleViolationLocation,
   type TestCaseExecution,
   ThymianFormat,
   type ThymianHttpTransaction,
 } from '@thymian/core';
+import { method, NoopLogger, responseHeader, statusCode } from '@thymian/core';
+import { createHttpRequest, createHttpResponse } from '@thymian/core-testing';
 import { describe, expect, it, vi } from 'vitest';
 
 import {
   createRuns,
+  HttpTestApiContext,
   type HttpTesterRuleDiagnostics,
   type RuleFnResultPlacement,
 } from '../src/index.js';
@@ -88,6 +95,25 @@ function makeStep(withTransaction = false): HttpTestCaseStep {
   return makeSingleStep('tx-1', withTransaction);
 }
 
+/** A step whose executed transaction carries `transactionId` as its edge id. */
+function makeEdgeStep(transactionId: string, path = '/x'): HttpTestCaseStep {
+  return {
+    type: 'single',
+    source: { transactionId },
+    transactions: [
+      {
+        request: { origin: 'http://localhost', path, method: 'GET' },
+        response: { statusCode: 200, headers: {} },
+        source: { transactionId },
+      },
+    ],
+  } as unknown as HttpTestCaseStep;
+}
+
+function hasViolation(step: { findings: { kind: string }[] }): boolean {
+  return step.findings.some((f) => f.kind === 'rule-violation');
+}
+
 function makePassedCase(name: string, steps: HttpTestCaseStep[]): HttpTestCase {
   return { name, status: 'passed', start: 0, end: 100, steps, results: [] };
 }
@@ -115,7 +141,9 @@ function makeSkippedCase(name: string): HttpTestCase {
 }
 
 function ruleResults(
-  ruleFnResult: RuleFnResult[],
+  ruleFnResult: RuleFnResult<
+    RuleViolationLocation | RuleViolationGroupLocation
+  >[],
   diagnostics: HttpTesterRuleDiagnostics | undefined,
 ) {
   return { [rule.meta.name]: { ruleFnResult, diagnostics } };
@@ -588,6 +616,67 @@ describe('createRuns', () => {
     expect(logger.warn).not.toHaveBeenCalled();
   });
 
+  describe('when an unplaced result references an edge that ran more than once', () => {
+    const edgeResult = (): RuleFnResult => ({
+      location: { elementType: 'edge', elementId: 'tx-7' },
+      violation: { message: 'replayed request broke the rule' },
+      findings: [],
+    });
+    it('attaches it to the last step of the case, where the replayed probe ran', () => {
+      const cases: HttpTestCase[] = [
+        makePassedCase('GET /x replayed', [
+          makeEdgeStep('tx-7', '/original'),
+          makeEdgeStep('tx-7', '/replayed'),
+        ]),
+      ];
+      const diagnostics: HttpTesterRuleDiagnostics = [
+        { testResult: { name: 'run', duration: 0, cases }, placements: [] },
+      ];
+
+      const [run] = createRuns(
+        PLUGIN,
+        ruleResults([edgeResult()], diagnostics),
+        [rule],
+        FORMAT,
+        makeLogger(),
+      );
+      const [testCase] = testCases(run!.executions);
+
+      expect(hasViolation(testCase!.steps[1]!)).toBe(true);
+      expect(hasViolation(testCase!.steps[0]!)).toBe(false);
+    });
+
+    it('keeps it in the first case that ran the edge', () => {
+      const cases: HttpTestCase[] = [
+        makePassedCase('first case', [makeEdgeStep('tx-7', '/first')]),
+        // Two steps, so a later case's own replay cannot pull the finding over.
+        makePassedCase('second case', [
+          makeEdgeStep('tx-7', '/second'),
+          makeEdgeStep('tx-7', '/second-replayed'),
+        ]),
+      ];
+      const diagnostics: HttpTesterRuleDiagnostics = [
+        { testResult: { name: 'run', duration: 0, cases }, placements: [] },
+      ];
+
+      const [run] = createRuns(
+        PLUGIN,
+        ruleResults([edgeResult()], diagnostics),
+        [rule],
+        FORMAT,
+        makeLogger(),
+      );
+      const [first, second] = testCases(run!.executions);
+
+      expect(first!.name).toBe('first case');
+      expect(first!.status.kind).toBe('failed');
+      expect(hasViolation(first!.steps[0]!)).toBe(true);
+      expect(second!.name).toBe('second case');
+      expect(second!.status.kind).not.toBe('failed');
+      expect(second!.steps.some(hasViolation)).toBe(false);
+    });
+  });
+
   it('does not leak a placement from one diagnostics entry into another', () => {
     // A rule makes two context calls that both run `tx-1`: a passing validate*()
     // (entry A, no placement recorded) and a failing httpTest() (entry B, which
@@ -599,34 +688,12 @@ describe('createRuns', () => {
       violation: { message: 'assertion failed in entry B' },
       findings: [],
     };
-    const makeEdgeStep = (): HttpTestCaseStep =>
-      ({
-        type: 'single',
-        source: { transactionId: 'tx-1' },
-        transactions: [
-          {
-            request: { origin: 'http://localhost', path: '/x', method: 'GET' },
-            response: { statusCode: 200, headers: {} },
-            source: { transactionId: 'tx-1' },
-          },
-        ],
-      }) as unknown as HttpTestCaseStep;
-    const makeEdgeCase = (name: string): HttpTestCase =>
-      ({
-        name,
-        status: 'passed',
-        start: 0,
-        end: 5,
-        steps: [makeEdgeStep()],
-        results: [],
-      }) as unknown as HttpTestCase;
-
     const diagnostics: HttpTesterRuleDiagnostics = [
       {
         testResult: {
           name: 'validate',
           duration: 0,
-          cases: [makeEdgeCase('case-a')],
+          cases: [makePassedCase('case-a', [makeEdgeStep('tx-1')])],
         },
         placements: [],
       },
@@ -634,7 +701,7 @@ describe('createRuns', () => {
         testResult: {
           name: 'httpTest',
           duration: 0,
-          cases: [makeEdgeCase('case-b')],
+          cases: [makePassedCase('case-b', [makeEdgeStep('tx-1')])],
         },
         placements: [{ result: failing, testCaseIndex: 0, stepIndex: 0 }],
       },
@@ -655,11 +722,7 @@ describe('createRuns', () => {
 
     // entry A's case stays passed — the failure belongs to entry B.
     expect(caseA.status.kind).toBe('passed');
-    expect(
-      caseA.steps
-        .flatMap((s) => s.findings)
-        .some((f) => f.kind === 'rule-violation'),
-    ).toBe(false);
+    expect(caseA.steps.some(hasViolation)).toBe(false);
 
     // entry B renders the failure exactly once.
     expect(caseB.status.kind).toBe('failed');
@@ -702,6 +765,45 @@ describe('createRuns', () => {
       });
     });
 
+    it('reports a result located on a group as its failed test case, on the group key', () => {
+      const [result] = locateOnGroup(
+        [
+          {
+            location: 'my-group',
+            violation: { message: 'flagged' },
+            findings: [],
+          },
+        ],
+        'my-group',
+        [{ elementType: 'edge', elementId: 'tx-1' }],
+      );
+      const diagnostics: HttpTesterRuleDiagnostics = [
+        {
+          testResult: {
+            name: 'test',
+            cases: [makePassedCase('case', [makeGroupedStep('my-group')])],
+          } as never,
+          placements: [{ result: result!, testCaseIndex: 0, stepIndex: 0 }],
+        },
+      ];
+
+      const [run] = createRuns(
+        PLUGIN,
+        ruleResults([result!], diagnostics),
+        [rule],
+        FORMAT,
+        makeLogger(),
+      );
+
+      expect(testCases(run?.executions)).toMatchObject([
+        {
+          status: { kind: 'failed', reason: 'flagged' },
+          steps: [{ location: { type: 'custom', value: 'my-group' } }],
+        },
+      ]);
+      expect(testCases(run?.executions)).toHaveLength(1);
+    });
+
     it('uses JSON-stringified location for a custom step with object source', () => {
       expect(
         stepLocationFor(makeCustomStep({ method: 'GET', path: '/test' })),
@@ -716,6 +818,113 @@ describe('createRuns', () => {
         type: 'custom',
         value: 'my-primitive-source',
       });
+    });
+  });
+
+  describe('a named-form rule-context call whose live status differs from the declared one', () => {
+    async function runContext(
+      liveStatus: number,
+      call: (context: HttpTestApiContext) => Promise<RuleFnResult[]>,
+    ): Promise<TestCaseExecution> {
+      const format = new ThymianFormat();
+      format.addHttpTransaction(
+        createHttpRequest({ method: 'GET', path: '/users' }),
+        createHttpResponse({ statusCode: 401 }),
+        'test-source',
+      );
+      const context = new HttpTestApiContext(
+        rule.meta.name,
+        createHttpTestContext({
+          format,
+          logger: new NoopLogger(),
+          locals: {},
+          sampleRequest: async () => ({
+            method: 'GET',
+            origin: 'https://api.example.com',
+            path: '/users',
+            headers: {},
+            pathParameters: {},
+            query: {},
+            cookies: {},
+            authorize: false,
+          }),
+          runRequest: async () => ({
+            statusCode: liveStatus,
+            headers: {},
+            trailers: {},
+            duration: 0,
+          }),
+          runHook: async (_name, hook) => ({ result: hook.value }),
+        }),
+      );
+
+      const ruleFnResult = await call(context);
+      const [run] = createRuns(
+        PLUGIN,
+        ruleResults(ruleFnResult, context.getRuleExecutionDiagnostics()),
+        [rule],
+        format,
+        makeLogger(),
+      );
+
+      expect(testCases(run!.executions)).toHaveLength(1);
+      return testCases(run!.executions)[0]!;
+    }
+
+    it('reports a pair the live re-check rejects as skipped, with a reason naming both statuses', async () => {
+      const execution = await runContext(200, (context) =>
+        context.validateCommonHttpTransactions({
+          appliesTo: statusCode(401),
+          violatedWhen: responseHeader('www-authenticate'),
+        }),
+      );
+
+      expect(execution.status).toMatchObject({
+        kind: 'skipped',
+        reason: expect.stringContaining(
+          'the specification declares 401, the server answered 200',
+        ),
+      });
+    });
+
+    it('reports a judged pair with an informational status-drift finding that does not fail it', async () => {
+      const execution = await runContext(501, (context) =>
+        context.validateCommonHttpTransactions({
+          appliesTo: method('GET'),
+          violatedWhen: responseHeader('www-authenticate'),
+        }),
+      );
+
+      expect(execution.status.kind).toBe('passed');
+      expect(execution.steps[0]!.findings).toEqual([
+        expect.objectContaining({
+          kind: 'informational',
+          title: 'Status drift',
+          message: {
+            text: expect.stringContaining(
+              'the specification declares 401, the server answered 501',
+            ),
+          },
+          transactionIndex: 0,
+        }),
+      ]);
+    });
+
+    it('keeps the status-drift finding next to a violation', async () => {
+      const execution = await runContext(501, (context) =>
+        context.validateCommonHttpTransactions({
+          appliesTo: method('GET'),
+          violatedWhen: statusCode(501),
+        }),
+      );
+
+      expect(execution.status.kind).toBe('failed');
+      expect(execution.steps[0]!.findings).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ kind: 'rule-violation' }),
+          expect.objectContaining({ kind: 'informational' }),
+        ]),
+      );
     });
   });
 });

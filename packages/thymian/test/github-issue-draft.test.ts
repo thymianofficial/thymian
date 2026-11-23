@@ -1,9 +1,9 @@
 import os from 'node:os';
 
-import { type CachedError } from '@thymian/common-cli';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createGithubIssueDraft } from '../src/github-issue-draft.js';
+import { aCachedError } from './support/cached-error.js';
 
 describe('createGithubIssueDraft', () => {
   beforeEach(() => {
@@ -15,11 +15,9 @@ describe('createGithubIssueDraft', () => {
   });
 
   it('should generate correct GitHub issue URL', () => {
-    const error: CachedError = {
-      name: 'TestError',
+    const error = aCachedError({
       message: 'Test error message',
       commandName: 'test:command',
-      timestamp: 1234567890000,
       argv: ['node', 'thymian', 'test'],
       version: {
         architecture: 'x64',
@@ -27,8 +25,7 @@ describe('createGithubIssueDraft', () => {
         nodeVersion: 'v18.0.0',
         osVersion: 'Linux',
       },
-      pluginVersions: [],
-    };
+    });
 
     const url = createGithubIssueDraft(error).url;
 
@@ -38,19 +35,11 @@ describe('createGithubIssueDraft', () => {
   });
 
   it('should include proper title with error name and command', () => {
-    const error: CachedError = {
+    const error = aCachedError({
       name: 'ConfigurationError',
       message: 'Invalid config',
       commandName: 'init',
-      timestamp: Date.now(),
-      argv: [],
-      version: {
-        architecture: 'x64',
-        cliVersion: '1.0.0',
-        nodeVersion: 'v18.0.0',
-      },
-      pluginVersions: [],
-    };
+    });
 
     const url = createGithubIssueDraft(error).url;
     const parsedUrl = new URL(url);
@@ -61,19 +50,7 @@ describe('createGithubIssueDraft', () => {
   });
 
   it('should set labels parameter to bug', () => {
-    const error: CachedError = {
-      name: 'TestError',
-      message: 'Test',
-      commandName: 'test',
-      timestamp: Date.now(),
-      argv: [],
-      version: {
-        architecture: 'x64',
-        cliVersion: '1.0.0',
-        nodeVersion: 'v18.0.0',
-      },
-      pluginVersions: [],
-    };
+    const error = aCachedError();
 
     const url = createGithubIssueDraft(error).url;
     const parsedUrl = new URL(url);
@@ -82,20 +59,14 @@ describe('createGithubIssueDraft', () => {
   });
 
   it('should include environment details in body', () => {
-    const error: CachedError = {
-      name: 'TestError',
-      message: 'Test',
-      commandName: 'test',
-      timestamp: Date.now(),
-      argv: [],
+    const error = aCachedError({
       version: {
         architecture: 'arm64',
         cliVersion: '2.0.0',
         nodeVersion: 'v20.0.0',
         osVersion: 'Darwin 23.0.0',
       },
-      pluginVersions: [],
-    };
+    });
 
     const url = createGithubIssueDraft(error).url;
     const parsedUrl = new URL(url);
@@ -108,19 +79,9 @@ describe('createGithubIssueDraft', () => {
   });
 
   it('should render the command name with nothing after it', () => {
-    const error: CachedError = {
-      name: 'TestError',
-      message: 'Test',
+    const error = aCachedError({
       commandName: 'lint',
-      timestamp: Date.now(),
-      argv: [],
-      version: {
-        architecture: 'x64',
-        cliVersion: '1.0.0',
-        nodeVersion: 'v18.0.0',
-      },
-      pluginVersions: [],
-    };
+    });
 
     const body = new URL(createGithubIssueDraft(error).url).searchParams.get(
       'body',
@@ -135,19 +96,7 @@ describe('createGithubIssueDraft', () => {
     ['missing', undefined],
     ['empty', ''],
   ])('should render no command when the command name is %s', (_, value) => {
-    const error = {
-      name: 'TestError',
-      message: 'Test',
-      commandName: value,
-      timestamp: Date.now(),
-      argv: [],
-      version: {
-        architecture: 'x64',
-        cliVersion: '1.0.0',
-        nodeVersion: 'v18.0.0',
-      },
-      pluginVersions: [],
-    } as unknown as CachedError;
+    const error = aCachedError({ commandName: value });
 
     const parsedUrl = new URL(createGithubIssueDraft(error).url);
     const title = parsedUrl.searchParams.get('title');
@@ -160,22 +109,12 @@ describe('createGithubIssueDraft', () => {
   });
 
   it('should include plugin table in collapsible section', () => {
-    const error: CachedError = {
-      name: 'TestError',
-      message: 'Test',
-      commandName: 'test',
-      timestamp: Date.now(),
-      argv: [],
-      version: {
-        architecture: 'x64',
-        cliVersion: '1.0.0',
-        nodeVersion: 'v18.0.0',
-      },
+    const error = aCachedError({
       pluginVersions: [
         { name: '@thymian/plugin-openapi', version: '1.0.0' },
         { name: '@thymian/plugin-http-linter', version: '2.0.0' },
       ],
-    };
+    });
 
     const url = createGithubIssueDraft(error).url;
     const parsedUrl = new URL(url);
@@ -187,19 +126,7 @@ describe('createGithubIssueDraft', () => {
   });
 
   it('should show "none" when no plugins installed', () => {
-    const error: CachedError = {
-      name: 'TestError',
-      message: 'Test',
-      commandName: 'test',
-      timestamp: Date.now(),
-      argv: [],
-      version: {
-        architecture: 'x64',
-        cliVersion: '1.0.0',
-        nodeVersion: 'v18.0.0',
-      },
-      pluginVersions: [],
-    };
+    const error = aCachedError();
 
     const url = createGithubIssueDraft(error).url;
     const parsedUrl = new URL(url);
@@ -209,20 +136,10 @@ describe('createGithubIssueDraft', () => {
   });
 
   it('should include stack trace in collapsible code block', () => {
-    const error: CachedError = {
-      name: 'TestError',
+    const error = aCachedError({
       message: 'Test error',
       stack: 'Error: Test error\n  at test.ts:10\n  at run.ts:20',
-      commandName: 'test',
-      timestamp: Date.now(),
-      argv: [],
-      version: {
-        architecture: 'x64',
-        cliVersion: '1.0.0',
-        nodeVersion: 'v18.0.0',
-      },
-      pluginVersions: [],
-    };
+    });
 
     const url = createGithubIssueDraft(error).url;
     const parsedUrl = new URL(url);
@@ -235,19 +152,7 @@ describe('createGithubIssueDraft', () => {
   });
 
   it('should handle missing stack trace gracefully', () => {
-    const error: CachedError = {
-      name: 'TestError',
-      message: 'Test',
-      commandName: 'test',
-      timestamp: Date.now(),
-      argv: [],
-      version: {
-        architecture: 'x64',
-        cliVersion: '1.0.0',
-        nodeVersion: 'v18.0.0',
-      },
-      pluginVersions: [],
-    };
+    const error = aCachedError();
 
     const url = createGithubIssueDraft(error).url;
     const parsedUrl = new URL(url);
@@ -258,20 +163,9 @@ describe('createGithubIssueDraft', () => {
   });
 
   it('should replace HOME directory with ~ in stack traces', () => {
-    const error: CachedError = {
-      name: 'TestError',
-      message: 'Test',
+    const error = aCachedError({
       stack: `Error: Test\n  at /home/testuser/project/src/test.ts:10\n  at /home/testuser/.config/test.js:20`,
-      commandName: 'test',
-      timestamp: Date.now(),
-      argv: [],
-      version: {
-        architecture: 'x64',
-        cliVersion: '1.0.0',
-        nodeVersion: 'v18.0.0',
-      },
-      pluginVersions: [],
-    };
+    });
 
     const url = createGithubIssueDraft(error).url;
     const parsedUrl = new URL(url);
@@ -283,19 +177,7 @@ describe('createGithubIssueDraft', () => {
   });
 
   it('should handle missing osVersion gracefully', () => {
-    const error: CachedError = {
-      name: 'TestError',
-      message: 'Test',
-      commandName: 'test',
-      timestamp: Date.now(),
-      argv: [],
-      version: {
-        architecture: 'x64',
-        cliVersion: '1.0.0',
-        nodeVersion: 'v18.0.0',
-      },
-      pluginVersions: [],
-    };
+    const error = aCachedError();
 
     const url = createGithubIssueDraft(error).url;
     const parsedUrl = new URL(url);
@@ -306,19 +188,9 @@ describe('createGithubIssueDraft', () => {
 
   it('should format timestamp correctly', () => {
     const timestamp = 1234567890000;
-    const error: CachedError = {
-      name: 'TestError',
-      message: 'Test',
-      commandName: 'test',
+    const error = aCachedError({
       timestamp,
-      argv: [],
-      version: {
-        architecture: 'x64',
-        cliVersion: '1.0.0',
-        nodeVersion: 'v18.0.0',
-      },
-      pluginVersions: [],
-    };
+    });
 
     const url = createGithubIssueDraft(error).url;
     const parsedUrl = new URL(url);
@@ -329,19 +201,7 @@ describe('createGithubIssueDraft', () => {
   });
 
   it('should include markdown formatting for body', () => {
-    const error: CachedError = {
-      name: 'TestError',
-      message: 'Test',
-      commandName: 'test',
-      timestamp: Date.now(),
-      argv: [],
-      version: {
-        architecture: 'x64',
-        cliVersion: '1.0.0',
-        nodeVersion: 'v18.0.0',
-      },
-      pluginVersions: [],
-    };
+    const error = aCachedError();
 
     const url = createGithubIssueDraft(error).url;
     const parsedUrl = new URL(url);
@@ -354,20 +214,10 @@ describe('createGithubIssueDraft', () => {
   });
 
   it('should include details tags for collapsible sections', () => {
-    const error: CachedError = {
-      name: 'TestError',
-      message: 'Test',
+    const error = aCachedError({
       stack: 'Error: Test\n  at test.ts:10',
-      commandName: 'test',
-      timestamp: Date.now(),
-      argv: [],
-      version: {
-        architecture: 'x64',
-        cliVersion: '1.0.0',
-        nodeVersion: 'v18.0.0',
-      },
       pluginVersions: [{ name: '@thymian/plugin-openapi', version: '1.0.0' }],
-    };
+    });
 
     const url = createGithubIssueDraft(error).url;
     const parsedUrl = new URL(url);
@@ -379,20 +229,10 @@ describe('createGithubIssueDraft', () => {
     expect(body).toContain('</summary>');
   });
   describe('the draft', () => {
-    const error: CachedError = {
-      name: 'TestError',
-      message: 'Test',
+    const error = aCachedError({
       stack: 'Error: Test\n  at /home/testuser/project/src/test.ts:10',
       commandName: 'lint',
-      timestamp: Date.now(),
-      argv: [],
-      version: {
-        architecture: 'x64',
-        cliVersion: '1.0.0',
-        nodeVersion: 'v18.0.0',
-      },
-      pluginVersions: [],
-    };
+    });
 
     it('carries exactly the title and body that the URL opens', () => {
       const draft = createGithubIssueDraft(error);

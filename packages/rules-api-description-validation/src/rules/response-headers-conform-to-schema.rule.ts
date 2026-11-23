@@ -12,6 +12,12 @@ import {
   validateHeaders,
 } from '@thymian/core';
 
+import {
+  missingElementMessage,
+  undocumentedResponseSkip,
+  unknownOperationSkip,
+} from './graph-location.js';
+
 const NAME = 'thymian/response-headers-must-conform-to-schema';
 
 // eslint-disable-next-line thymian-internal/require-rule-tags -- schema-conformance check against the API description, not a security or privacy concern
@@ -31,18 +37,11 @@ export default httpRule(NAME)
         location: RuleViolationLocation,
       ): RuleFnResult[] => {
         if (typeof location === 'string') {
-          return [
-            {
-              location,
-              findings: [
-                {
-                  title: NAME,
-                  kind: 'rule-skip',
-                  message: `No matching endpoint found in corresponding API description document.`,
-                },
-              ],
-            },
-          ];
+          return unknownOperationSkip(location, NAME);
+        }
+
+        if (location.elementType === 'node') {
+          return undocumentedResponseSkip(ctx.format, location, response, NAME);
         }
 
         const transaction = ctx.format.getThymianHttpTransactionById(
@@ -57,7 +56,7 @@ export default httpRule(NAME)
                 {
                   title: NAME,
                   kind: 'rule-skip',
-                  message: `Can't find transaction with given ID ${location.elementId} in Thymian format.`,
+                  message: missingElementMessage(location),
                 },
               ],
             },

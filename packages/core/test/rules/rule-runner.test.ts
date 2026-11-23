@@ -8,6 +8,7 @@ import type {
   ThymianHttpResponse,
 } from '../../src/index.js';
 import {
+  locateOnGroup,
   NoopLogger,
   runRules,
   ThymianBaseError,
@@ -156,6 +157,88 @@ describe('runRules', () => {
 
     expect(testResult['narrowed-to-test']).toBeDefined();
   });
+
+  describe('a group location a rule returns', () => {
+    const member = { elementType: 'edge' as const, elementId: 'get-users' };
+
+    function ruleReturning(location: unknown): Rule {
+      return {
+        meta: {
+          name: 'grouped-rule',
+          type: ['test'],
+          options: {
+            type: 'object',
+            properties: {},
+            required: [],
+            additionalProperties: false,
+          },
+          severity: 'error',
+        },
+        testRule: () => [
+          {
+            location: location as RuleFnResult['location'],
+            violation: {},
+            findings: [],
+          },
+        ],
+      };
+    }
+
+    function run(rule: Rule) {
+      return runRules<TestRuleContext>(
+        new NoopLogger(),
+        [rule],
+        new ThymianFormat(),
+        {},
+        {
+          errorName: 'TestRuleRunnerError',
+          mode: 'test',
+          getRuleFn: (rule) => rule.testRule,
+          createContext: () => new TestRuleContext(),
+        },
+      );
+    }
+
+    function groupFromContext() {
+      const [result] = locateOnGroup(
+        [{ location: '/users', findings: [] }],
+        '/users',
+        [member],
+      );
+
+      return result?.location;
+    }
+
+    it('keeps one a validation context made', async () => {
+      const group = groupFromContext();
+
+      const result = await run(ruleReturning(group));
+
+      expect(result['grouped-rule']?.ruleFnResult[0]?.location).toBe(group);
+    });
+
+    it('rejects one the rule made itself', async () => {
+      const forged = { elementType: 'group', key: '/users', members: [member] };
+
+      const running = run(ruleReturning(forged));
+
+      await expect(running).rejects.toMatchObject({
+        name: 'TestRuleRunnerError',
+        cause: { name: 'InvalidRuleViolationLocationError' },
+      });
+    });
+
+    it('rejects a copy of one a validation context made', async () => {
+      const group = groupFromContext();
+
+      const running = run(ruleReturning({ ...group }));
+
+      await expect(running).rejects.toMatchObject({
+        name: 'TestRuleRunnerError',
+        cause: { name: 'InvalidRuleViolationLocationError' },
+      });
+    });
+  });
 });
 
 describe('resolveViolationLocation', () => {
@@ -165,6 +248,24 @@ describe('resolveViolationLocation', () => {
     expect(result).toEqual({
       heading: 'GET /test',
       location: { type: 'custom', value: 'GET /test' },
+    });
+  });
+
+  it('shows a group by its key, as a custom location, even a copy of one', () => {
+    const format = new ThymianFormat();
+    const [located] = locateOnGroup(
+      [{ location: 'https://localhost/test', findings: [] }],
+      'https://localhost/test',
+      [{ elementType: 'edge', elementId: 'not-looked-up' }],
+    );
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    const copy = structuredClone(located!.location);
+
+    const result = resolveViolationLocation(copy, format, 'my-rule');
+
+    expect(result).toEqual({
+      heading: 'https://localhost/test',
+      location: { type: 'custom', value: 'https://localhost/test' },
     });
   });
 

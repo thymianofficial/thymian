@@ -5,6 +5,8 @@ import {
   path,
   responseMediaType,
   statusCode,
+  statusCodeRange,
+  successfulStatusCode,
 } from '@thymian/core';
 import { NoopLogger } from '@thymian/core';
 import {
@@ -12,6 +14,7 @@ import {
   createHttpResponse,
   createThymianFormat,
   createThymianFormatWithTransaction,
+  createThymianFormatWithTransactions,
 } from '@thymian/core-testing';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -237,6 +240,73 @@ describe('StaticApiContext', () => {
     });
   });
 
+  describe('default transactions', () => {
+    const format = createThymianFormatWithTransactions([
+      [
+        createHttpRequest({ method: 'get', path: '/users' }),
+        createHttpResponse({ statusCode: 200, headers: {} }),
+      ],
+      [
+        createHttpRequest({ method: 'get', path: '/users' }),
+        createHttpResponse({ statusCode: 'default', headers: {} }),
+      ],
+    ]);
+
+    const statusesOf = (
+      result: ReturnType<StaticApiContext['validateCommonHttpTransactions']>,
+    ): (number | 'default' | undefined)[] =>
+      result.map((violation) => {
+        const location = violation.location;
+
+        return typeof location !== 'string'
+          ? format.getThymianHttpTransactionById(location.elementId)?.thymianRes
+              .statusCode
+          : undefined;
+      });
+
+    it('are seen by lint, but never selected by a status filter', () => {
+      const context = new StaticApiContext(format, new NoopLogger());
+
+      expect(
+        statusesOf(
+          context.validateCommonHttpTransactions(
+            statusCodeRange(100, 599),
+            method('get'),
+          ),
+        ),
+      ).toStrictEqual([200]);
+      expect(
+        statusesOf(
+          context.validateCommonHttpTransactions(
+            successfulStatusCode(),
+            method('get'),
+          ),
+        ),
+      ).toStrictEqual([200]);
+    });
+
+    it('are selected by the negation of a status filter', () => {
+      const context = new StaticApiContext(format, new NoopLogger());
+
+      expect(
+        statusesOf(
+          context.validateCommonHttpTransactions(
+            not(statusCode(200)),
+            method('get'),
+          ),
+        ),
+      ).toStrictEqual(['default']);
+      expect(
+        statusesOf(
+          context.validateCommonHttpTransactions(
+            not(statusCodeRange(100, 599)),
+            method('get'),
+          ),
+        ),
+      ).toStrictEqual(['default']);
+    });
+  });
+
   describe('validateGroupedCommonHttpTransactions', () => {
     it('should group transactions by status code and validate', () => {
       const format = createThymianFormat();
@@ -291,6 +361,88 @@ describe('StaticApiContext', () => {
           }),
         ]),
       );
+    });
+
+    it('locates a result on the group key on the group, naming its member transactions', () => {
+      const format = createThymianFormat();
+      const [, , usersListed] = format.addHttpTransaction(
+        createHttpRequest({ method: 'get', path: '/users' }),
+        createHttpResponse({ statusCode: 200, headers: {} }),
+        'test-source',
+      );
+      const [, , postsListed] = format.addHttpTransaction(
+        createHttpRequest({ method: 'get', path: '/posts' }),
+        createHttpResponse({ statusCode: 200, headers: {} }),
+        'test-source',
+      );
+      format.addHttpTransaction(
+        createHttpRequest({ method: 'get', path: '/error' }),
+        createHttpResponse({ statusCode: 404, headers: {} }),
+        'test-source',
+      );
+
+      const context = new StaticApiContext(format, new NoopLogger());
+
+      const result = context.validateGroupedCommonHttpTransactions({
+        appliesTo: method('get'),
+        groupBy: statusCode(),
+        violatedWhen: (key) =>
+          key === '200'
+            ? [
+                {
+                  location: key,
+                  violation: { message: 'flagged' },
+                  findings: [],
+                },
+              ]
+            : [],
+      });
+
+      expect(result).toEqual([
+        {
+          location: {
+            elementType: 'group',
+            key: '200',
+            members: [
+              { elementType: 'edge', elementId: usersListed },
+              { elementType: 'edge', elementId: postsListed },
+            ],
+          },
+          violation: { message: 'flagged' },
+          findings: [],
+        },
+      ]);
+    });
+
+    it('keeps a result on one member of a group on that member', () => {
+      const format = createThymianFormat();
+      format.addHttpTransaction(
+        createHttpRequest({ method: 'get', path: '/users' }),
+        createHttpResponse({ statusCode: 200, headers: {} }),
+        'test-source',
+      );
+      const [, , postsListed] = format.addHttpTransaction(
+        createHttpRequest({ method: 'get', path: '/posts' }),
+        createHttpResponse({ statusCode: 200, headers: {} }),
+        'test-source',
+      );
+
+      const context = new StaticApiContext(format, new NoopLogger());
+
+      const result = context.validateGroupedCommonHttpTransactions({
+        appliesTo: method('get'),
+        groupBy: statusCode(),
+        violatedWhen: (_key, [, [, , location] = []]) =>
+          location ? [{ location, violation: {}, findings: [] }] : [],
+      });
+
+      expect(result).toEqual([
+        {
+          location: { elementType: 'edge', elementId: postsListed },
+          violation: {},
+          findings: [],
+        },
+      ]);
     });
 
     it('should handle empty groups', () => {

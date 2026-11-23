@@ -44,7 +44,11 @@ export default class Show extends BaseCliRunCommand<typeof Show> {
 
       this.log(oclif.ux.colorize('bold', shown.selector));
       this.log();
-      this.log(JSON.stringify(shown.request, null, 2));
+      this.log(
+        'request' in shown
+          ? JSON.stringify(shown.request, null, 2)
+          : shown.notTested,
+      );
 
       return shown;
     });

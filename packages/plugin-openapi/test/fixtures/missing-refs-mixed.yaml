@@ -1,0 +1,22 @@
+openapi: 3.1.0
+info: { title: missing-refs-mixed, version: '1' }
+paths:
+  /things:
+    get:
+      operationId: listThings
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: './schemas/missing-a.yaml#/X' }
+        '201':
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: './schemas/missing-b.yaml#/Y' }
+        '404':
+          description: not found
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NonExistent' }

@@ -1,9 +1,9 @@
 import type { HttpTestCaseResult } from '../http-test/index.js';
 
 export function validateStatusCode(
-  statusCode: number,
+  statusCode: number | 'default',
   actualStatusCode: number,
-  availableStatusCodes: number[],
+  availableStatusCodes: (number | 'default')[],
 ): HttpTestCaseResult {
   if (statusCode !== actualStatusCode) {
     if (!availableStatusCodes.includes(statusCode)) {

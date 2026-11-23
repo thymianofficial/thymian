@@ -163,6 +163,48 @@ describe('TransactionCatalog', () => {
     );
   });
 
+  it('never proposes a default selector as a near miss', () => {
+    const format = createThymianFormatWithTransactions([
+      [
+        createHttpRequest({ method: 'GET', path: '/launches' }),
+        createHttpResponse(),
+      ],
+      [
+        createHttpRequest({ method: 'GET', path: '/launches' }),
+        createHttpResponse({ statusCode: 'default' }),
+      ],
+    ]);
+    const catalog = TransactionCatalog.fromThymianFormat(format);
+
+    let error: unknown;
+
+    try {
+      catalog.resolve('GET /launches -> 418 (application/json)');
+    } catch (e) {
+      error = e;
+    }
+
+    const suggestions = suggestionsOf(error);
+
+    expect(suggestions).toContain('"GET /launches -> 200 (application/json)"');
+    expect(suggestions.join('\n')).not.toContain('default');
+  });
+
+  it('keeps default transactions, so a default selector resolves', () => {
+    const format = createThymianFormatWithTransactions([
+      [
+        createHttpRequest({ method: 'GET', path: '/launches' }),
+        createHttpResponse({ statusCode: 'default' }),
+      ],
+    ]);
+    const catalog = TransactionCatalog.fromThymianFormat(format);
+
+    expect(
+      catalog.resolve('GET /launches -> default (application/json)').thymianRes
+        .statusCode,
+    ).toBe('default');
+  });
+
   it('says nothing is loaded rather than blaming the path, when nothing is', () => {
     const catalog = TransactionCatalog.fromThymianFormat(createThymianFormat());
 

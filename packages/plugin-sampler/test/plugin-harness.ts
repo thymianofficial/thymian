@@ -271,11 +271,17 @@ export async function startSampler(
       );
     },
     async show(selector) {
-      return await emitter.emitAction(
+      const shown = await emitter.emitAction(
         'sampler.show',
         { selector },
         { strategy: 'first' },
       );
+
+      if (!('request' in shown)) {
+        throw new Error(`"${selector}" shows no request: ${shown.notTested}`);
+      }
+
+      return shown;
     },
     async sampleAll(format) {
       const samples: HttpRequestTemplate[] = [];

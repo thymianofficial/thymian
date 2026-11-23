@@ -24,6 +24,8 @@ import {
   type RuleFnResult,
   type RuleRunnerAdapter,
   rulesToRuleDescriptors,
+  type RuleViolationGroupLocation,
+  type RuleViolationLocation,
   runRules,
   type RunRulesResult,
   type SingleRuleConfiguration,
@@ -274,17 +276,27 @@ function computeTestCaseStatus(
 function resolvePlacements(
   testResult: HttpTestResult,
   contextPlacements: RuleFnResultPlacement[],
-  ruleFnResult: RuleFnResult[],
-  alreadyConsumed: ReadonlySet<RuleFnResult>,
-  allPlacedResults: ReadonlySet<RuleFnResult>,
+  ruleFnResult: RuleFnResult<
+    RuleViolationLocation | RuleViolationGroupLocation
+  >[],
+  alreadyConsumed: ReadonlySet<
+    RuleFnResult<RuleViolationLocation | RuleViolationGroupLocation>
+  >,
+  allPlacedResults: ReadonlySet<
+    RuleFnResult<RuleViolationLocation | RuleViolationGroupLocation>
+  >,
 ): RuleFnResultPlacement[] {
-  // Known limitation: an unplaced result carries only an edge id (no step
-  // index), so when the same `source.transactionId` runs in more than one
-  // step/case (e.g. a replayed step reuses the previous step's source — see
-  // replay-previous-step.operator), we cannot tell which occurrence the result
-  // belongs to. We deterministically attach it to the FIRST occurrence; a
-  // precise fix needs the producer to tag the result with its originating step.
-  // See https://github.com/thymianofficial/thymian-internal/issues/423.
+  // Tie-break: an unplaced result carries only an edge id (no step index), so
+  // when the same `source.transactionId` runs in more than one step/case we
+  // cannot tell which occurrence it belongs to. We attach it to the FIRST test
+  // case that ran the edge, and within that case to the LAST step that ran it.
+  // A replayed step (see replay-previous-step.operator) reuses the previous
+  // step's source, and the replay is the probe a rule reports on — so the last
+  // occurrence is the request that actually failed.
+  // Known exception: `server-may-send-content-length-for-head-response` replays
+  // a HEAD as GET on the same edge but reports on the HEAD, so its violation
+  // renders under the GET step. Its message names both lengths, so nothing is
+  // lost.
   const positionByEdgeId = new Map<
     string,
     { testCaseIndex: number; stepIndex: number }
@@ -293,7 +305,14 @@ function resolvePlacements(
     testCase.steps.forEach((step, stepIndex) => {
       for (const transaction of step.transactions) {
         const id = transaction.source?.transactionId;
-        if (id !== undefined && !positionByEdgeId.has(id)) {
+        if (id === undefined) {
+          continue;
+        }
+        const recorded = positionByEdgeId.get(id);
+        if (
+          recorded === undefined ||
+          recorded.testCaseIndex === testCaseIndex
+        ) {
           positionByEdgeId.set(id, { testCaseIndex, stepIndex });
         }
       }
@@ -344,7 +363,9 @@ export function createRuns(
       continue;
     }
 
-    const consumedResults = new Set<RuleFnResult>();
+    const consumedResults = new Set<
+      RuleFnResult<RuleViolationLocation | RuleViolationGroupLocation>
+    >();
 
     if (diagnostics) {
       // Every result placed by ANY diagnostics entry, computed once. Guards

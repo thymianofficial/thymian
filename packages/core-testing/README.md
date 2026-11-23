@@ -159,6 +159,19 @@ const formatWithMany = createThymianFormatWithTransactions([
 const formatWithSpecificNumber = createThymianFormatWithTransactions(10);
 ```
 
+Add a transaction to a format and keep its id, the name a test uses for it from then on. The source name is defaulted:
+
+```typescript
+import { addTransaction, createThymianFormat, createPostRequest, createCreatedResponse, createBadRequestResponse } from '@thymian/core-testing';
+
+const format = createThymianFormat();
+
+// One operation with two answers is two transactions on the same request.
+const createAstronaut = createPostRequest({ path: '/astronauts' });
+const astronautCreated = addTransaction(format, createAstronaut, createCreatedResponse());
+const astronautRejected = addTransaction(format, createAstronaut, createBadRequestResponse());
+```
+
 #### Mocks
 
 ##### Logger Mock

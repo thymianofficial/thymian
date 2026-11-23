@@ -37,7 +37,13 @@ export default httpRule(
     testContext.httpTest(
       singleTestCase()
         .forTransactionsWith(and(not(method('HEAD')), statusCode(401)))
-        .run({ authorize: false })
+        // Sent without credentials, the server may answer something other
+        // than the declared 401; the rule then does not apply (ADR-0028).
+        .run({ authorize: false, checkStatusCode: false })
+        .skipIf(
+          not(statusCode(401)),
+          "The live pair is outside the rule's applicability (the specification declares 401, the server answered another status).",
+        )
         .expectForTransactions(responseHeader('www-authenticate'))
         .done(),
     ),

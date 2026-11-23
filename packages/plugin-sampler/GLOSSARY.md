@@ -47,7 +47,8 @@ will get: the answer is every response that operation declares.
 What one `Transaction` earned in a sampler check — `passed` (executed, response as described),
 `failed` (executed, response invalid), `skipped` (could not be executed as described, e.g. its
 `Seed` was answered differently), or `errored` (the attempt itself broke). A check assigns
-every transaction exactly one outcome, and any outcome but `passed` fails the run.
+every `Transaction` it can run exactly one outcome — a `default` `Transaction` is not run and
+earns none — and any outcome but `passed` fails the run.
 _Avoid_: status, result
 
 Distinct from the report model's `Execution`, which is one rule at one location: an `Outcome`

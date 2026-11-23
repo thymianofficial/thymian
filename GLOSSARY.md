@@ -77,6 +77,12 @@ A request paired with the response it expects — one edge in the `Thymian Forma
 the unit that rules, samples, and selectors all address.
 _Avoid_: interaction, exchange, call
 
+**Undocumented Response**:
+A recorded response to a request whose `Operation` the `API Specification` declares, matching
+none of that operation's `Transaction`s by status and media type. Not the same as an unknown
+operation, for which no `Transaction` can be looked up at all.
+_Avoid_: unknown response, unmatched response, missing response
+
 ### Rules and configuration
 
 **Rule Set**:
@@ -151,6 +157,12 @@ applicability it would also be asked of a specification, which cannot answer it.
 _In code_: `violatedWhen`.
 _Avoid_: check, assertion, validation
 
+**Status Drift**:
+A live response in `Test` whose status code differs from the one the specification declares
+for the `Transaction` it was sent for, while the pair stays inside the rule's `Applicability`
+and is judged. Reported as an informational finding, never a violation and never a skip.
+_Avoid_: status mismatch
+
 **Fixture**:
 The proof that a rule's declared `Validation Context` really observes what the rule asserts:
 for one rule in one context, an input it must flag, one it must pass, and — where the rule can
@@ -182,6 +194,12 @@ scoped to its own rule set: it names only the rules that deviate from shipped de
 the user's `Config` still wins over it.
 _Avoid_: preset, variant, flavour
 
+**Promotion**:
+A `Profile` entry that sets a rule above the severity the rule ships at — a `Convention Rule`
+turned on from `off`, or a `SHOULD` promoted from its keyword's `warn` to `error`. Lowering a
+rule, or overriding only its contexts, is not a promotion.
+_Avoid_: raise, escalation
+
 **Config**:
 The declarative file that selects the API specification, rules, and plugins for a run.
 Optional; Thymian runs without one.
@@ -207,16 +225,18 @@ drift from the specification it came from.
 _Avoid_: fixture, mock, stub
 
 **Selector**:
-The address of exactly one `Transaction`, qualified by method, path, status, and the media
-types the request and response nodes _declare_ — a declared media type earns its part whether
-or not a body exists. Fully qualified by construction, so adding a status code or a media type
+The address of exactly one `Transaction`, qualified by method, path, status — or the literal
+`default`, for a response the specification declares as its default — and the media types the
+request and response nodes _declare_; a declared media type earns its part whether or not a
+body exists. Fully qualified by construction, so adding a status code or a media type
 to the specification cannot silently change what an existing selector points at. Rendering is
 total and injective: a path or media type that would collide with the grammar is quoted, never
 rejected — a quote fences the value rather than substituting characters inside it, so two
 distinct declarations can never render one selector.
 Also the only spelling of a `Transaction` anywhere Thymian writes one — terminal lines,
-reports, error messages — so any printed transaction can be pasted back as a hook target. A
-label naming only a request or only a response uses the selector grammar's corresponding half.
+reports, error messages — so any printed transaction other than a `default` one can be pasted
+back as a hook target. A label naming only a request or only a response uses the selector
+grammar's corresponding half.
 _Avoid_: pattern, matcher
 
 **Operation**:
@@ -249,4 +269,7 @@ _Avoid_: message, note, diagnostic
 How loudly a failure is labelled — `error`, `warn`, `hint`, `info` — resolved per failed
 `Execution` for display and for the report's summary counts. Presentational only: it does not
 decide whether a run passed, and a `hint` violation fails a run exactly as an `error` does.
+A rule also ships at a severity, ordered `off` < `hint` < `warn` < `error`, where _above_
+means more severe. A run's `ruleSeverity` floor compares it in that order to decide whether
+the rule loads at all; a `Promotion` sets a rule above it within a `Profile`.
 _Avoid_: level, priority, importance

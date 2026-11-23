@@ -11,6 +11,7 @@ import type {
   RuleFinding,
   RuleFnResult,
   RuleViolation,
+  RuleViolationGroupLocation,
   RuleViolationLocation,
 } from './rule-violation.js';
 import type { CapturedTrace, CapturedTransaction } from './traffic.js';
@@ -29,7 +30,11 @@ export type CommonHttpRequest = {
 };
 
 export type CommonHttpResponse = {
-  statusCode: number;
+  /**
+   * `'default'` only for a response the specification declares as its
+   * default (ADR-0027); a recorded or received response always has a number.
+   */
+  statusCode: number | 'default';
   mediaType: string;
   headers: string[];
   body: boolean;
@@ -119,14 +124,22 @@ export interface ApiContext<
   ): Promise<RuleFnResult[]> | RuleFnResult[];
   validateGroupedCommonHttpTransactions(
     criteria: GroupedCommonHttpRuleCriteria,
-  ): Promise<RuleFnResult[]> | RuleFnResult[];
+  ):
+    | Promise<
+        RuleFnResult<RuleViolationLocation | RuleViolationGroupLocation>[]
+      >
+    | RuleFnResult<RuleViolationLocation | RuleViolationGroupLocation>[];
   validateGroupedCommonHttpTransactions(
     filter: HttpFilterExpression,
     groupBy: HttpFilterExpression,
     validationFn: ValidationFn<
       [string, [CommonHttpRequest, CommonHttpResponse, RuleViolationLocation][]]
     >,
-  ): Promise<RuleFnResult[]> | RuleFnResult[];
+  ):
+    | Promise<
+        RuleFnResult<RuleViolationLocation | RuleViolationGroupLocation>[]
+      >
+    | RuleFnResult<RuleViolationLocation | RuleViolationGroupLocation>[];
 }
 
 export interface LiveApiContext<

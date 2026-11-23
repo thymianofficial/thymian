@@ -136,7 +136,7 @@ describe('rfc-6265bis rule-configuration profiles', () => {
     expect(strict).not.toContain(HTTP_ONLY);
   }, 30_000);
 
-  // Under the default floor, `recommended` adds the two rules it raises to
+  // Under the default floor, `recommended` adds the two rules it promotes to
   // `error` to what `strict` loads, and nothing else.
   it('loads the twin and the promoted Secure clause beside the error rules under recommended', async () => {
     expect(await namesLoadedUnder('recommended')).toEqual(

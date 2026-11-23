@@ -1,9 +1,9 @@
 import os from 'node:os';
 
-import { type CachedError } from '@thymian/common-cli';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createEmailDraft } from '../src/email-draft.js';
+import { aCachedError } from './support/cached-error.js';
 
 describe('createEmailDraft', () => {
   const testRecipient = 'support@example.com';
@@ -17,11 +17,9 @@ describe('createEmailDraft', () => {
   });
 
   it('should generate proper mailto URL', () => {
-    const error: CachedError = {
-      name: 'TestError',
+    const error = aCachedError({
       message: 'Test error message',
       commandName: 'test:command',
-      timestamp: Date.now(),
       argv: ['node', 'thymian', 'test'],
       version: {
         architecture: 'x64',
@@ -29,8 +27,7 @@ describe('createEmailDraft', () => {
         nodeVersion: 'v18.0.0',
         osVersion: 'Linux',
       },
-      pluginVersions: [],
-    };
+    });
 
     const url = createEmailDraft(testRecipient, error).url;
 
@@ -38,19 +35,9 @@ describe('createEmailDraft', () => {
   });
 
   it('should URL-encode subject', () => {
-    const error: CachedError = {
-      name: 'TestError',
-      message: 'Test',
+    const error = aCachedError({
       commandName: 'test:command',
-      timestamp: Date.now(),
-      argv: [],
-      version: {
-        architecture: 'x64',
-        cliVersion: '1.0.0',
-        nodeVersion: 'v18.0.0',
-      },
-      pluginVersions: [],
-    };
+    });
 
     const url = createEmailDraft(testRecipient, error).url;
 
@@ -58,19 +45,7 @@ describe('createEmailDraft', () => {
   });
 
   it('should URL-encode body', () => {
-    const error: CachedError = {
-      name: 'TestError',
-      message: 'Test',
-      commandName: 'test',
-      timestamp: Date.now(),
-      argv: [],
-      version: {
-        architecture: 'x64',
-        cliVersion: '1.0.0',
-        nodeVersion: 'v18.0.0',
-      },
-      pluginVersions: [],
-    };
+    const error = aCachedError();
 
     const url = createEmailDraft(testRecipient, error).url;
     const decodedUrl = decodeURIComponent(url);
@@ -79,11 +54,9 @@ describe('createEmailDraft', () => {
   });
 
   it('should include error details when errorData provided', () => {
-    const error: CachedError = {
-      name: 'TestError',
+    const error = aCachedError({
       message: 'Test error',
       commandName: 'test:command',
-      timestamp: 1234567890000,
       argv: ['node', 'thymian'],
       version: {
         architecture: 'x64',
@@ -91,8 +64,7 @@ describe('createEmailDraft', () => {
         nodeVersion: 'v18.0.0',
         osVersion: 'Linux',
       },
-      pluginVersions: [],
-    };
+    });
 
     const url = createEmailDraft(testRecipient, error).url;
     const decodedUrl = decodeURIComponent(url);
@@ -101,20 +73,14 @@ describe('createEmailDraft', () => {
   });
 
   it('should include environment information', () => {
-    const error: CachedError = {
-      name: 'TestError',
-      message: 'Test',
-      commandName: 'test',
-      timestamp: Date.now(),
-      argv: [],
+    const error = aCachedError({
       version: {
         architecture: 'arm64',
         cliVersion: '2.0.0',
         nodeVersion: 'v20.0.0',
         osVersion: 'Darwin 23.0.0',
       },
-      pluginVersions: [],
-    };
+    });
 
     const url = createEmailDraft(testRecipient, error).url;
     const decodedUrl = decodeURIComponent(url);
@@ -126,22 +92,12 @@ describe('createEmailDraft', () => {
   });
 
   it('should include plugin versions', () => {
-    const error: CachedError = {
-      name: 'TestError',
-      message: 'Test',
-      commandName: 'test',
-      timestamp: Date.now(),
-      argv: [],
-      version: {
-        architecture: 'x64',
-        cliVersion: '1.0.0',
-        nodeVersion: 'v18.0.0',
-      },
+    const error = aCachedError({
       pluginVersions: [
         { name: '@thymian/plugin-openapi', version: '1.0.0' },
         { name: '@thymian/plugin-http-linter', version: '2.0.0' },
       ],
-    };
+    });
 
     const url = createEmailDraft(testRecipient, error).url;
     const decodedUrl = decodeURIComponent(url);
@@ -152,20 +108,9 @@ describe('createEmailDraft', () => {
   });
 
   it('should include stack trace with HOME replaced by ~', () => {
-    const error: CachedError = {
-      name: 'TestError',
-      message: 'Test',
+    const error = aCachedError({
       stack: `Error: Test\n  at /home/testuser/project/src/test.ts:10\n  at /home/testuser/.config/test.js:20`,
-      commandName: 'test',
-      timestamp: Date.now(),
-      argv: [],
-      version: {
-        architecture: 'x64',
-        cliVersion: '1.0.0',
-        nodeVersion: 'v18.0.0',
-      },
-      pluginVersions: [],
-    };
+    });
 
     const url = createEmailDraft(testRecipient, error).url;
     const decodedUrl = decodeURIComponent(url);
@@ -177,19 +122,7 @@ describe('createEmailDraft', () => {
   });
 
   it('should handle missing stack trace', () => {
-    const error: CachedError = {
-      name: 'TestError',
-      message: 'Test',
-      commandName: 'test',
-      timestamp: Date.now(),
-      argv: [],
-      version: {
-        architecture: 'x64',
-        cliVersion: '1.0.0',
-        nodeVersion: 'v18.0.0',
-      },
-      pluginVersions: [],
-    };
+    const error = aCachedError();
 
     const url = createEmailDraft(testRecipient, error).url;
     const decodedUrl = decodeURIComponent(url);
@@ -200,19 +133,9 @@ describe('createEmailDraft', () => {
 
   it('should format timestamp correctly', () => {
     const timestamp = 1234567890000;
-    const error: CachedError = {
-      name: 'TestError',
-      message: 'Test',
-      commandName: 'test',
+    const error = aCachedError({
       timestamp,
-      argv: [],
-      version: {
-        architecture: 'x64',
-        cliVersion: '1.0.0',
-        nodeVersion: 'v18.0.0',
-      },
-      pluginVersions: [],
-    };
+    });
 
     const url = createEmailDraft(testRecipient, error).url;
     const decodedUrl = decodeURIComponent(url);
@@ -222,19 +145,7 @@ describe('createEmailDraft', () => {
   });
 
   it('should include feedback message header', () => {
-    const error: CachedError = {
-      name: 'TestError',
-      message: 'Test',
-      commandName: 'test',
-      timestamp: Date.now(),
-      argv: [],
-      version: {
-        architecture: 'x64',
-        cliVersion: '1.0.0',
-        nodeVersion: 'v18.0.0',
-      },
-      pluginVersions: [],
-    };
+    const error = aCachedError();
 
     const url = createEmailDraft(testRecipient, error).url;
     const decodedUrl = decodeURIComponent(url);
@@ -246,19 +157,7 @@ describe('createEmailDraft', () => {
   });
 
   it('should include footer with signature placeholder', () => {
-    const error: CachedError = {
-      name: 'TestError',
-      message: 'Test',
-      commandName: 'test',
-      timestamp: Date.now(),
-      argv: [],
-      version: {
-        architecture: 'x64',
-        cliVersion: '1.0.0',
-        nodeVersion: 'v18.0.0',
-      },
-      pluginVersions: [],
-    };
+    const error = aCachedError();
 
     const url = createEmailDraft(testRecipient, error).url;
     const decodedUrl = decodeURIComponent(url);
@@ -268,19 +167,7 @@ describe('createEmailDraft', () => {
   });
 
   it('should handle empty plugin list', () => {
-    const error: CachedError = {
-      name: 'TestError',
-      message: 'Test',
-      commandName: 'test',
-      timestamp: Date.now(),
-      argv: [],
-      version: {
-        architecture: 'x64',
-        cliVersion: '1.0.0',
-        nodeVersion: 'v18.0.0',
-      },
-      pluginVersions: [],
-    };
+    const error = aCachedError();
 
     const url = createEmailDraft(testRecipient, error).url;
     const decodedUrl = decodeURIComponent(url);
@@ -291,19 +178,9 @@ describe('createEmailDraft', () => {
   });
 
   it('should use correct subject format', () => {
-    const error: CachedError = {
-      name: 'TestError',
-      message: 'Test',
+    const error = aCachedError({
       commandName: 'custom:command',
-      timestamp: Date.now(),
-      argv: [],
-      version: {
-        architecture: 'x64',
-        cliVersion: '1.0.0',
-        nodeVersion: 'v18.0.0',
-      },
-      pluginVersions: [],
-    };
+    });
 
     const url = createEmailDraft(testRecipient, error).url;
 
@@ -312,19 +189,7 @@ describe('createEmailDraft', () => {
 
   it('should include recipient in mailto URL', () => {
     const customRecipient = 'custom@support.com';
-    const error: CachedError = {
-      name: 'TestError',
-      message: 'Test',
-      commandName: 'test',
-      timestamp: Date.now(),
-      argv: [],
-      version: {
-        architecture: 'x64',
-        cliVersion: '1.0.0',
-        nodeVersion: 'v18.0.0',
-      },
-      pluginVersions: [],
-    };
+    const error = aCachedError();
 
     const url = createEmailDraft(customRecipient, error).url;
 
@@ -332,19 +197,7 @@ describe('createEmailDraft', () => {
   });
 
   it('should trim body content', () => {
-    const error: CachedError = {
-      name: 'TestError',
-      message: 'Test',
-      commandName: 'test',
-      timestamp: Date.now(),
-      argv: [],
-      version: {
-        architecture: 'x64',
-        cliVersion: '1.0.0',
-        nodeVersion: 'v18.0.0',
-      },
-      pluginVersions: [],
-    };
+    const error = aCachedError();
 
     const url = createEmailDraft(testRecipient, error).url;
     const decodedUrl = decodeURIComponent(url);
@@ -353,20 +206,10 @@ describe('createEmailDraft', () => {
     expect(decodedUrl).toContain('body=Hi Support Team,');
   });
   describe('the draft', () => {
-    const error: CachedError = {
-      name: 'TestError',
-      message: 'Test',
+    const error = aCachedError({
       stack: 'Error: Test\n  at /home/testuser/project/src/test.ts:10',
       commandName: 'lint',
-      timestamp: Date.now(),
-      argv: [],
-      version: {
-        architecture: 'x64',
-        cliVersion: '1.0.0',
-        nodeVersion: 'v18.0.0',
-      },
-      pluginVersions: [],
-    };
+    });
 
     function openedParams(url: string): URLSearchParams {
       return new URLSearchParams(url.slice(url.indexOf('?') + 1));

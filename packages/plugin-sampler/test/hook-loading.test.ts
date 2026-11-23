@@ -296,6 +296,58 @@ export const stale = beforeEach('GET /launches -> 418 (application/json)', () =>
     expect(suggestions).toContain(`"${LAUNCHES}"`);
   });
 
+  it('refuses a default selector at load time, naming the operation’s concrete statuses', async () => {
+    const harness = await sampler();
+    const DEFAULT = 'GET /launches -> default (application/problem+json)';
+    const withDefault = createThymianFormatWithTransactions([
+      [
+        createHttpRequest({ method: 'GET', path: '/launches' }),
+        createHttpResponse({ statusCode: 404 }),
+      ],
+      [
+        createHttpRequest({ method: 'GET', path: '/launches' }),
+        createOkResponse(),
+      ],
+      [
+        createHttpRequest({ method: 'GET', path: '/launches' }),
+        createHttpResponse({
+          statusCode: 'default',
+          mediaType: 'application/problem+json',
+        }),
+      ],
+    ]);
+
+    await harness.writeHook(
+      'errors.ts',
+      `import { beforeEach } from '@thymian/hooks';
+
+export const onError = beforeEach(${JSON.stringify(DEFAULT)}, () => {});
+`,
+    );
+
+    let error: unknown;
+
+    try {
+      await harness.beginRun(withDefault);
+    } catch (e) {
+      error = e;
+    }
+
+    expect((error as Error | undefined)?.message).toContain(
+      'does not resolve against the loaded API description',
+    );
+
+    const suggestions = (
+      (error as { options?: { suggestions?: string[] } }).options
+        ?.suggestions ?? []
+    ).join('\n');
+
+    expect(suggestions).toContain('errors.ts');
+    expect(suggestions).toContain(
+      `"${DEFAULT}" names a default response. Thymian does not test default responses, so it cannot be a hook target. Target one of the operation's documented statuses instead: 200, 404.`,
+    );
+  });
+
   it('records a malformed selector target as a diagnostic, with a grammar hint, instead of throwing', async () => {
     const harness = await sampler();
 

@@ -9,7 +9,7 @@ import os from 'node:os';
 import { join } from 'node:path';
 
 import { captureOutput } from '@oclif/test';
-import { type CachedError, prompts } from '@thymian/common-cli';
+import { prompts } from '@thymian/common-cli';
 import open from 'open';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -27,6 +27,7 @@ vi.mock('@thymian/common-cli', async (importOriginal) => {
 });
 
 import { Feedback } from '../../src/commands/feedback.js';
+import { aCachedError } from '../support/cached-error.js';
 import { loadOclifConfig } from '../support/oclif-config.js';
 
 const oclifConfig = await loadOclifConfig();
@@ -37,8 +38,7 @@ const REFUSAL =
 
 const STACK = 'Error: boom\n    at /home/testuser/project/src/lint.ts:10:5';
 
-const record: CachedError = {
-  name: 'TestError',
+const record = aCachedError({
   message: 'boom',
   stack: STACK,
   commandName: 'lint',
@@ -51,7 +51,7 @@ const record: CachedError = {
     osVersion: 'Darwin',
   },
   pluginVersions: [{ name: '@thymian/plugin-openapi', version: '1.2.3' }],
-};
+});
 
 const confirm = vi.mocked(prompts.confirm);
 const select = vi.mocked(prompts.select);

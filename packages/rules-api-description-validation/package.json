@@ -46,5 +46,9 @@
   "dependencies": {
     "@thymian/core": "0.0.0-PLACEHOLDER",
     "tslib": "^2.3.0"
+  },
+  "devDependencies": {
+    "@thymian/core-testing": "0.0.0-PLACEHOLDER",
+    "@thymian/plugin-http-analyzer": "0.0.0-PLACEHOLDER"
   }
 }
