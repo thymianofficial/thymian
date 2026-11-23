@@ -113,7 +113,8 @@ export function getHeader(
  * Answers `false` for every name when the message is marked
  * `headers-not-captured`, whatever headers it also carries, and `true`
  * otherwise. A trace rule that compares a field across hops asks
- * `isHeaderCapturedOnBoth` and skips the pair when it answers `false`. See ADR-0029
+ * `isHeaderCapturedOnBoth` and skips the pair when it answers `false`. See
+ * ADR-0029
  * (`docs/arc42/adr/0029-capture-gaps-are-marked-on-the-captured-message.md`).
  */
 export function isHeaderCaptured(
