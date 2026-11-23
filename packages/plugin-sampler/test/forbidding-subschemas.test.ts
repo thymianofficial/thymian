@@ -32,6 +32,29 @@ describe('forbiddingSubschemasToBoolean', () => {
     },
   );
 
+  it('should drop a forbidding items beside a non-empty prefixItems', () => {
+    expect(
+      forbiddingSubschemasToBoolean({
+        type: 'array',
+        prefixItems: [{ type: 'string' }, { type: 'integer' }],
+        items: { not: {} },
+      }),
+    ).toEqual({
+      type: 'array',
+      prefixItems: [{ type: 'string' }, { type: 'integer' }],
+    });
+  });
+
+  it('should turn a forbidding items beside an empty prefixItems into false', () => {
+    expect(
+      forbiddingSubschemasToBoolean({
+        type: 'array',
+        prefixItems: [],
+        items: { not: {} },
+      }),
+    ).toEqual({ type: 'array', prefixItems: [], items: false });
+  });
+
   it('should leave `not: {}` in every other position alone', () => {
     const schema = {
       properties: { never: { not: {} } },

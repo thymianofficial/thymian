@@ -115,6 +115,18 @@ describe('JsonContentTypeStrategy', () => {
         expect(await generator.generate(schema)).toEqual({ $content: [] });
       });
 
+      it('should sample a closed tuple from its prefixItems', async () => {
+        const schema: ThymianSchema = {
+          type: 'array',
+          prefixItems: [{ type: 'string' }, { type: 'integer' }],
+          items: { not: {} },
+        };
+
+        expect(await generator.generate(schema)).toEqual({
+          $content: ['string', 0],
+        });
+      });
+
       it('should keep sampling elements for an items that admits values', async () => {
         const schema: ThymianSchema = {
           type: 'array',

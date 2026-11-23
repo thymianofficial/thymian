@@ -44,6 +44,10 @@ const NAME_MAP_KEYWORDS = new Set([
  * elsewhere means `never`, which the emitter is free to render however it
  * likes.
  *
+ * `items` beside a non-empty `prefixItems` is dropped: the emitter ignores
+ * `prefixItems` and would type the whole array from `items` (`never[]`);
+ * `openapi-sampler` reads `prefixItems` first either way.
+ *
  * The walk matches on names, except that a member of a name map (`$defs`,
  * `properties`, …) is never taken for a keyword: a property or definition
  * named `items` keeps its schema, and only its value is walked.
@@ -58,8 +62,14 @@ export function forbiddingSubschemasToBoolean(input: unknown): unknown {
   }
 
   const out: Record<string, unknown> = {};
+  const closesTuple =
+    Array.isArray(input['prefixItems']) && input['prefixItems'].length > 0;
 
   for (const [key, value] of Object.entries(input)) {
+    if (key === 'items' && closesTuple && forbidsEverything(value)) {
+      continue;
+    }
+
     if (NAME_MAP_KEYWORDS.has(key) && isRecord(value)) {
       out[key] = Object.fromEntries(
         Object.entries(value).map(([name, member]) => [

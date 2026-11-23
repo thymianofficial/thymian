@@ -938,6 +938,38 @@ export const seed = beforeEach(${JSON.stringify(selector)}, async (request, ctx,
       expect(await checkSurface(catalog)).toEqual([]);
     });
 
+    it('emits a closed tuple as unknown[]', async () => {
+      // The emitter ignores `prefixItems` and would type the whole array from
+      // `items: false` as never[], which rejects every valid tuple.
+      const format = new ThymianFormat();
+
+      format.addHttpTransaction(
+        createHttpRequest({ method: 'GET', path: '/x' }),
+        createHttpResponse({
+          statusCode: 200,
+          mediaType: 'application/json',
+          schema: {
+            type: 'object',
+            required: ['pair'],
+            properties: {
+              pair: {
+                type: 'array',
+                prefixItems: [{ type: 'string' }, { type: 'integer' }],
+                items: { not: {} },
+              },
+            },
+          } as never,
+        }),
+        'test-source',
+      );
+
+      const catalog = catalogOf(format);
+      const { requestTypes } = await generateTypeSurface(catalog);
+
+      expect(requestTypes).toContain('pair: unknown[]');
+      expect(await checkSurface(catalog)).toEqual([]);
+    });
+
     it.each(['items', 'additionalProperties'])(
       'compiles a $defs entry named %s that forbids everything',
       async (name) => {
