@@ -208,14 +208,14 @@ Compare with a partial match, as `toMatchObject` does, and write only the fields
 
 `passed` and `notApplicable` are what show a rule's scope: `passed` proves the rule looked at a transaction and accepted it, `notApplicable` proves it left the transaction alone.
 
-`notApplicable` exists only in a rule test. A report of `thymian lint`, `thymian test` or `thymian analyze` knows `failed`, `passed` and `skipped`.
+These are the statuses of a Thymian report. A report of `thymian test` also uses `notApplicable`: for a rule that applied to nothing, and for a test case whose response fell outside the rule's `appliesTo`, with the reason.
 
 ### Where `passed` and `notApplicable` Come From
 
 The linter and the analyzer report only what a rule returns, and a rule returns its violations. A transaction the rule accepted and one it never looked at both simply do not appear. So `createRuleTester` works the difference out itself:
 
 - In **`static`** and **`analytics`**, it reads the `appliesTo` the rule states in its rule-context calls. A transaction inside it that the engine reported nothing on is `passed`; one outside it is `notApplicable`. `static` asks `appliesTo` of the format, `analytics` of the recorded request and response.
-- In **`test`**, the tester itself reports `passed` and `skipped` for every transaction it sent a request for. `createRuleTester` takes these as reported and adds only `notApplicable`, for a transaction no request was sent for.
+- In **`test`**, the tester itself reports `passed`, `skipped` and `notApplicable` for every transaction it sent a request for: `notApplicable` when the response that came back is outside the rule's `appliesTo`. `createRuleTester` takes these as reported and adds `notApplicable` for a transaction no request was sent for.
 
 This works when `appliesTo` is a filter expression such as `statusCode(201)`. In `static`, a rule can also decide applicability in a **plain callback** (`validateHttpTransactions`). That cannot be read from outside, so every transaction the rule did not flag comes back as `passed`:
 

@@ -1,5 +1,6 @@
 import {
   executionsFromRunRulesResult,
+  type ExecutionStatus,
   type FindingRecord,
   isRuleViolationGroupLocation,
   resolveViolationLocation,
@@ -15,11 +16,9 @@ import {
 import type { RuleUnderTest } from './rule-under-test.js';
 
 /**
- * `notApplicable` exists only in a rule test: the engines and the report know
- * `failed`, `passed` and `skipped`.
+ * The status of an execution, spelled as the report spells it (ADR-0030).
  */
-export type RuleTestExecutionStatus =
-  'failed' | 'passed' | 'notApplicable' | 'skipped';
+export type RuleTestExecutionStatus = ExecutionStatus['kind'];
 
 /**
  * What a rule said about one location, in one validation context.
@@ -40,7 +39,7 @@ export type RuleTestExecution = {
    * a rule that ships disabled.
    */
   severity?: RuleSeverity;
-  /** Present when `skipped` and the rule gave a reason. */
+  /** Present when `skipped` or `notApplicable` and the engine gave a reason. */
   reason?: string;
   /**
    * Present when a grouped rule located the execution on a group as a whole
