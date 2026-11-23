@@ -257,7 +257,7 @@ export default httpRule('<prefix>/<actor>-<keyword>-<constraint>')
   from `@thymian/core` first, or `isHeaderCapturedOnBoth(a, b, name)` for a field it compares
   across two messages, and skips the pair when the field was not captured: a Capture
   Gap must not read as an absent field
-  ([ADR-0026](../../../docs/arc42/adr/0026-capture-gaps-are-marked-on-the-captured-message.md)).
+  ([ADR-0029](../../../docs/arc42/adr/0029-capture-gaps-are-marked-on-the-captured-message.md)).
 - A rule written for a user-agent step is named after the user agent's requirement, with the
   user agent as its actor, and judges the server's message that triggers the step.
 

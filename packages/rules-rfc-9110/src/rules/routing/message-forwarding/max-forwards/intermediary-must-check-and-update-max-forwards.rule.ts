@@ -27,7 +27,7 @@ export default httpRule(
         }
         // On a Capture Gap this can miss a violation but never invent one: it
         // reports only a field it reads on both hops, so it needs no
-        // isHeaderCaptured guard (ADR-0026).
+        // isHeaderCaptured guard (ADR-0029).
         const receivedValue = parseMaxForwards(
           getHeader(inbound.request.data.headers, 'max-forwards'),
         );

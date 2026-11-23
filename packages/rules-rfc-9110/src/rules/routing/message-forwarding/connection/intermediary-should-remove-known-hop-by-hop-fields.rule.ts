@@ -35,7 +35,7 @@ export default httpRule(
         // unchanged (present on both hops with an equal value) is flagged.
         // On a Capture Gap this can miss a violation but never invent one: it
         // reports only a field it reads on both hops, so it needs no
-        // isHeaderCaptured guard (ADR-0026).
+        // isHeaderCaptured guard (ADR-0029).
         const forwardedUnchanged = KNOWN_HOP_BY_HOP.filter((name) => {
           const received = getHeader(inbound.request.data.headers, name);
           const forwarded = getHeader(outbound.request.data.headers, name);

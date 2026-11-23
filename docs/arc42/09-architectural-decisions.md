@@ -36,7 +36,7 @@ This chapter documents the significant architectural decisions made for Thymian.
 | [ADR-0026](adr/0026-rules-are-tested-through-each-contexts-real-engine.md)     | Rules are tested through each context's real engine                       | Accepted | 2026-11-13 | [10.1](10-quality-requirements.md#101-quality-requirements-overview): Reliability                                      |
 | [ADR-0027](adr/0027-default-is-a-response-node-and-matching-is-staged.md)      | `default` is a response node; matching resolves the operation first       | Accepted | 2026-11-16 | —                                                                                                                      |
 | [ADR-0028](adr/0028-rule-context-calls-judge-the-live-status.md)               | Rule-context calls judge the response the server actually sent            | Accepted | 2026-11-18 | —                                                                                                                      |
-| [ADR-0026](adr/0026-capture-gaps-are-marked-on-the-captured-message.md)        | Capture Gaps are marked on the captured message, and rules ask a per-field helper | Accepted | 2026-11-16 | —                                                                                                                      |
+| [ADR-0029](adr/0029-capture-gaps-are-marked-on-the-captured-message.md)        | Capture Gaps are marked on the captured message; rules ask per field      | Accepted | 2026-11-16 | —                                                                                                                      |
 
 ## Creating New ADRs
 

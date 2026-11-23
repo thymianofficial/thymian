@@ -113,8 +113,8 @@ export function getHeader(
  * Answers `false` for every name when the message is marked
  * `headers-not-captured`, whatever headers it also carries, and `true`
  * otherwise. A trace rule that compares a field across hops asks
- * `isHeaderCapturedOnBoth` and skips the pair when it answers `false`. See ADR-0026
- * (`docs/arc42/adr/0026-capture-gaps-are-marked-on-the-captured-message.md`).
+ * `isHeaderCapturedOnBoth` and skips the pair when it answers `false`. See ADR-0029
+ * (`docs/arc42/adr/0029-capture-gaps-are-marked-on-the-captured-message.md`).
  */
 export function isHeaderCaptured(
   message: CapturedHttpRequest | CapturedHttpResponse,
@@ -131,8 +131,8 @@ export function isHeaderCaptured(
 /**
  * Whether the header field `name` was captured on both messages a trace rule
  * compares, so its absence from either one means that message did not carry
- * it. A rule skips the pair when this answers `false`. See ADR-0026
- * (`docs/arc42/adr/0026-capture-gaps-are-marked-on-the-captured-message.md`).
+ * it. A rule skips the pair when this answers `false`. See ADR-0029
+ * (`docs/arc42/adr/0029-capture-gaps-are-marked-on-the-captured-message.md`).
  */
 export function isHeaderCapturedOnBoth(
   a: CapturedHttpRequest | CapturedHttpResponse,

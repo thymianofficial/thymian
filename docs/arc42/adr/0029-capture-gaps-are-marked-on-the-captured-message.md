@@ -1,4 +1,4 @@
-# ADR-0026: Capture Gaps are marked on the captured message, and rules ask a per-field helper
+# ADR-0029: Capture Gaps are marked on the captured message; rules ask per field
 
 | Status   | Date       | Supersedes | Superseded by |
 | -------- | ---------- | ---------- | ------------- |

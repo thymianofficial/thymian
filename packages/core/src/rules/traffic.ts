@@ -6,8 +6,8 @@ import type { HttpParticipantRole } from './rule-meta.js';
  * absence from `data` must not be read as absence from the message.
  *
  * A closed union tagged by `kind`; further kinds widen it. Rules never read
- * the gaps themselves, they ask `isHeaderCaptured`. See ADR-0026
- * (`docs/arc42/adr/0026-capture-gaps-are-marked-on-the-captured-message.md`).
+ * the gaps themselves, they ask `isHeaderCaptured`. See ADR-0029
+ * (`docs/arc42/adr/0029-capture-gaps-are-marked-on-the-captured-message.md`).
  *
  * - `headers-not-captured`: none of the message's header fields were recorded.
  */
@@ -17,7 +17,7 @@ export type CaptureGap = { kind: 'headers-not-captured' };
 export type CapturedMessageMeta = {
   /** The participant that sent this message. */
   role?: HttpParticipantRole;
-  /** Parts of this message the traffic source did not record (ADR-0026). */
+  /** Parts of this message the traffic source did not record (ADR-0029). */
   captureGaps?: CaptureGap[];
 };
 

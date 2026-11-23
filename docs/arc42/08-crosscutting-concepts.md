@@ -230,7 +230,7 @@ ApiContext (base)
 
 - `LintContext`: `validateHttpTransactions({ appliesTo, violatedWhen })` with typed `ThymianHttpRequest`/`ThymianHttpResponse` parameters
 - `TestContext`: `httpTest()` and `runHttpTest()` for pipeline-based live HTTP testing
-- `AnalyzeContext`: `validateCapturedHttpTransactions()` and `validateCapturedHttpTraces()` for querying captured traffic. Trace rules ask `isHeaderCaptured`, or `isHeaderCapturedOnBoth` for a field compared across two messages, before reading a header's absence as absence ([ADR-0026](adr/0026-capture-gaps-are-marked-on-the-captured-message.md))
+- `AnalyzeContext`: `validateCapturedHttpTransactions()` and `validateCapturedHttpTraces()` for querying captured traffic. Trace rules ask `isHeaderCaptured`, or `isHeaderCapturedOnBoth` for a field compared across two messages, before reading a header's absence as absence ([ADR-0029](adr/0029-capture-gaps-are-marked-on-the-captured-message.md))
 
 **Applicability and Violation Condition** ([ADR-0022](adr/0022-applicability-and-violation-condition.md)):
 every rule-context validation call names its two roles with required keys. `appliesTo` is the

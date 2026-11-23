@@ -60,7 +60,7 @@ export default httpRule('rfc9110/proxy-must-not-change-field-line-order')
 
           // On a Capture Gap this can miss a violation but never invent one: it
           // reports only a multi-line field it reads on both hops, so it needs
-          // no isHeaderCaptured guard (ADR-0026).
+          // no isHeaderCaptured guard (ADR-0029).
           const before = fieldLineValues(getHeader(received, name));
           const after = fieldLineValues(getHeader(forwarded, name));
 

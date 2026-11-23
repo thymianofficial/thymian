@@ -4,7 +4,7 @@ import type {
   HttpParticipantRole,
 } from '@thymian/core';
 
-/** Marks a message whose header fields were not recorded (ADR-0026). */
+/** Marks a message whose header fields were not recorded (ADR-0029). */
 export const NOT_CAPTURED: CaptureGap[] = [{ kind: 'headers-not-captured' }];
 
 export type HopOptions = {

@@ -76,7 +76,7 @@ CREATE TABLE IF NOT EXISTS http_request_query_parameter (
     FOREIGN KEY (request_id) REFERENCES http_request(id)
 );
 
--- Parts of a captured message the traffic source did not record (ADR-0026).
+-- Parts of a captured message the traffic source did not record (ADR-0029).
 -- Tables, not columns, so a database file created before them gains them here.
 CREATE TABLE IF NOT EXISTS request_capture_gap (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
