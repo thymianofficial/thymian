@@ -1185,8 +1185,11 @@ describe('HttpTestApiContext', () => {
     });
 
     describe('validateGroupedCommonHttpTransactions', () => {
-      it('skips a group none of whose pairs passes the live re-check, naming both statuses', async () => {
-        const { context } = contextAnswering(['/a', 200], ['/b', 500]);
+      it('skips a group none of whose pairs passes the live re-check, on the group, naming both statuses', async () => {
+        const { context, transactionIds } = contextAnswering(
+          ['/a', 200],
+          ['/b', 500],
+        );
 
         const results = await context.validateGroupedCommonHttpTransactions({
           appliesTo: statusCode(401),
@@ -1196,6 +1199,13 @@ describe('HttpTestApiContext', () => {
 
         expect(results).toEqual([
           expect.objectContaining({
+            location: expect.objectContaining({
+              elementType: 'group',
+              members: [
+                { elementType: 'edge', elementId: transactionIds[0] },
+                { elementType: 'edge', elementId: transactionIds[1] },
+              ],
+            }),
             findings: [
               expect.objectContaining({
                 kind: 'rule-skip',

@@ -304,21 +304,32 @@ export class HttpTestApiContext<
       );
 
       if (liveAppliesTo && applicable.length === 0) {
-        const reasons = transactions
-          .filter(hasSource)
-          .flatMap(({ source, response }) =>
-            response
-              ? [
-                  `${thymianHttpTransactionToString(source.thymianReq, source.thymianRes)}: ${declaredVersusLiveStatus({ source, response })}`,
-                ]
-              : [],
-          );
-        const result = this.notApplicableResult(
-          `${this.name}:${testCase.name}`,
-          `none of the group's pairs matches (${reasons.join('; ')})`,
+        const sent = transactions.filter(hasSource);
+        const reasons = sent.flatMap(({ source, response }) =>
+          response
+            ? [
+                `${thymianHttpTransactionToString(source.thymianReq, source.thymianRes)}: ${declaredVersusLiveStatus({ source, response })}`,
+              ]
+            : [],
         );
-        callViolations.push(result);
-        placements.push({ result, testCaseIndex, stepIndex: 0 });
+        // Located on the group, so the skip names every member it covers.
+        const results = locateOnGroup(
+          [
+            this.notApplicableResult(
+              source.key,
+              `none of the group's pairs matches (${reasons.join('; ')})`,
+            ),
+          ],
+          source.key,
+          sent.map(({ source }) => ({
+            elementType: 'edge',
+            elementId: source.transactionId,
+          })),
+        );
+        callViolations.push(...results);
+        for (const result of results) {
+          placements.push({ result, testCaseIndex, stepIndex: 0 });
+        }
         return;
       }
 
