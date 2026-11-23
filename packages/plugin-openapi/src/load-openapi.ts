@@ -1,5 +1,5 @@
 import { access } from 'node:fs/promises';
-import { isAbsolute, join, relative, sep } from 'node:path';
+import { isAbsolute, join, relative, sep, win32 } from 'node:path';
 
 import { bundle } from '@scalar/json-magic/bundle';
 import {
@@ -65,6 +65,13 @@ function plural(count: number, word: string): string {
   return count > 1 ? `${word}s` : word;
 }
 
+const URL_REF_PATTERN = /^[a-z][a-z\d+.-]*:\/\//i;
+
+// A relative ref is resolved against the document containing it; a URL or an absolute path is not.
+function isRelativeRef(ref: string): boolean {
+  return !URL_REF_PATTERN.test(ref) && !win32.isAbsolute(ref);
+}
+
 function missingFileClause(errors: ParserError[]): string | undefined {
   const files = errors
     .filter(isMissingFileError)
@@ -78,7 +85,11 @@ function missingFileClause(errors: ParserError[]): string | undefined {
     return undefined;
   }
 
-  return `${plural(files.length, 'Referenced file')} not found: ${files.map((file) => `'${file}'`).join(', ')} (resolved relative to the document containing the $ref).`;
+  const resolutionNote = files.every(isRelativeRef)
+    ? ' (resolved relative to the document containing the $ref)'
+    : '';
+
+  return `${plural(files.length, 'Referenced file')} could not be loaded: ${files.map((file) => `'${file}'`).join(', ')}${resolutionNote}.`;
 }
 
 function createDereferenceError(
@@ -92,10 +103,10 @@ function createDereferenceError(
       ref: 'https://thymian.dev/references/errors/openapi-dereference-error/',
       cause: new Error(errors.map((e) => e.message).join('; ')),
       suggestions: [
-        'Ensure every $ref points to an existing location: a JSON pointer within its document, or a file path relative to the document containing the $ref.',
+        'Ensure every $ref points to an existing location: a JSON pointer within its document, a file path (relative paths resolve against the document containing the $ref), or a reachable URL.',
         ...(errors.some(isMissingFileError)
           ? [
-              'Check that the referenced file exists and the relative path is spelled correctly.',
+              'Check that each referenced file or URL exists and is readable, and that relative paths are spelled correctly.',
             ]
           : []),
       ],

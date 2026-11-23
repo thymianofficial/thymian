@@ -962,12 +962,45 @@ describe('load-openapi', () => {
         expect(error).toBeInstanceOf(ThymianBaseError);
         const { message } = error as ThymianBaseError;
         expect(message).toContain(
-          "Referenced files not found: './schemas/missing-a.yaml', './schemas/missing-b.yaml'",
+          "Referenced files could not be loaded: './schemas/missing-a.yaml', './schemas/missing-b.yaml' (resolved relative to the document containing the $ref).",
         );
         expect(message).toContain(
           "Invalid $ref found: Can't resolve reference: #/components/schemas/NonExistent",
         );
       }
+    });
+
+    it('omits the relative-resolution note for an absolute $ref path', async () => {
+      const documentWithAbsoluteRef = {
+        openapi: '3.1.0',
+        info: { title: 'Test', version: '1.0.0' },
+        paths: {
+          '/test': {
+            get: {
+              responses: {
+                '200': {
+                  description: 'OK',
+                  content: {
+                    'application/json': {
+                      schema: { $ref: '/abs/missing.yaml#/X' },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      };
+
+      await expect(
+        loadAndUpgrade(
+          JSON.stringify(documentWithAbsoluteRef),
+          process.cwd(),
+          new NoopLogger(),
+        ),
+      ).rejects.toMatchObject({
+        message: "Referenced file could not be loaded: '/abs/missing.yaml'.",
+      });
     });
 
     it('throws OpenAPIDereferenceError for a missing external file when validateSpecs is enabled', async () => {
