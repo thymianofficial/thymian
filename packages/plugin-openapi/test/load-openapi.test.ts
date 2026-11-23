@@ -1003,6 +1003,46 @@ describe('load-openapi', () => {
       });
     });
 
+    it('strips credentials and query string from a URL $ref in the headline only', async () => {
+      const rawUrl = 'https://user:secret@nonexistent.invalid/s.yaml?token=abc';
+      const documentWithUrlRef = {
+        openapi: '3.1.0',
+        info: { title: 'Test', version: '1.0.0' },
+        paths: {
+          '/test': {
+            get: {
+              responses: {
+                '200': {
+                  description: 'OK',
+                  content: {
+                    'application/json': { schema: { $ref: rawUrl } },
+                  },
+                },
+              },
+            },
+          },
+        },
+      };
+
+      try {
+        await loadAndUpgrade(
+          JSON.stringify(documentWithUrlRef),
+          process.cwd(),
+          new NoopLogger(),
+        );
+        expect.fail('Error should have been thrown');
+      } catch (error) {
+        expect(error).toBeInstanceOf(ThymianBaseError);
+        const thymianError = error as ThymianBaseError;
+        expect(thymianError.message).toContain(
+          "'https://nonexistent.invalid/s.yaml'",
+        );
+        expect(thymianError.message).not.toContain('secret');
+        expect(thymianError.message).not.toContain('token');
+        expect((thymianError.cause as Error).message).toContain(rawUrl);
+      }
+    });
+
     it('throws OpenAPIDereferenceError for a missing external file when validateSpecs is enabled', async () => {
       try {
         await loadAndUpgrade(

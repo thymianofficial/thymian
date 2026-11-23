@@ -72,6 +72,24 @@ function isRelativeRef(ref: string): boolean {
   return !URL_REF_PATTERN.test(ref) && !win32.isAbsolute(ref);
 }
 
+// The headline is shown in the terminal, so a URL loses its credentials and query string there.
+function redactUrlRef(ref: string): string {
+  if (!URL_REF_PATTERN.test(ref)) {
+    return ref;
+  }
+
+  try {
+    const url = new URL(ref);
+    url.username = '';
+    url.password = '';
+    url.search = '';
+    return url.toString();
+  } catch {
+    const queryStart = ref.indexOf('?');
+    return queryStart === -1 ? ref : ref.slice(0, queryStart);
+  }
+}
+
 function missingFileClause(errors: ParserError[]): string | undefined {
   const files = errors
     .filter(isMissingFileError)
@@ -89,7 +107,7 @@ function missingFileClause(errors: ParserError[]): string | undefined {
     ? ' (resolved relative to the document containing the $ref)'
     : '';
 
-  return `${plural(files.length, 'Referenced file')} could not be loaded: ${files.map((file) => `'${file}'`).join(', ')}${resolutionNote}.`;
+  return `${plural(files.length, 'Referenced file')} could not be loaded: ${files.map((file) => `'${redactUrlRef(file)}'`).join(', ')}${resolutionNote}.`;
 }
 
 function createDereferenceError(
