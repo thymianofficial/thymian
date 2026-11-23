@@ -308,4 +308,126 @@ describe('transformHar', () => {
     expect(result.skippedCount).toBe(1);
     expect(result.skippedReasons).toEqual(['invalid request URL']);
   });
+  describe('entries without headers', () => {
+    function harWith(
+      requestHeaders: unknown,
+      responseHeaders: unknown,
+      url = 'https://example.com/a',
+    ): HarLog {
+      return {
+        log: {
+          version: '1.2',
+          entries: [
+            {
+              request: {
+                method: 'GET',
+                url,
+                headers: requestHeaders as HarHeader[],
+              },
+              response: {
+                status: 200,
+                headers: responseHeaders as HarHeader[],
+                content: { size: 0 },
+              },
+              time: 10,
+            },
+          ],
+        },
+      };
+    }
+
+    function withoutKey(har: HarLog, side: 'request' | 'response'): HarLog {
+      const entry = har.log.entries[0]!;
+      delete (entry[side] as { headers?: unknown }).headers;
+      return har;
+    }
+
+    it('should skip an entry without request headers as missing request headers', () => {
+      const har = withoutKey(harWith([], []), 'request');
+
+      const result = transformHar(har, 'user-agent', 'origin server');
+
+      expect(result.transactions).toHaveLength(0);
+      expect(result.skippedCount).toBe(1);
+      expect(result.skippedReasons).toEqual(['missing request headers']);
+    });
+
+    it('should skip an entry without response headers as missing response headers', () => {
+      const har = withoutKey(harWith([], []), 'response');
+
+      const result = transformHar(har, 'user-agent', 'origin server');
+
+      expect(result.transactions).toHaveLength(0);
+      expect(result.skippedCount).toBe(1);
+      expect(result.skippedReasons).toEqual(['missing response headers']);
+    });
+
+    it.each([
+      ['null', null],
+      ['an object', {}],
+      ['a string', 'Accept: */*'],
+    ])('should treat %s headers as missing', (_label, headers) => {
+      const request = transformHar(
+        harWith(headers, []),
+        'user-agent',
+        'origin server',
+      );
+      const response = transformHar(
+        harWith([], headers),
+        'user-agent',
+        'origin server',
+      );
+
+      expect(request.skippedReasons).toEqual(['missing request headers']);
+      expect(response.skippedReasons).toEqual(['missing response headers']);
+    });
+
+    it('should report missing headers before an invalid URL', () => {
+      const har = withoutKey(harWith([], [], 'not-a-valid-url'), 'request');
+
+      const result = transformHar(har, 'user-agent', 'origin server');
+
+      expect(result.skippedReasons).toEqual(['missing request headers']);
+    });
+
+    it('should still load an entry with empty header arrays', () => {
+      const result = transformHar(
+        harWith([], []),
+        'user-agent',
+        'origin server',
+      );
+
+      expect(result.transactions).toHaveLength(1);
+      expect(result.skippedCount).toBe(0);
+      expect(result.skippedReasons).toEqual([]);
+    });
+  });
+
+  it('should report another malformed entry as malformed entry', () => {
+    const har = {
+      log: {
+        version: '1.2',
+        entries: [
+          {
+            request: {
+              url: 'https://example.com/a',
+              headers: [],
+            },
+            response: {
+              status: 200,
+              headers: [],
+              content: { size: 0 },
+            },
+            time: 10,
+          },
+        ],
+      },
+    } as unknown as HarLog;
+
+    const result = transformHar(har, 'user-agent', 'origin server');
+
+    expect(result.transactions).toHaveLength(0);
+    expect(result.skippedCount).toBe(1);
+    expect(result.skippedReasons).toEqual(['malformed entry']);
+  });
 });

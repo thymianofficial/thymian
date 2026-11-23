@@ -77,6 +77,19 @@ export function transformHarEntry(
   };
 }
 
+/**
+ * A request or response object whose `headers` is not an array: absent,
+ * `null` or any other shape. A missing request object is not a headers
+ * problem and is left to the `malformed entry` path.
+ */
+function lacksHeaders(part: unknown): boolean {
+  return (
+    typeof part === 'object' &&
+    part !== null &&
+    !Array.isArray((part as { headers?: unknown }).headers)
+  );
+}
+
 export function transformHar(
   har: HarLog,
   clientRole: HttpParticipantRole,
@@ -97,11 +110,26 @@ export function transformHar(
       continue;
     }
 
+    const missingHeaders = lacksHeaders(entry.request)
+      ? 'missing request headers'
+      : lacksHeaders(entry.response)
+        ? 'missing response headers'
+        : undefined;
+
+    if (missingHeaders) {
+      skippedCount++;
+      skippedReasons.push(missingHeaders);
+      continue;
+    }
+
     let transaction: CapturedTransaction | null;
     try {
+      // Returns null only when the request URL fails to parse.
       transaction = transformHarEntry(entry, clientRole, serverRole);
     } catch {
-      transaction = null;
+      skippedCount++;
+      skippedReasons.push('malformed entry');
+      continue;
     }
 
     if (transaction) {
