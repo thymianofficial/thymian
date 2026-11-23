@@ -7,7 +7,7 @@ title: 'OpenAPIDereferenceError'
 Thymian failed to resolve the `$ref` references in your OpenAPI document. This occurs when:
 
 - A `$ref` points to a location that doesn't exist in the document
-- A `$ref` points to an external file that doesn't exist
+- A `$ref` points to an external file or URL that cannot be loaded (missing, unreadable, a directory, or unreachable)
 - A `$ref` uses an invalid path or pointer format (e.g., malformed JSON Pointer)
 - A `$ref` is circular or contains unresolvable nested references
 - The referenced schema or object is missing required fields
@@ -24,7 +24,7 @@ components:
           $ref: '#/components/schemas/InvalidRole' # InvalidRole doesn't exist
 ```
 
-A `$ref` can also point to another file. Thymian resolves the file path relative to the document that contains the `$ref`, and names the file in the error when it cannot be found:
+A `$ref` can also point to another file. Thymian resolves the file path relative to the document that contains the `$ref`, and names the file in the error when it cannot be loaded:
 
 ```yaml
 # ❌ Invalid: openapi.yaml references a file that doesn't exist
@@ -79,7 +79,7 @@ paths:
            - $ref: '#/components/schemas/Address'
    ```
 
-4. **Check external file references** - External references are supported. A `$ref` such as `./schemas/user.yaml#/User` is resolved relative to the document that contains the `$ref`, not relative to the current working directory or the root document. Check that the referenced file exists and that its relative path is spelled correctly.
+4. **Check external file references** - External references are supported. A `$ref` such as `./schemas/user.yaml#/User` is resolved relative to the document that contains the `$ref`, not relative to the current working directory or the root document. Check that the referenced file exists and that its relative path is spelled correctly; a URL must be reachable, and an absolute path is used as written.
 
 5. **Validate your document** - Use an OpenAPI validator to catch reference errors early:
 
