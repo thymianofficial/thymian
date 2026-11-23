@@ -40,11 +40,14 @@ export function transformHarEntry(
     return null;
   }
 
+  // Read outside the try so a missing request throws to the caller
+  // instead of being mistaken for an invalid URL.
+  const url = entry.request.url;
   let origin: string;
   let path: string;
 
   try {
-    const parsed = parseUrl(entry.request.url);
+    const parsed = parseUrl(url);
     origin = parsed.origin;
     path = parsed.path;
   } catch {

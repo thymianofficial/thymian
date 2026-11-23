@@ -403,6 +403,25 @@ describe('transformHar', () => {
     });
   });
 
+  it('should report an entry without a request as malformed entry', () => {
+    const har = {
+      log: {
+        version: '1.2',
+        entries: [
+          {
+            response: { status: 200, headers: [], content: { size: 0 } },
+            time: 10,
+          },
+        ],
+      },
+    } as unknown as HarLog;
+
+    const result = transformHar(har, 'user-agent', 'origin server');
+
+    expect(result.skippedCount).toBe(1);
+    expect(result.skippedReasons).toEqual(['malformed entry']);
+  });
+
   it('should report another malformed entry as malformed entry', () => {
     const har = {
       log: {
