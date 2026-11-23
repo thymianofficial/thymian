@@ -1,0 +1,12 @@
+openapi: 3.1.0
+info: { version: '1' }
+paths:
+  /things:
+    get:
+      operationId: listThings
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: './schemas/missing.yaml#/X' }
