@@ -477,49 +477,38 @@ export class HttpTestApiContext<
             location,
             transactionIndex,
           );
-          const placeLiveResult = () => {
-            if (live.result) {
-              callViolations.push(live.result);
-              placements.push({
-                result: live.result,
-                testCaseIndex,
-                stepIndex,
-              });
-            }
-          };
-
-          if (!live.judge) {
-            placeLiveResult();
-            continue;
-          }
-
           const results: RuleFnResult[] = [];
-          if (typeof violatedWhen === 'function') {
-            results.push(
-              ...violatedWhen(
-                httpRequestToCommonHttpRequest(request, {
-                  id: source.thymianReqId,
-                  logger: this.ctx.logger,
-                }),
-                httpResponseToCommonHttpResponse(response, {
-                  id: source.thymianResId,
-                  logger: this.ctx.logger,
-                }),
-                location,
-              ),
-            );
-          } else {
-            const isViolated = httpFilterToTransactionValidationFn(
-              violatedWhen,
-              this.format,
-            );
-            if (isViolated(request, response, source)) {
-              results.push({
-                location: { ...location, pointer: '' },
-                violation: {},
-                findings: [],
-              });
+          if (live.judge) {
+            if (typeof violatedWhen === 'function') {
+              results.push(
+                ...violatedWhen(
+                  httpRequestToCommonHttpRequest(request, {
+                    id: source.thymianReqId,
+                    logger: this.ctx.logger,
+                  }),
+                  httpResponseToCommonHttpResponse(response, {
+                    id: source.thymianResId,
+                    logger: this.ctx.logger,
+                  }),
+                  location,
+                ),
+              );
+            } else {
+              const isViolated = httpFilterToTransactionValidationFn(
+                violatedWhen,
+                this.format,
+              );
+              if (isViolated(request, response, source)) {
+                results.push({
+                  location: { ...location, pointer: '' },
+                  violation: {},
+                  findings: [],
+                });
+              }
             }
+          }
+          if (live.result) {
+            results.push(live.result);
           }
           callViolations.push(...results);
           for (const result of results) {
@@ -530,8 +519,6 @@ export class HttpTestApiContext<
               placements.push({ result, testCaseIndex, stepIndex });
             }
           }
-
-          placeLiveResult();
         }
       });
     });
@@ -691,33 +678,22 @@ export class HttpTestApiContext<
             location,
             transactionIndex,
           );
-          const placeLiveResult = () => {
-            if (live.result) {
-              callViolations.push(live.result);
-              placements.push({
-                result: live.result,
-                testCaseIndex,
-                stepIndex,
-              });
-            }
-          };
-
-          if (!live.judge) {
-            placeLiveResult();
-            continue;
-          }
-
           const results: RuleFnResult[] = [];
-          if (typeof violatedWhen === 'function') {
-            results.push(...violatedWhen(request, response, location));
-          } else {
-            const isViolated = httpFilterToTransactionValidationFn(
-              violatedWhen,
-              this.format,
-            );
-            if (isViolated(request, response, source)) {
-              results.push({ location, violation: {}, findings: [] });
+          if (live.judge) {
+            if (typeof violatedWhen === 'function') {
+              results.push(...violatedWhen(request, response, location));
+            } else {
+              const isViolated = httpFilterToTransactionValidationFn(
+                violatedWhen,
+                this.format,
+              );
+              if (isViolated(request, response, source)) {
+                results.push({ location, violation: {}, findings: [] });
+              }
             }
+          }
+          if (live.result) {
+            results.push(live.result);
           }
           callViolations.push(...results);
           for (const result of results) {
@@ -728,8 +704,6 @@ export class HttpTestApiContext<
               placements.push({ result, testCaseIndex, stepIndex });
             }
           }
-
-          placeLiveResult();
         }
       });
     });
