@@ -2,7 +2,7 @@ import type { ThymianSchema } from '@thymian/core';
 import { sample } from 'openapi-sampler';
 
 import type { ContentSource } from '../../http-request-sample.js';
-import { closedObjectsToBoolean } from '../closed-schema.js';
+import { forbiddingSubschemasToBoolean } from '../forbidding-subschemas.js';
 import type { ContentTypeStrategy } from './content-type-strategy.js';
 
 type SamplerSchema = Parameters<typeof sample>[0];
@@ -13,12 +13,16 @@ export class XmlContentTypeStrategy implements ContentTypeStrategy {
   }
 
   async generate(schema: ThymianSchema): Promise<ContentSource> {
-    const closed = closedObjectsToBoolean(schema) as SamplerSchema;
+    const samplerSchema = forbiddingSubschemasToBoolean(
+      schema,
+    ) as SamplerSchema;
 
     return {
       $encoding: 'utf-8',
       $ext: 'xml',
-      $buffer: Buffer.from(sample(closed, { format: 'xml' }, closed) as string),
+      $buffer: Buffer.from(
+        sample(samplerSchema, { format: 'xml' }, samplerSchema) as string,
+      ),
     };
   }
 }

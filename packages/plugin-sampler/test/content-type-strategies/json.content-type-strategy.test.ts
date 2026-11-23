@@ -97,5 +97,44 @@ describe('JsonContentTypeStrategy', () => {
         });
       });
     });
+
+    describe('closed arrays', () => {
+      // `items: false` reaches the strategy as `{ not: {} }`.
+      const closed: ThymianSchema = { type: 'array', items: { not: {} } };
+
+      it('should sample an empty array', async () => {
+        expect(await generator.generate(closed)).toEqual({ $content: [] });
+      });
+
+      it('should sample an empty array behind a $ref', async () => {
+        const schema: ThymianSchema = {
+          $ref: '#/$defs/Nothing',
+          $defs: { Nothing: closed },
+        };
+
+        expect(await generator.generate(schema)).toEqual({ $content: [] });
+      });
+
+      it('should sample a closed tuple from its prefixItems', async () => {
+        const schema: ThymianSchema = {
+          type: 'array',
+          prefixItems: [{ type: 'string' }, { type: 'integer' }],
+          items: { not: {} },
+        };
+
+        expect(await generator.generate(schema)).toEqual({
+          $content: ['string', 0],
+        });
+      });
+
+      it('should keep sampling elements for an items that admits values', async () => {
+        const schema: ThymianSchema = {
+          type: 'array',
+          items: { type: 'integer' },
+        };
+
+        expect(await generator.generate(schema)).toEqual({ $content: [0] });
+      });
+    });
   });
 });
