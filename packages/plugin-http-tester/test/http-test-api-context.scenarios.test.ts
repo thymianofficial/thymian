@@ -29,6 +29,7 @@ function actualPairAt(
 describeRuleContextScenarios({
   name: 'test',
   observes: 'actual pair',
+  reportsLiveChecks: true,
   async setup(transactions) {
     const format = new ThymianFormat();
     const transactionIds = transactions.map(({ described }) => {
