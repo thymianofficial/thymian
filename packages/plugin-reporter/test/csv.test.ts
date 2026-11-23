@@ -230,33 +230,40 @@ describe('CSV model alignment (AC16)', () => {
   ];
 
   const testReport = createReport([
-    createToolRun({
-      tool: { name: '@thymian/plugin-http-tester' },
-      runType: 'test',
-      rules,
-      executions: [
-        createTestCaseExecution({
-          name: 'Create order then fetch it',
-          ruleId: 'order-lifecycle',
-          status: { kind: 'failed', reason: 'Fetch failed' },
-          steps: [
-            createTestStep({
-              name: 'Step 1',
-              location: { type: 'custom', value: 'GET /orders/{id}' },
-              findings: [
-                {
-                  id: 'af-1',
-                  kind: 'assertion-failure',
-                  title: 'status mismatch',
-                  expected: 200,
-                  actual: 404,
-                },
-              ],
-            }),
-          ],
-        }),
-      ],
-    }),
+    {
+      ...createToolRun({
+        tool: { name: '@thymian/plugin-http-tester' },
+        runType: 'test',
+        rules,
+        executions: [
+          createTestCaseExecution({
+            name: 'Create order then fetch it',
+            ruleId: 'order-lifecycle',
+            status: { kind: 'failed', reason: 'Fetch failed' },
+            steps: [
+              createTestStep({
+                name: 'Step 1',
+                location: { type: 'custom', value: 'GET /orders/{id}' },
+                findings: [
+                  {
+                    id: 'af-1',
+                    kind: 'assertion-failure',
+                    title: 'status mismatch',
+                    expected: 200,
+                    actual: 404,
+                  },
+                ],
+              }),
+            ],
+          }),
+        ],
+      }),
+      // Pinned to a generated run id that contains the finding id `af-1`. Every
+      // row starts with the run id, so a whole-row search for the finding id
+      // once matched the execution row first; the run id keeps that case
+      // reproducible instead of leaving it to one random UUID in many.
+      runId: '2162f567-efc9-44d4-81af-1340f29733c9',
+    },
   ]);
 
   it('emits an execution row and a finding row with inherited rule_id and expected/actual detail', () => {
@@ -268,7 +275,7 @@ describe('CSV model alignment (AC16)', () => {
     expect(executionRow).toBeDefined();
     expect(executionRow).toContain(',execution,');
 
-    const findingRow = lines.find((l) => l.includes('af-1'));
+    const findingRow = lines.find((l) => l.includes(',af-1,'));
     expect(findingRow).toBeDefined();
     expect(findingRow).toContain('order-lifecycle');
     expect(findingRow).toContain('GET /orders/{id}');
