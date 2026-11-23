@@ -6,6 +6,7 @@ export const hintSymbol = '✎';
 export const infoSymbol = 'ℹ';
 export const successSymbol = '✓';
 export const skippedSymbol = '⏭';
+export const notApplicableSymbol = '∅';
 
 export const SEVERITY_COLORS: Record<Severity, string> = {
   error: '#d1242f',
@@ -15,12 +16,13 @@ export const SEVERITY_COLORS: Record<Severity, string> = {
 };
 
 export const SEVERITY_SYMBOLS: Record<
-  Severity | 'skipped' | 'failed' | 'passed',
+  Severity | 'skipped' | 'notApplicable' | 'failed' | 'passed',
   string
 > = {
   failed: errorSymbol,
   passed: successSymbol,
   skipped: skippedSymbol,
+  notApplicable: notApplicableSymbol,
   error: errorSymbol,
   hint: hintSymbol,
   info: infoSymbol,

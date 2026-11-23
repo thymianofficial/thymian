@@ -116,7 +116,7 @@ export interface Invocation {
  * Common shape shared by all report findings.
  *
  * Findings represent *detail* collected during an execution. Rule/test outcomes
- * ("violation"/"passed"/"skipped") are no longer findings — they live on the
+ * ("violation"/"passed"/"skipped"/"notApplicable") are no longer findings — they live on the
  * owning {@link Execution}'s {@link ExecutionStatus}. Findings therefore carry
  * neither a `severity` (a violation's severity is derived from its execution's
  * `ruleId`/`status`) nor a `ruleId` (a finding inherits its execution's rule).
@@ -231,8 +231,10 @@ export type Location =
 /**
  * Outcome of an execution — a SARIF-`result`-like `kind` (outcome) that is kept
  * separate from severity (which, per SARIF, only applies to `failed`). `failed`
- * ≡ a rule violation; `skipped` ≡ an execution that did not run (e.g. its rule
- * opted out).
+ * ≡ a rule violation; `skipped` ≡ an execution that had something to judge but
+ * did not run (e.g. its rule opted out); `notApplicable` ≡ the rule's
+ * applicability accepted nothing the context observed (ADR-0030). Only `failed`
+ * fails a run (ADR-0015).
  */
 export type ExecutionStatus =
   | {
@@ -256,6 +258,11 @@ export type ExecutionStatus =
   | {
       kind: 'skipped';
       /** Reason the execution was skipped. */
+      reason?: string;
+    }
+  | {
+      kind: 'notApplicable';
+      /** Why the rule's applicability accepted nothing. */
       reason?: string;
     };
 

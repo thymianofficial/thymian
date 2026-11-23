@@ -72,7 +72,7 @@ const executionSchema = {
       properties: {
         kind: {
           type: 'string',
-          enum: ['passed', 'failed', 'skipped'],
+          enum: ['passed', 'failed', 'skipped', 'notApplicable'],
           nullable: false,
         },
         reason: { type: 'string', nullable: true },

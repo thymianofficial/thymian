@@ -18,9 +18,9 @@ export type SortReportsBy = (typeof SORT_REPORTS_BY_VALUES)[number];
 export const UNNAMED_CHECK_LABEL = 'unnamed check';
 
 /**
- * Group key for an execution under `severity` grouping. Skipped executions have
- * no severity, so they get a dedicated `skipped` bucket rather than being
- * mislabelled as errors.
+ * Group key for an execution under `severity` grouping. Skipped and
+ * not-applicable executions have no severity, so each gets a dedicated bucket
+ * (`skipped`, `notApplicable`) rather than being mislabelled as errors.
  */
 export function severityGroupKey(
   execution: Execution,
@@ -29,7 +29,10 @@ export function severityGroupKey(
 ): string {
   return (
     resolveExecutionSeverity(execution, ruleIndex, logger) ??
-    (execution.status.kind === 'skipped' ? 'skipped' : 'error')
+    (execution.status.kind === 'skipped' ||
+    execution.status.kind === 'notApplicable'
+      ? execution.status.kind
+      : 'error')
   );
 }
 
@@ -54,15 +57,42 @@ export function resolveGroupSeverity(
 
 /**
  * Orders `severity` group keys by `SEVERITY_GROUP_ORDER` (error→warn→hint→info),
- * with any non-severity key (e.g. the `skipped` bucket) sorted last.
+ * then the `skipped` and `notApplicable` buckets, then any other key.
  */
 export function compareSeverityGroupKeys(a: string, b: string): number {
-  const order: readonly string[] = SEVERITY_GROUP_ORDER;
+  const order: readonly string[] = [
+    ...SEVERITY_GROUP_ORDER,
+    'skipped',
+    'notApplicable',
+  ];
   const rank = (key: string): number => {
     const index = order.indexOf(key);
     return index === -1 ? order.length : index;
   };
   return rank(a) - rank(b) || a.localeCompare(b);
+}
+
+/**
+ * Whether a report lists an execution as an entry of its own. A `passed`
+ * execution is only counted. A rule-level `notApplicable` — a test case
+ * without steps, or any lint/analyze one — is listed with its reason. A
+ * case-level `notApplicable`, a test case that ran and that the rule's
+ * applicability rejected, is listed when it carries a reason and only counted
+ * otherwise (ADR-0030).
+ */
+export function isListedExecution(execution: Execution): boolean {
+  switch (execution.status.kind) {
+    case 'passed':
+      return false;
+    case 'notApplicable':
+      return (
+        execution.kind !== 'test' ||
+        execution.steps.length === 0 ||
+        execution.status.reason !== undefined
+      );
+    default:
+      return true;
+  }
 }
 
 /** Pluralizes a severity word (`error`→`errors`, …) for severity-group headings. */
@@ -76,6 +106,8 @@ export function pluralizeSeverity(severity: string): string {
       return 'infos';
     case 'hint':
       return 'hints';
+    case 'notApplicable':
+      return 'not applicable';
     default:
       return severity;
   }
