@@ -198,7 +198,7 @@ export class HttpTestApiContext<
   /**
    * The named form's live check of one sent pair (ADR-0028): whether
    * `violatedWhen` judges it, and the result to report alongside — a
-   * `rule-skip` when `appliesTo` rejects the pair, a status-drift note when it
+   * `rule-skip` when `appliesTo` rejects the pair, a Status drift finding when it
    * is judged with a status the specification does not declare for it. The
    * positional form (`liveAppliesTo` undefined) judges every pair, without note.
    */

@@ -214,7 +214,7 @@ describe('the rule-author guide: testing a rule', () => {
       });
     });
 
-    it("judges the transaction whose live status stays inside the rule's applicability, and notes the status drift", async () => {
+    it("judges the transaction whose live status stays inside the rule's applicability, and reports the status drift", async () => {
       const executions = await createRuleTester(
         clientErrorsAreProblemJson,
       ).runTest(format, {

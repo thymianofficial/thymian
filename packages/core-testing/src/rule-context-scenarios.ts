@@ -175,7 +175,7 @@ type RuleContextScenario = {
   skipped?: number[];
   /**
    * Indexes of the judged transactions whose actual status differs from the
-   * described one, which a context that reports live checks notes.
+   * described one, for which a context that reports live checks reports a finding.
    */
   drifted?: number[];
 };
@@ -488,7 +488,7 @@ async function validate(
 
 /**
  * What a context that reports live checks returns besides violations: a
- * `rule-skip` per skipped pair and a `Status drift` note per drifted one. A
+ * `rule-skip` per skipped pair and a `Status drift` finding per drifted one. A
  * grouped call skips on the group, and only when it skips every pair sent;
  * `groupBy: method()` puts every pair of a scenario in one group.
  */

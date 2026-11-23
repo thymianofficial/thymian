@@ -314,7 +314,7 @@ describe('createRuleTester(rule).runTest(format)', () => {
       expect(executions).toHaveLength(2);
     });
 
-    it("judges the transaction whose live status stays inside the rule's applicability, and notes the status drift", async () => {
+    it("judges the transaction whose live status stays inside the rule's applicability, and reports the status drift", async () => {
       const format = createThymianFormat();
       const astronautRejected = addTransaction(
         format,
