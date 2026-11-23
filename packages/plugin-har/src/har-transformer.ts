@@ -40,11 +40,14 @@ export function transformHarEntry(
     return null;
   }
 
+  // Read outside the try so a missing request throws to the caller
+  // instead of being mistaken for an invalid URL.
+  const url = entry.request.url;
   let origin: string;
   let path: string;
 
   try {
-    const parsed = parseUrl(entry.request.url);
+    const parsed = parseUrl(url);
     origin = parsed.origin;
     path = parsed.path;
   } catch {
@@ -77,6 +80,19 @@ export function transformHarEntry(
   };
 }
 
+/**
+ * A request or response message whose `headers` is not an array: absent,
+ * `null` or any other shape. A missing request object is not a headers
+ * problem and is left to the `malformed entry` path.
+ */
+function lacksHeaders(message: unknown): boolean {
+  return (
+    typeof message === 'object' &&
+    message !== null &&
+    !Array.isArray((message as { headers?: unknown }).headers)
+  );
+}
+
 export function transformHar(
   har: HarLog,
   clientRole: HttpParticipantRole,
@@ -87,13 +103,21 @@ export function transformHar(
   skippedReasons: string[];
 } {
   const transactions: CapturedTransaction[] = [];
-  let skippedCount = 0;
   const skippedReasons: string[] = [];
 
   for (const entry of har.log.entries) {
     if (!entry.response) {
-      skippedCount++;
       skippedReasons.push('missing response');
+      continue;
+    }
+
+    if (lacksHeaders(entry.request)) {
+      skippedReasons.push('missing request headers');
+      continue;
+    }
+
+    if (lacksHeaders(entry.response)) {
+      skippedReasons.push('missing response headers');
       continue;
     }
 
@@ -101,16 +125,22 @@ export function transformHar(
     try {
       transaction = transformHarEntry(entry, clientRole, serverRole);
     } catch {
-      transaction = null;
+      skippedReasons.push('malformed entry');
+      continue;
     }
 
+    // The response is present (checked above), so null means the request
+    // URL failed to parse.
     if (transaction) {
       transactions.push(transaction);
     } else {
-      skippedCount++;
       skippedReasons.push('invalid request URL');
     }
   }
 
-  return { transactions, skippedCount, skippedReasons };
+  return {
+    transactions,
+    skippedCount: skippedReasons.length,
+    skippedReasons,
+  };
 }

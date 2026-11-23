@@ -5,8 +5,13 @@ import type { HarLog } from './har-types.js';
 /**
  * Minimal JSON Schema for HAR 1.2 structure validation.
  * Validates only the field types consumed by the plugin.
- * All fields are optional because there is no official HAR JSON schema
+ * Fields are optional because there is no official HAR JSON schema
  * and exporters commonly produce partial variants.
+ *
+ * The one exception is `headers` on `request` and `response`: HAR 1.2
+ * requires it, and the plugin cannot use an entry without it (such an
+ * entry is skipped with `missing request/response headers`). Keep it
+ * required so `--validate-traffic-source` rejects such files up front.
  */
 const harLogSchema = {
   type: 'object' as const,
@@ -27,6 +32,7 @@ const harLogSchema = {
               request: {
                 type: 'object' as const,
                 additionalProperties: true,
+                required: ['headers'],
                 properties: {
                   method: { type: 'string' as const },
                   url: { type: 'string' as const },
@@ -56,6 +62,7 @@ const harLogSchema = {
                 type: 'object' as const,
                 nullable: true,
                 additionalProperties: true,
+                required: ['headers'],
                 properties: {
                   status: { type: 'number' as const },
                   headers: {
