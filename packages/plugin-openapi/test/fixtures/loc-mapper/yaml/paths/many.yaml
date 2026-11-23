@@ -9,3 +9,14 @@ siblingTarget:
     responses:
       '200':
         description: OK
+paths:
+  '/users/{id}':
+    get:
+      responses:
+        '200':
+          description: OK
+a~1b:
+  put:
+    responses:
+      '200':
+        description: OK

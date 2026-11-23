@@ -62,6 +62,12 @@
     },
     "/remote": {
       "$ref": "https://example.com/paths.json"
+    },
+    "/users/{id}": {
+      "$ref": "./paths/many.json#/paths/~1users~1%7Bid%7D"
+    },
+    "/tilde": {
+      "$ref": "./paths/many.json#/a~01b"
     }
   },
   "components": {

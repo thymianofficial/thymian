@@ -25,9 +25,11 @@ const variants: {
       'post /inline-without-id': { file: 'openapi.yaml', line: 16, column: 5 },
       'get /whole': { file: 'paths/whole.yaml', line: 1, column: 1 },
       'patch /pointer': { file: 'paths/many.yaml', line: 3, column: 3 },
-      'put /internal': { file: 'openapi.yaml', line: 45, column: 7 },
+      'put /internal': { file: 'openapi.yaml', line: 49, column: 7 },
       'delete /chain': { file: 'paths/nested/users.yaml', line: 2, column: 1 },
       'get /siblings': { file: 'paths/many.yaml', line: 8, column: 3 },
+      'get /users/{id}': { file: 'paths/many.yaml', line: 14, column: 5 },
+      'put /tilde': { file: 'paths/many.yaml', line: 19, column: 3 },
     },
   },
   {
@@ -38,9 +40,11 @@ const variants: {
       'post /inline-without-id': { file: 'openapi.json', line: 24, column: 7 },
       'get /whole': { file: 'paths/whole.json', line: 2, column: 3 },
       'patch /pointer': { file: 'paths/many.json', line: 4, column: 5 },
-      'put /internal': { file: 'openapi.json', line: 70, column: 9 },
+      'put /internal': { file: 'openapi.json', line: 76, column: 9 },
       'delete /chain': { file: 'paths/nested/users.json', line: 3, column: 3 },
       'get /siblings': { file: 'paths/many.json', line: 13, column: 5 },
+      'get /users/{id}': { file: 'paths/many.json', line: 23, column: 7 },
+      'put /tilde': { file: 'paths/many.json', line: 33, column: 5 },
     },
   },
 ];
@@ -81,6 +85,8 @@ describe.each(variants)(
       ['an internal components/pathItems ref', 'put', '/internal'],
       ['a chain of refs', 'delete', '/chain'],
       ['a ref with sibling methods', 'get', '/siblings'],
+      ['a pointer with escaped `/` and `{}`', 'get', '/users/{id}'],
+      ['a pointer with an escaped `~`', 'put', '/tilde'],
     ])(
       'locates an operation behind %s on its method key',
       async (_, method, path) => {

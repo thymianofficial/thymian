@@ -39,6 +39,10 @@ paths:
     $ref: ./paths/many.yaml#/nope
   /remote:
     $ref: https://example.com/paths.yaml
+  '/users/{id}':
+    $ref: ./paths/many.yaml#/paths/~1users~1%7Bid%7D
+  /tilde:
+    $ref: ./paths/many.yaml#/a~01b
 components:
   pathItems:
     Internal:
