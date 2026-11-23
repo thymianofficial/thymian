@@ -1,0 +1,19 @@
+openapi: 3.1.0
+# info.title is omitted on purpose: the schema error keeps validate() from reporting the $ref errors,
+# so they surface in the dereference step.
+info: { version: '1' }
+paths:
+  /things:
+    get:
+      operationId: listThings
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: './schemas/missing.yaml#/X' }
+        '404':
+          description: not found
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NonExistent' }

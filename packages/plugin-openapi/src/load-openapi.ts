@@ -1,5 +1,5 @@
 import { access } from 'node:fs/promises';
-import { isAbsolute, join, relative, sep } from 'node:path';
+import { isAbsolute, join, relative, sep, win32 } from 'node:path';
 
 import { bundle } from '@scalar/json-magic/bundle';
 import {
@@ -45,6 +45,122 @@ async function fileExists(path: string) {
   } catch {
     return false;
   }
+}
+
+type ParserError = { code?: string; message: string };
+
+const MISSING_FILE_CODE = 'EXTERNAL_REFERENCE_NOT_FOUND';
+// The parser reports a missing file as this prefix followed by the file as the $ref wrote it.
+const MISSING_FILE_MESSAGE_PREFIX = "Can't resolve external reference: ";
+
+function isReferenceError(error: ParserError): boolean {
+  return error.code === 'INVALID_REFERENCE' || error.code === MISSING_FILE_CODE;
+}
+
+function isMissingFileError(error: ParserError): boolean {
+  return error.code === MISSING_FILE_CODE;
+}
+
+function plural(count: number, word: string): string {
+  return count > 1 ? `${word}s` : word;
+}
+
+const URL_REF_PATTERN = /^[a-z][a-z\d+.-]*:\/\//i;
+
+// A relative ref is resolved against the document containing it; a URL or an absolute path is not.
+// win32.isAbsolute accepts both POSIX (`/x`) and Windows (`C:\x`) absolute paths, on every platform.
+function isRelativeRef(ref: string): boolean {
+  return !URL_REF_PATTERN.test(ref) && !win32.isAbsolute(ref);
+}
+
+// The headline is shown in the terminal, so a URL loses its credentials and query string there.
+function redactUrlRef(ref: string): string {
+  if (!URL_REF_PATTERN.test(ref)) {
+    return ref;
+  }
+
+  try {
+    const url = new URL(ref);
+    url.username = '';
+    url.password = '';
+    url.search = '';
+    return url.toString();
+  } catch {
+    const queryStart = ref.indexOf('?');
+    return queryStart === -1 ? ref : ref.slice(0, queryStart);
+  }
+}
+
+function missingFileClause(errors: ParserError[]): string | undefined {
+  const files = errors
+    .filter(isMissingFileError)
+    .map(({ message }) =>
+      message.startsWith(MISSING_FILE_MESSAGE_PREFIX)
+        ? message.slice(MISSING_FILE_MESSAGE_PREFIX.length)
+        : message,
+    );
+
+  if (files.length === 0) {
+    return undefined;
+  }
+
+  const resolutionNote = files.every(isRelativeRef)
+    ? ' (resolved relative to the document containing the $ref)'
+    : '';
+
+  return `${plural(files.length, 'Referenced file')} could not be loaded: ${files.map((file) => `'${redactUrlRef(file)}'`).join(', ')}${resolutionNote}.`;
+}
+
+function createDereferenceError(
+  clauses: (string | undefined)[],
+  errors: ParserError[],
+): ThymianBaseError {
+  return new ThymianBaseError(
+    clauses.filter((clause) => clause !== undefined).join(' '),
+    {
+      name: 'OpenAPIDereferenceError',
+      ref: 'https://thymian.dev/references/errors/openapi-dereference-error/',
+      cause: new Error(errors.map((e) => e.message).join('; ')),
+      suggestions: [
+        'Ensure every $ref points to an existing location: a JSON pointer within its document, a file path (relative paths resolve against the document containing the $ref), or a reachable URL.',
+        ...(errors.some(isMissingFileError)
+          ? [
+              'Check that each referenced file or URL exists and is readable, and that relative paths are spelled correctly.',
+            ]
+          : []),
+      ],
+    },
+  );
+}
+
+function validateStepReferenceError(
+  refErrors: ParserError[],
+  allErrors: ParserError[],
+): ThymianBaseError {
+  const pointerErrors = refErrors.filter((e) => !isMissingFileError(e));
+  const pointerClause =
+    pointerErrors.length > 0
+      ? `${plural(pointerErrors.length, 'Invalid $ref')} found: ${pointerErrors.map((e) => e.message).join('; ')}.`
+      : undefined;
+
+  return createDereferenceError(
+    [missingFileClause(refErrors), pointerClause],
+    allErrors,
+  );
+}
+
+function dereferenceStepReferenceError(
+  sourceLabel: string,
+  errors: ParserError[],
+): ThymianBaseError {
+  const missingFiles = missingFileClause(errors);
+  const otherErrors = errors.filter((e) => !isMissingFileError(e));
+  const resolvingClause =
+    otherErrors.length > 0 || !missingFiles
+      ? `Resolving the $refs in ${sourceLabel} failed${otherErrors.length > 0 ? `: ${otherErrors.map((e) => e.message).join('; ')}` : ''}.`
+      : undefined;
+
+  return createDereferenceError([missingFiles, resolvingClause], errors);
 }
 
 export type LoadResult = {
@@ -180,24 +296,10 @@ export async function loadAndUpgrade(
   const validationResult = await validate(document, { throwOnError: false });
 
   if (!validationResult.valid && validationResult.errors) {
-    const refErrors = validationResult.errors.filter(
-      (err) => err.code === 'INVALID_REFERENCE',
-    );
+    const refErrors = validationResult.errors.filter(isReferenceError);
 
     if (refErrors.length > 0) {
-      throw new ThymianBaseError(
-        `Invalid $ref${refErrors.length > 1 ? 's' : ''} found: ${refErrors.map((err) => err.message).join(', ')}`,
-        {
-          name: 'OpenAPIDereferenceError',
-          ref: 'https://thymian.dev/references/errors/openapi-dereference-error/',
-          cause: new Error(
-            validationResult?.errors?.map((e) => e.message).join('; ') ?? '',
-          ),
-          suggestions: [
-            'Ensure all $refs are valid and resolve to a valid non-external location.',
-          ],
-        },
-      );
+      throw validateStepReferenceError(refErrors, validationResult.errors);
     }
 
     if (validateSpecs) {
@@ -245,18 +347,9 @@ export async function loadAndUpgrade(
 
   if (dereferencedResult?.errors?.length || !dereferencedResult.schema) {
     logger.debug(`Cannot dereference ${sourceLabel}.`);
-    throw new ThymianBaseError(
-      `Dereferencing all internal references in ${sourceLabel} failed.`,
-      {
-        name: 'OpenAPIDereferenceError',
-        ref: 'https://thymian.dev/references/errors/openapi-dereference-error/',
-        cause: new Error(
-          dereferencedResult?.errors?.map((e) => e.message).join('; ') ?? '',
-        ),
-        suggestions: [
-          'Ensure all $refs are valid and resolve to a valid non-external location.',
-        ],
-      },
+    throw dereferenceStepReferenceError(
+      sourceLabel,
+      dereferencedResult?.errors ?? [],
     );
   }
 
@@ -292,9 +385,7 @@ export async function validateOpenApi(
 
     if (!validationResult.valid && validationResult.errors) {
       const issues = validationResult.errors.map(mapValidationIssue);
-      const hasReferenceErrors = validationResult.errors.some(
-        (error) => error.code === 'INVALID_REFERENCE',
-      );
+      const hasReferenceErrors = validationResult.errors.some(isReferenceError);
 
       logger.info(`OpenAPI validation failed for '${source}'.`);
 
@@ -318,18 +409,9 @@ export async function validateOpenApi(
 
     if (dereferencedResult?.errors?.length || !dereferencedResult.schema) {
       logger.debug(`Cannot dereference '${source}'.`);
-      throw new ThymianBaseError(
-        `Dereferencing all internal references in '${source}' failed.`,
-        {
-          name: 'OpenAPIDereferenceError',
-          ref: 'https://thymian.dev/references/errors/openapi-dereference-error/',
-          cause: new Error(
-            dereferencedResult?.errors?.map((e) => e.message).join('; ') ?? '',
-          ),
-          suggestions: [
-            'Ensure all $refs are valid and resolve to a valid non-external location.',
-          ],
-        },
+      throw dereferenceStepReferenceError(
+        formatSourceLabel(source),
+        dereferencedResult?.errors ?? [],
       );
     }
 

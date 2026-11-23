@@ -4,9 +4,10 @@ title: 'OpenAPIDereferenceError'
 
 ## The Cause
 
-Thymian failed to dereference all internal `$ref` references in your OpenAPI document. This occurs when:
+Thymian failed to resolve the `$ref` references in your OpenAPI document. This occurs when:
 
 - A `$ref` points to a location that doesn't exist in the document
+- A `$ref` points to an external file or URL that cannot be loaded (missing, unreadable, a directory, or unreachable)
 - A `$ref` uses an invalid path or pointer format (e.g., malformed JSON Pointer)
 - A `$ref` is circular or contains unresolvable nested references
 - The referenced schema or object is missing required fields
@@ -21,6 +22,22 @@ components:
       properties:
         role:
           $ref: '#/components/schemas/InvalidRole' # InvalidRole doesn't exist
+```
+
+A `$ref` can also point to another file. Thymian resolves the file path relative to the document that contains the `$ref`, and names the file in the error when it cannot be loaded:
+
+```yaml
+# ❌ Invalid: openapi.yaml references a file that doesn't exist
+paths:
+  /things:
+    get:
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: './schemas/missing.yaml#/Thing' # schemas/missing.yaml doesn't exist next to openapi.yaml
 ```
 
 ## The Solution
@@ -46,7 +63,7 @@ components:
    # ✅ Correct patterns:
    $ref: '#/components/schemas/User'
    $ref: '#/components/responses/NotFound'
-   $ref: '#/paths/~1users/get'  # Use ~1 for / in path segments
+   $ref: '#/paths/~1users/get' # Use ~1 for / in path segments
    ```
 
 3. **Avoid circular references** - If references form a cycle, use `allOf`, `oneOf`, or `anyOf` to break the cycle:
@@ -62,16 +79,16 @@ components:
            - $ref: '#/components/schemas/Address'
    ```
 
-4. **Use external references sparingly** - This error only concerns internal references. External references (URLs) are handled differently and cannot be dereferenced locally.
+4. **Check external file references** - External references are supported. A `$ref` such as `./schemas/user.yaml#/User` is resolved relative to the document that contains the `$ref`, not relative to the current working directory or the root document. Check that the referenced file exists and that its relative path is spelled correctly; a URL must be reachable, and an absolute path is used as written.
 
 5. **Validate your document** - Use an OpenAPI validator to catch reference errors early:
 
    ```bash
-   thymian openapi validate openapi.yaml
+   thymian validate --spec openapi:openapi.yaml
    ```
 
 If you continue to see this error, enable debug output to see which specific references are failing:
 
 ```bash
-DEBUG=thymian:* thymian openapi validate openapi.yaml
+thymian validate --spec openapi:openapi.yaml --log-level debug
 ```

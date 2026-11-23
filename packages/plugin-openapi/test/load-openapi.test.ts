@@ -194,6 +194,9 @@ describe('load-openapi', () => {
         expect((error as ThymianBaseError).options.ref).toBe(
           'https://thymian.dev/references/errors/openapi-dereference-error/',
         );
+        expect((error as ThymianBaseError).options.suggestions).toEqual([
+          'Ensure every $ref points to an existing location: a JSON pointer within its document, a file path (relative paths resolve against the document containing the $ref), or a reachable URL.',
+        ]);
       }
     });
 
@@ -945,6 +948,165 @@ describe('load-openapi', () => {
         expect((thymianError.cause as Error).message).toContain(
           'schemas/missing.yaml',
         );
+        expect(thymianError.message).toContain('schemas/missing.yaml');
+        expect(thymianError.message).not.toContain('internal');
+        expect(thymianError.options.suggestions).toEqual([
+          'Ensure every $ref points to an existing location: a JSON pointer within its document, a file path (relative paths resolve against the document containing the $ref), or a reachable URL.',
+          'Check that each referenced file or URL exists and is readable, and that relative paths are spelled correctly.',
+        ]);
+      }
+    });
+
+    it('lists missing files and unresolved pointers in separate clauses', async () => {
+      try {
+        await loadAndUpgrade(
+          join(import.meta.dirname, 'fixtures/missing-refs-mixed.yaml'),
+          process.cwd(),
+          new NoopLogger(),
+        );
+        expect.fail('Error should have been thrown');
+      } catch (error) {
+        expect(error).toBeInstanceOf(ThymianBaseError);
+        const { message } = error as ThymianBaseError;
+        expect(message).toContain(
+          "Referenced files could not be loaded: './schemas/missing-a.yaml', './schemas/missing-b.yaml' (resolved relative to the document containing the $ref).",
+        );
+        expect(message).toContain(
+          "Invalid $ref found: Can't resolve reference: #/components/schemas/NonExistent.",
+        );
+      }
+    });
+
+    it('omits the relative-resolution note for an absolute $ref path', async () => {
+      const documentWithAbsoluteRef = {
+        openapi: '3.1.0',
+        info: { title: 'Test', version: '1.0.0' },
+        paths: {
+          '/test': {
+            get: {
+              responses: {
+                '200': {
+                  description: 'OK',
+                  content: {
+                    'application/json': {
+                      schema: { $ref: '/abs/missing.yaml#/X' },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      };
+
+      await expect(
+        loadAndUpgrade(
+          JSON.stringify(documentWithAbsoluteRef),
+          process.cwd(),
+          new NoopLogger(),
+        ),
+      ).rejects.toMatchObject({
+        message: "Referenced file could not be loaded: '/abs/missing.yaml'.",
+      });
+    });
+
+    it('strips credentials and query string from a URL $ref in the headline only', async () => {
+      const rawUrl = 'https://user:secret@nonexistent.invalid/s.yaml?token=abc';
+      const documentWithUrlRef = {
+        openapi: '3.1.0',
+        info: { title: 'Test', version: '1.0.0' },
+        paths: {
+          '/test': {
+            get: {
+              responses: {
+                '200': {
+                  description: 'OK',
+                  content: {
+                    'application/json': { schema: { $ref: rawUrl } },
+                  },
+                },
+              },
+            },
+          },
+        },
+      };
+
+      try {
+        await loadAndUpgrade(
+          JSON.stringify(documentWithUrlRef),
+          process.cwd(),
+          new NoopLogger(),
+        );
+        expect.fail('Error should have been thrown');
+      } catch (error) {
+        expect(error).toBeInstanceOf(ThymianBaseError);
+        const thymianError = error as ThymianBaseError;
+        expect(thymianError.message).toContain(
+          "'https://nonexistent.invalid/s.yaml'",
+        );
+        expect(thymianError.message).not.toContain('secret');
+        expect(thymianError.message).not.toContain('token');
+        expect((thymianError.cause as Error).message).toContain(rawUrl);
+      }
+    });
+
+    it('names a missing external file when dereferencing a schema-invalid document', async () => {
+      try {
+        await loadAndUpgrade(
+          'fixtures/missing-ref-with-schema-error.yaml',
+          import.meta.dirname,
+          new NoopLogger(),
+          false,
+        );
+        expect.fail('Error should have been thrown');
+      } catch (error) {
+        expect(error).toBeInstanceOf(ThymianBaseError);
+        const thymianError = error as ThymianBaseError;
+        expect(thymianError.options.name).toBe('OpenAPIDereferenceError');
+        expect(thymianError.message).toBe(
+          "Referenced file could not be loaded: './schemas/missing.yaml' (resolved relative to the document containing the $ref).",
+        );
+      }
+    });
+
+    it('names a missing external file and an unresolved pointer when dereferencing a schema-invalid document', async () => {
+      const label = join(
+        'fixtures',
+        'missing-ref-and-pointer-with-schema-error.yaml',
+      );
+
+      try {
+        await loadAndUpgrade(
+          'fixtures/missing-ref-and-pointer-with-schema-error.yaml',
+          import.meta.dirname,
+          new NoopLogger(),
+          false,
+        );
+        expect.fail('Error should have been thrown');
+      } catch (error) {
+        expect(error).toBeInstanceOf(ThymianBaseError);
+        const thymianError = error as ThymianBaseError;
+        expect(thymianError.options.name).toBe('OpenAPIDereferenceError');
+        expect(thymianError.message).toBe(
+          `Referenced file could not be loaded: './schemas/missing.yaml' (resolved relative to the document containing the $ref). Resolving the $refs in '${label}' failed: Can't resolve reference: #/components/schemas/NonExistent.`,
+        );
+      }
+    });
+
+    it('throws OpenAPIDereferenceError for a missing external file when validateSpecs is enabled', async () => {
+      try {
+        await loadAndUpgrade(
+          join(import.meta.dirname, 'fixtures/missing-ref.yaml'),
+          process.cwd(),
+          new NoopLogger(),
+          true,
+        );
+        expect.fail('Error should have been thrown');
+      } catch (error) {
+        expect(error).toBeInstanceOf(ThymianBaseError);
+        expect((error as ThymianBaseError).options.name).toBe(
+          'OpenAPIDereferenceError',
+        );
       }
     });
   });
@@ -1052,6 +1214,16 @@ describe('load-openapi', () => {
 
       expect(result.status).toBe('failed');
       expect(result.issues.length).toBeGreaterThan(0);
+    });
+
+    it('reports reference errors for a missing external file', async () => {
+      const result = await validateOpenApi('test/fixtures/missing-ref.yaml', {
+        cwd: join(import.meta.dirname, '..'),
+        logger: new NoopLogger(),
+      });
+
+      expect(result.status).toBe('failed');
+      expect(result.metadata?.['hasReferenceErrors']).toBe(true);
     });
   });
 });
