@@ -1,4 +1,11 @@
-import { getHeader, httpRule, type RuleFnResult } from '@thymian/core';
+import {
+  getHeader,
+  httpRule,
+  isHeaderCapturedOnBoth,
+  type RuleFnResult,
+} from '@thymian/core';
+
+import { forwardingHops } from '../../../routing/utils/forwarding.js';
 
 // The MUST NOT is about a proxy *generating* a Max-Forwards field it did not
 // receive. This is observable by correlating adjacent hops of the same request
@@ -23,18 +30,27 @@ export default httpRule(
   .overrideAnalyticsRule((ctx) =>
     ctx.validateCapturedHttpTraces((trace, location) => {
       const results: RuleFnResult[] = [];
-      for (let i = 1; i < trace.length; i++) {
-        // prev = the request as received by the proxy;
-        // curr = the request as forwarded onward by that proxy.
-        const prev = trace[i - 1];
-        const curr = trace[i];
-
-        if (!prev || !curr || prev.response.meta.role !== 'proxy') {
+      for (const { inbound, outbound } of forwardingHops(trace, ['proxy'])) {
+        // The proxy received `inbound.request` and forwarded `outbound.request`.
+        // A message whose field was not captured cannot show a generated field.
+        if (
+          !isHeaderCapturedOnBoth(
+            inbound.request,
+            outbound.request,
+            'max-forwards',
+          )
+        ) {
           continue;
         }
 
-        const received = getHeader(prev.request.data.headers, 'max-forwards');
-        const forwarded = getHeader(curr.request.data.headers, 'max-forwards');
+        const received = getHeader(
+          inbound.request.data.headers,
+          'max-forwards',
+        );
+        const forwarded = getHeader(
+          outbound.request.data.headers,
+          'max-forwards',
+        );
 
         // Violation: the proxy forwarded a Max-Forwards field even though the
         // request it received did not carry one.

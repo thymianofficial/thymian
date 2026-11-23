@@ -1,5 +1,11 @@
-import { getHeader, httpRule, type RuleFnResult } from '@thymian/core';
+import {
+  getHeader,
+  httpRule,
+  isHeaderCapturedOnBoth,
+  type RuleFnResult,
+} from '@thymian/core';
 
+import { forwardingHops } from '../../../routing/utils/forwarding.js';
 import { equalHeaderValues } from '../../utils/header-value-equality.js';
 
 export default httpRule('rfc9110/proxy-must-not-modify-authentication-info')
@@ -25,22 +31,26 @@ export default httpRule('rfc9110/proxy-must-not-modify-authentication-info')
   .rule((ctx) =>
     ctx.validateCapturedHttpTraces((trace, location) => {
       const results: RuleFnResult[] = [];
-      for (let i = 1; i < trace.length; i++) {
-        // prev = response as the proxy emitted it (outbound hop);
-        // curr = response as the proxy received it (inbound hop).
-        const prev = trace[i - 1];
-        const curr = trace[i];
-
-        if (!prev || !curr || prev.response.meta.role !== 'proxy') {
+      for (const { inbound, outbound } of forwardingHops(trace, ['proxy'])) {
+        // The proxy received `outbound.response` and sent `inbound.response`
+        // downstream.
+        // A message whose field was not captured cannot show a modification.
+        if (
+          !isHeaderCapturedOnBoth(
+            outbound.response,
+            inbound.response,
+            'authentication-info',
+          )
+        ) {
           continue;
         }
 
-        const forwarded = getHeader(
-          prev.response.data.headers,
+        const received = getHeader(
+          outbound.response.data.headers,
           'authentication-info',
         );
-        const received = getHeader(
-          curr.response.data.headers,
+        const forwarded = getHeader(
+          inbound.response.data.headers,
           'authentication-info',
         );
 

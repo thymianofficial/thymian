@@ -6,6 +6,7 @@ import type {
   CapturedHttpResponse,
   CapturedTrace,
   CapturedTransaction,
+  CaptureGap,
   HttpFilterExpression,
   HttpParticipantRole,
   HttpRequest,
@@ -23,6 +24,20 @@ import {
   IS_SECURED_SQL_FUNCTION,
 } from './http-filter-to-where-clause.js';
 import type { HttpTransactionRepository } from './http-transaction-repository.js';
+
+type MessageKind = 'request' | 'response';
+
+// Where each message kind keeps its Capture Gaps. Fixed names only, so they
+// are safe to place in SQL text.
+const CAPTURE_GAP_TABLE = {
+  request: { table: 'request_capture_gap', column: 'request_id' },
+  response: { table: 'response_capture_gap', column: 'response_id' },
+} as const satisfies Record<MessageKind, { table: string; column: string }>;
+
+type CaptureGapStatements = {
+  insert: Statement<[number, string, string | null]>;
+  read: Statement<[number], { kind: string; detail: string | null }>;
+};
 
 type TransactionIdDb = {
   id: number;
@@ -57,6 +72,12 @@ function sortTraceTransactions(
 
 export class SqliteHttpTransactionRepository implements HttpTransactionRepository {
   readonly db: Database;
+  // Prepared on first use, because preparing fails until init() has created
+  // the tables; reused after that, since gaps are read for every message.
+  private readonly captureGapStatements = new Map<
+    MessageKind,
+    CaptureGapStatements
+  >();
   private isSecured?: (request: HttpRequest, response: HttpResponse) => boolean;
 
   constructor(
@@ -271,6 +292,7 @@ export class SqliteHttpTransactionRepository implements HttpTransactionRepositor
           },
           meta: {
             role: row.req_role_name,
+            ...this.readCaptureGaps('request', row.req_id),
           },
         },
         response: {
@@ -284,6 +306,7 @@ export class SqliteHttpTransactionRepository implements HttpTransactionRepositor
           },
           meta: {
             role: row.res_role_name,
+            ...this.readCaptureGaps('response', row.res_id),
           },
         },
       };
@@ -448,6 +471,7 @@ export class SqliteHttpTransactionRepository implements HttpTransactionRepositor
       },
       meta: {
         role: responseRow.role_name,
+        ...this.readCaptureGaps('response', id),
       },
     };
   }
@@ -508,6 +532,7 @@ export class SqliteHttpTransactionRepository implements HttpTransactionRepositor
       },
       meta: {
         role: requestRow.role_name,
+        ...this.readCaptureGaps('request', id),
       },
     };
   }
@@ -639,6 +664,11 @@ export class SqliteHttpTransactionRepository implements HttpTransactionRepositor
     // Insert request headers and query parameters
     this.insertRequestHeaders(requestId, transaction.request.data.headers);
     this.insertQueryParameters(requestId, url.searchParams);
+    this.insertCaptureGaps(
+      'request',
+      requestId,
+      transaction.request.meta.captureGaps,
+    );
 
     // Insert response
     const responseStmt = this.db.prepare(`
@@ -657,6 +687,11 @@ export class SqliteHttpTransactionRepository implements HttpTransactionRepositor
     // Insert response headers and trailers
     this.insertResponseHeaders(responseId, transaction.response.data.headers);
     this.insertResponseTrailers(responseId, transaction.response.data.trailers);
+    this.insertCaptureGaps(
+      'response',
+      responseId,
+      transaction.response.meta.captureGaps,
+    );
 
     // Insert transaction
     const transactionStmt = this.db.prepare(`
@@ -754,6 +789,68 @@ export class SqliteHttpTransactionRepository implements HttpTransactionRepositor
     for (const [name, value] of Object.entries(trailers)) {
       trailerStmt.run(responseId, name, value);
     }
+  }
+
+  private insertCaptureGaps(
+    messageKind: MessageKind,
+    messageId: number,
+    gaps: CaptureGap[] | undefined,
+  ): void {
+    if (!gaps?.length) {
+      return;
+    }
+
+    const gapStmt = this.captureGapStatementsFor(messageKind).insert;
+
+    for (const { kind, ...detail } of gaps) {
+      gapStmt.run(
+        messageId,
+        kind,
+        Object.keys(detail).length > 0 ? JSON.stringify(detail) : null,
+      );
+    }
+  }
+
+  // Spread into a message's `meta`: leaves `captureGaps` unset when the
+  // message has no gap, as for every message stored before gaps existed.
+  private readCaptureGaps(
+    messageKind: MessageKind,
+    messageId: number,
+  ): { captureGaps?: CaptureGap[] } {
+    const rows = this.captureGapStatementsFor(messageKind).read.all(messageId);
+
+    if (rows.length === 0) {
+      return {};
+    }
+
+    return {
+      captureGaps: rows.map(
+        ({ kind, detail }) =>
+          ({
+            ...(detail === null ? {} : JSON.parse(detail)),
+            kind,
+          }) as CaptureGap,
+      ),
+    };
+  }
+
+  private captureGapStatementsFor(
+    messageKind: MessageKind,
+  ): CaptureGapStatements {
+    let statements = this.captureGapStatements.get(messageKind);
+    if (!statements) {
+      const { table, column } = CAPTURE_GAP_TABLE[messageKind];
+      statements = {
+        insert: this.db.prepare(
+          `INSERT INTO ${table} (${column}, kind, detail) VALUES (?, ?, ?)`,
+        ),
+        read: this.db.prepare(
+          `SELECT kind, detail FROM ${table} WHERE ${column} = ? ORDER BY id ASC`,
+        ),
+      };
+      this.captureGapStatements.set(messageKind, statements);
+    }
+    return statements;
   }
 
   private getRoleId(roleName: string | undefined | null): number | null {

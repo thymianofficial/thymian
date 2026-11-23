@@ -328,12 +328,12 @@ const coverage: CoverageRecord<typeof units> = defineCoverage({
         static: {
           verdict: 'impossible',
           reason: 'not-representable',
-          note: 'The schema format has no concept of a correlated multi-hop trace or of participant role -- both of which this rule needs to compare the client-facing and origin-facing legs.',
+          note: 'The schema format has no concept of a correlated multi-hop trace or of participant role -- both of which this rule needs to compare the client-facing and origin-facing hops.',
         },
         test: {
           verdict: 'impossible',
           reason: 'participant-not-reachable',
-          note: 'A test fixture produces one direct request/response pair per run; Thymian cannot position itself to observe both the outbound-client leg and the origin leg of a proxied chain at once.',
+          note: 'A test fixture produces one direct request/response pair per run; Thymian cannot position itself to observe both the outbound-client hop and the origin hop of a proxied chain at once.',
         },
       },
     },
@@ -701,12 +701,12 @@ const coverage: CoverageRecord<typeof units> = defineCoverage({
         static: {
           verdict: 'impossible',
           reason: 'not-representable',
-          note: "This rule compares the Max-Forwards value on an intermediary's inbound leg against its outbound leg (forwardingHops), needing both sides of one forwarding hop at once.",
+          note: "This rule compares the Max-Forwards value on an intermediary's inbound hop against its outbound hop (forwardingHops), needing both hops around one forwarding participant at once.",
         },
         test: {
           verdict: 'impossible',
           reason: 'participant-not-reachable',
-          note: 'Checking that Max-Forwards was decremented across a hop needs the received and forwarded legs together; a single direct test exchange only ever carries one of them.',
+          note: 'Checking that Max-Forwards was decremented across an intermediary needs the received and forwarded hops together; a single direct test exchange only ever carries one of them.',
         },
       },
     },
@@ -717,12 +717,12 @@ const coverage: CoverageRecord<typeof units> = defineCoverage({
         static: {
           verdict: 'impossible',
           reason: 'not-representable',
-          note: 'This rule compares the received and forwarded Max-Forwards values across one hop (forwardingHops), the same correlated-legs shape as the sibling Max-Forwards rules.',
+          note: 'This rule compares the received and forwarded Max-Forwards values around one forwarding participant (forwardingHops), the same correlated-hops shape as the sibling Max-Forwards rules.',
         },
         test: {
           verdict: 'impossible',
           reason: 'participant-not-reachable',
-          note: 'The decremented value only exists to compare once both the inbound and outbound legs of a hop are available together; a direct test exchange never carries both.',
+          note: 'The decremented value only exists to compare once both the inbound and outbound hops around one forwarding participant are available together; a direct test exchange never carries both.',
         },
       },
     },
@@ -753,12 +753,12 @@ const coverage: CoverageRecord<typeof units> = defineCoverage({
         static: {
           verdict: 'impossible',
           reason: 'not-representable',
-          note: 'This rule infers forwarding occurred from the mere existence of an outbound leg after an inbound Max-Forwards: 0 (forwardingHops) -- a fact about whether a hop happened, not about one message.',
+          note: 'This rule infers forwarding occurred from the mere existence of an outbound hop after an inbound Max-Forwards: 0 (forwardingHops) -- a fact about whether forwarding happened, not about one message.',
         },
         test: {
           verdict: 'impossible',
           reason: 'participant-not-reachable',
-          note: 'Whether an intermediary forwarded at all is only visible by comparing an inbound leg against a (missing or present) outbound one; a single direct test exchange is definitionally only one leg.',
+          note: 'Whether an intermediary forwarded at all is only visible by comparing an inbound hop against a (missing or present) outbound one; a single direct test exchange is definitionally only one hop.',
         },
       },
     },
@@ -769,12 +769,12 @@ const coverage: CoverageRecord<typeof units> = defineCoverage({
         static: {
           verdict: 'impossible',
           reason: 'not-representable',
-          note: "This rule compares the Connection header's listed options between an intermediary's inbound and outbound legs (forwardingHops), which validateCapturedHttpTraces exists to correlate.",
+          note: "This rule compares the Connection header's listed options between an intermediary's inbound and outbound hops (forwardingHops), which validateCapturedHttpTraces exists to correlate.",
         },
         test: {
           verdict: 'impossible',
           reason: 'participant-not-reachable',
-          note: 'Confirming a hop-by-hop field was actually stripped needs Thymian to observe both the message an intermediary received and the one it forwarded onward -- two correlated legs of a single hop, never present in one direct test exchange.',
+          note: 'Confirming a hop-by-hop field was actually stripped needs Thymian to observe both the message an intermediary received and the one it forwarded onward -- two correlated hops around one forwarding participant, never present in one direct test exchange.',
         },
       },
     },
@@ -786,12 +786,12 @@ const coverage: CoverageRecord<typeof units> = defineCoverage({
           static: {
             verdict: 'impossible',
             reason: 'not-representable',
-            note: "This rule checks that an intermediary answered directly rather than forwarding, by comparing the inbound leg's Max-Forwards against whether an outbound leg exists (forwardingHops).",
+            note: "This rule checks that an intermediary answered directly rather than forwarding, by comparing the inbound hop's Max-Forwards against whether an outbound hop exists (forwardingHops).",
           },
           test: {
             verdict: 'impossible',
             reason: 'participant-not-reachable',
-            note: 'Confirming an intermediary became the final recipient needs to see the absence of a forwarded leg, which is only visible against a captured, multi-hop trace, not a single direct exchange.',
+            note: 'Confirming an intermediary became the final recipient needs to see the absence of a forwarded hop, which is only visible against a captured, multi-hop trace, not a single direct exchange.',
           },
         },
       },
@@ -802,12 +802,12 @@ const coverage: CoverageRecord<typeof units> = defineCoverage({
         static: {
           verdict: 'impossible',
           reason: 'not-representable',
-          note: "This rule compares the named hop-by-hop fields (Proxy-Connection, Keep-Alive, TE, Transfer-Encoding, Upgrade) between an intermediary's inbound and outbound legs, which validateCapturedHttpTraces exists to correlate.",
+          note: "This rule compares the named hop-by-hop fields (Proxy-Connection, Keep-Alive, TE, Transfer-Encoding, Upgrade) between an intermediary's inbound and outbound hops, which validateCapturedHttpTraces exists to correlate.",
         },
         test: {
           verdict: 'impossible',
           reason: 'participant-not-reachable',
-          note: 'Confirming a known hop-by-hop field was removed or replaced needs both the received and forwarded legs of one hop at once; a direct test exchange never carries the received leg to compare against.',
+          note: 'Confirming a known hop-by-hop field was removed or replaced needs both the received and forwarded hops around one forwarding participant at once; a direct test exchange never carries the received hop to compare against.',
         },
       },
     },
@@ -832,12 +832,12 @@ const coverage: CoverageRecord<typeof units> = defineCoverage({
         static: {
           verdict: 'impossible',
           reason: 'not-representable',
-          note: 'Detecting a content transformation needs to diff the body a proxy received against the body it forwarded (forwardingHops), two legs of one hop.',
+          note: 'Detecting a content transformation needs to diff the body a proxy received against the body it forwarded (forwardingHops), the two hops around one forwarding participant.',
         },
         test: {
           verdict: 'impossible',
           reason: 'participant-not-reachable',
-          note: 'Telling whether content changed across a hop needs both the inbound and outbound legs at once; a direct test exchange only ever has the one Thymian itself sent and received.',
+          note: 'Telling whether content changed across the proxy needs both the inbound and outbound hops at once; a direct test exchange only ever has the one Thymian itself sent and received.',
         },
       },
     },
@@ -848,12 +848,12 @@ const coverage: CoverageRecord<typeof units> = defineCoverage({
         static: {
           verdict: 'impossible',
           reason: 'not-representable',
-          note: "This rule compares the target URI's host between a proxy's inbound and outbound legs (forwardingHops, scoped to the proxy role).",
+          note: "This rule compares the target URI's host between a proxy's inbound and outbound hops (forwardingHops, scoped to the proxy role).",
         },
         test: {
           verdict: 'impossible',
           reason: 'participant-not-reachable',
-          note: 'Confirming a fully-qualified host survived a hop unchanged needs both the received and forwarded target URIs together; a direct test exchange has no received leg to compare against.',
+          note: 'Confirming a fully-qualified host survived the proxy unchanged needs both the received and forwarded target URIs together; a direct test exchange has no received hop to compare against.',
         },
       },
     },
@@ -864,12 +864,12 @@ const coverage: CoverageRecord<typeof units> = defineCoverage({
         static: {
           verdict: 'impossible',
           reason: 'not-representable',
-          note: "This rule compares the absolute-path and query between a proxy's inbound and outbound legs (forwardingHops, scoped to the proxy role).",
+          note: "This rule compares the absolute-path and query between a proxy's inbound and outbound hops (forwardingHops, scoped to the proxy role).",
         },
         test: {
           verdict: 'impossible',
           reason: 'participant-not-reachable',
-          note: 'Confirming the path and query survived a hop unchanged needs both legs of the same forwarded request; a direct test exchange only ever carries the one Thymian itself sent.',
+          note: 'Confirming the path and query survived the proxy unchanged needs both hops of the same forwarded request; a direct test exchange only ever carries the one Thymian itself sent.',
         },
       },
     },
@@ -912,12 +912,12 @@ const coverage: CoverageRecord<typeof units> = defineCoverage({
         static: {
           verdict: 'impossible',
           reason: 'not-representable',
-          note: "This rule compares the named representation headers (Content-Type, ETag, Last-Modified, ...) between a proxy's inbound and outbound legs (forwardingHops).",
+          note: "This rule compares the named representation headers (Content-Type, ETag, Last-Modified, ...) between a proxy's inbound and outbound hops (forwardingHops).",
         },
         test: {
           verdict: 'impossible',
           reason: 'participant-not-reachable',
-          note: 'Confirming these headers survived a hop unchanged needs both the received and forwarded legs of the same message; a direct test exchange has no received leg from an earlier hop to compare against.',
+          note: 'Confirming these headers survived the proxy unchanged needs both the received and forwarded hops of the same message; a direct test exchange has no received hop to compare against.',
         },
       },
     },
@@ -1444,7 +1444,7 @@ const coverage: CoverageRecord<typeof units> = defineCoverage({
         static: {
           verdict: 'impossible',
           reason: 'not-representable',
-          note: "This rule's own comment states it: the MUST NOT is only observable by correlating a proxy's received and forwarded legs of the same hop, which a schema document has no concept of.",
+          note: "This rule's own comment states it: the MUST NOT is only observable by correlating the hops a proxy received and forwarded the same message on, which a schema document has no concept of.",
         },
         test: {
           verdict: 'impossible',

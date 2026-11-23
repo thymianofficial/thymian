@@ -76,6 +76,30 @@ CREATE TABLE IF NOT EXISTS http_request_query_parameter (
     FOREIGN KEY (request_id) REFERENCES http_request(id)
 );
 
+-- Parts of a captured message the traffic source did not record (ADR-0029).
+-- Tables, not columns, so a database file created before them gains them here.
+CREATE TABLE IF NOT EXISTS request_capture_gap (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    request_id INTEGER NOT NULL,
+    kind TEXT NOT NULL,
+    detail TEXT,
+    FOREIGN KEY (request_id) REFERENCES http_request(id)
+);
+
+CREATE INDEX IF NOT EXISTS request_capture_gap_request
+    ON request_capture_gap (request_id);
+
+CREATE TABLE IF NOT EXISTS response_capture_gap (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    response_id INTEGER NOT NULL,
+    kind TEXT NOT NULL,
+    detail TEXT,
+    FOREIGN KEY (response_id) REFERENCES http_response(id)
+);
+
+CREATE INDEX IF NOT EXISTS response_capture_gap_response
+    ON response_capture_gap (response_id);
+
 INSERT OR IGNORE INTO communication_role (name) VALUES
   ('intermediary'),
   ('proxy'),

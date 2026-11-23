@@ -1,4 +1,12 @@
-import { getHeader, httpRule, type RuleFnResult } from '@thymian/core';
+import {
+  getHeader,
+  httpRule,
+  isHeaderCaptured,
+  isHeaderCapturedOnBoth,
+  type RuleFnResult,
+} from '@thymian/core';
+
+import { forwardingHops } from '../../routing/utils/forwarding.js';
 
 // Fields a proxy may legitimately drop, so they are never treated as a
 // non-forwarded end-to-end field: hop-by-hop controls plus routing metadata a
@@ -21,13 +29,6 @@ const connectionOptionNames = (
     .map((entry) => entry.trim().toLowerCase())
     .filter((entry) => entry.length > 0);
 
-// A field counts as present when it has a value, as `getHeader` reads it.
-const hasFields = (
-  headers: Record<string, string | string[] | undefined> | undefined,
-): headers is Record<string, string | string[] | undefined> =>
-  headers !== undefined &&
-  Object.values(headers).some((value) => value !== undefined);
-
 // eslint-disable-next-line thymian-internal/require-rule-tags -- no concern-tag member fits this rule's topic
 export default httpRule('rfc9110/proxy-must-forward-unrecognized-header-fields')
   .severity('error')
@@ -44,25 +45,15 @@ export default httpRule('rfc9110/proxy-must-forward-unrecognized-header-fields')
   .rule((ctx) =>
     ctx.validateCapturedHttpTraces((trace, location) => {
       const results: RuleFnResult[] = [];
-      for (let i = 1; i < trace.length; i++) {
-        // In a captured trace the proxy's own leg carries meta.role === 'proxy';
-        // `received` is that leg (the request the proxy got) and `forwarded` is
-        // the next hop (the request the proxy sent onward).
-        const received = trace[i - 1];
-        const forwarded = trace[i];
-        if (!received || !forwarded || received.request.meta.role !== 'proxy') {
-          continue;
-        }
-        const receivedHeaders = received.request.data.headers;
-        const forwardedHeaders = forwarded.request.data.headers;
-        // A leg with no header field at all is treated as captured without
-        // headers, not as a request that carried none: the analyzer reads a leg
-        // recorded without headers back as an empty object, never as
-        // undefined, and a real forwarded request without a single field is
-        // implausible (HTTP/1.1 requires Host). Without both
-        // legs' fields a dropped field cannot be told from an unrecorded one,
-        // so skip rather than report every received field.
-        if (!hasFields(receivedHeaders) || !hasFields(forwardedHeaders)) {
+      for (const { inbound, outbound } of forwardingHops(trace, ['proxy'])) {
+        // The proxy received `inbound.request` and forwarded `outbound.request`.
+        const received = inbound.request;
+        const forwarded = outbound.request;
+        const receivedHeaders = received.data.headers ?? {};
+        const forwardedHeaders = forwarded.data.headers;
+        // Without the received Connection field the excepted names are
+        // unknown, so nothing on this pair can be judged.
+        if (!isHeaderCaptured(received, 'connection')) {
           continue;
         }
         const excepted = new Set([
@@ -74,6 +65,8 @@ export default httpRule('rfc9110/proxy-must-forward-unrecognized-header-fields')
           .filter(
             (name) =>
               !excepted.has(name) &&
+              // A field not captured on either side cannot show a drop.
+              isHeaderCapturedOnBoth(received, forwarded, name) &&
               getHeader(forwardedHeaders, name) === undefined,
           );
         if (dropped.length > 0) {
