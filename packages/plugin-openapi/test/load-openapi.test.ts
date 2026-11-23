@@ -194,6 +194,9 @@ describe('load-openapi', () => {
         expect((error as ThymianBaseError).options.ref).toBe(
           'https://thymian.dev/references/errors/openapi-dereference-error/',
         );
+        expect((error as ThymianBaseError).options.suggestions).toEqual([
+          'Ensure every $ref points to an existing location: a JSON pointer within its document, a file path (relative paths resolve against the document containing the $ref), or a reachable URL.',
+        ]);
       }
     });
 
@@ -947,6 +950,10 @@ describe('load-openapi', () => {
         );
         expect(thymianError.message).toContain('schemas/missing.yaml');
         expect(thymianError.message).not.toContain('internal');
+        expect(thymianError.options.suggestions).toEqual([
+          'Ensure every $ref points to an existing location: a JSON pointer within its document, a file path (relative paths resolve against the document containing the $ref), or a reachable URL.',
+          'Check that each referenced file or URL exists and is readable, and that relative paths are spelled correctly.',
+        ]);
       }
     });
 
