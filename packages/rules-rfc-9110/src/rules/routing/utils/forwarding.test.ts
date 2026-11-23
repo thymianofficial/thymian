@@ -6,9 +6,11 @@ import type {
 import { describe, expect, it } from 'vitest';
 
 import {
+  compareContent,
   connectionOptionNames,
   equalHeaderValues,
   forwardingHops,
+  hasNoTransformDirective,
   headerValues,
   parseMaxForwards,
   splitTopLevelCommas,
@@ -212,5 +214,81 @@ describe('splitTopLevelCommas', () => {
   it('returns the whole value when there is no top-level comma', () => {
     expect(splitTopLevelCommas('1.1 a (x, y)')).toEqual(['1.1 a (x, y)']);
     expect(splitTopLevelCommas('')).toEqual(['']);
+  });
+});
+
+describe('hasNoTransformDirective', () => {
+  it('finds no-transform inside a comma-separated Cache-Control value', () => {
+    expect(
+      hasNoTransformDirective({ 'cache-control': 'max-age=60, no-transform' }),
+    ).toBe(true);
+  });
+
+  it('ignores letter case and surrounding whitespace', () => {
+    expect(
+      hasNoTransformDirective({ 'Cache-Control': '  No-Transform ' }),
+    ).toBe(true);
+  });
+
+  it('finds no-transform in any of several field lines', () => {
+    expect(
+      hasNoTransformDirective({
+        'cache-control': ['max-age=60', 'public, no-transform'],
+      }),
+    ).toBe(true);
+  });
+
+  it('is false when Cache-Control is absent or lacks the directive', () => {
+    expect(hasNoTransformDirective({})).toBe(false);
+    expect(hasNoTransformDirective({ 'cache-control': 'no-store' })).toBe(
+      false,
+    );
+  });
+});
+
+describe('compareContent', () => {
+  it('reports identical text bodies as the same', () => {
+    expect(compareContent({ body: 'hello' }, { body: 'hello' })).toBe('same');
+  });
+
+  it('reports differing bodies as different', () => {
+    expect(compareContent({ body: 'hello' }, { body: 'HELLO' })).toBe(
+      'different',
+    );
+  });
+
+  it('reports the same bytes recorded as base64 and as text as the same', () => {
+    // 'aGVsbG8=' is base64 for 'hello'
+    expect(
+      compareContent(
+        { body: 'aGVsbG8=', bodyEncoding: 'base64' },
+        { body: 'hello' },
+      ),
+    ).toBe('same');
+    expect(
+      compareContent(
+        { body: 'hello' },
+        { body: 'aGVsbG8=', bodyEncoding: 'BASE64' },
+      ),
+    ).toBe('same');
+  });
+
+  it('cannot tell when a body was not captured on either side', () => {
+    expect(compareContent({}, { body: 'hello' })).toBe('undeterminable');
+    expect(compareContent({ body: 'hello' }, {})).toBe('undeterminable');
+  });
+
+  it('cannot tell when a body uses an encoding it does not decode', () => {
+    expect(
+      compareContent(
+        { body: 'hello', bodyEncoding: 'quoted-printable' },
+        { body: 'hello' },
+      ),
+    ).toBe('undeterminable');
+  });
+
+  it('compares an empty body as real content', () => {
+    expect(compareContent({ body: '' }, { body: '' })).toBe('same');
+    expect(compareContent({ body: '' }, { body: 'hello' })).toBe('different');
   });
 });

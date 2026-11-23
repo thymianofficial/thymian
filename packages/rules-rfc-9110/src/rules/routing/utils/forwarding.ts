@@ -1,8 +1,12 @@
+import { Buffer } from 'node:buffer';
+
 import {
   type CapturedTrace,
   type CapturedTransaction,
   expandHttpParticipantRoles,
+  getHeader,
   type HttpParticipantRole,
+  type HttpResponse,
 } from '@thymian/core';
 
 type HeaderValue = string | string[] | undefined;
@@ -133,4 +137,60 @@ export function parseMaxForwards(value: HeaderValue): number | undefined {
     return undefined;
   }
   return Number.parseInt(first, 10);
+}
+
+/**
+ * Whether the Cache-Control field of the given header map carries the
+ * `no-transform` directive (RFC 9111 Section 5.2), wherever it sits in a
+ * comma-separated value, in any letter case.
+ */
+export function hasNoTransformDirective(
+  headers: Record<string, HeaderValue>,
+): boolean {
+  return headerValues(getHeader(headers, 'cache-control'))
+    .flatMap((entry) => entry.split(','))
+    .some((directive) => directive.trim().toLowerCase() === 'no-transform');
+}
+
+type CapturedContent = Pick<HttpResponse, 'body' | 'bodyEncoding'>;
+
+export type ContentComparison = 'same' | 'different' | 'undeterminable';
+
+/**
+ * The bytes a captured body stands for, or `undefined` when they cannot be
+ * known: the body was not captured (a Capture Gap) or its `bodyEncoding` is
+ * not one this helper decodes.
+ */
+function decodeContent({
+  body,
+  bodyEncoding,
+}: CapturedContent): Buffer | undefined {
+  if (body === undefined) {
+    return undefined;
+  }
+  if (bodyEncoding === undefined) {
+    return Buffer.from(body, 'utf8');
+  }
+  if (bodyEncoding.toLowerCase() === 'base64') {
+    return Buffer.from(body, 'base64');
+  }
+  return undefined;
+}
+
+/**
+ * Compares the content a forwarding participant received with the content it
+ * forwarded, byte for byte after decoding each body per its `bodyEncoding`
+ * (`base64`, or UTF-8 text when absent). Yields `undeterminable` when either
+ * side's bytes cannot be known, so rules skip the hop rather than guess.
+ */
+export function compareContent(
+  received: CapturedContent,
+  forwarded: CapturedContent,
+): ContentComparison {
+  const before = decodeContent(received);
+  const after = decodeContent(forwarded);
+  if (before === undefined || after === undefined) {
+    return 'undeterminable';
+  }
+  return before.equals(after) ? 'same' : 'different';
 }
