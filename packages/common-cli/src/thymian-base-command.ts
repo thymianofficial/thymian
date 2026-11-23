@@ -49,8 +49,18 @@ export abstract class ThymianBaseCommand<
   }
 
   protected override async catch(err: CommandError): Promise<void> {
-    await writeErrorRecord(this, err, this.feedback, this.errorCache);
+    if (this.shouldWriteErrorRecord()) {
+      await writeErrorRecord(this, err, this.feedback, this.errorCache);
+    }
     return super.catch(err);
+  }
+
+  /**
+   * Whether a failing command leaves an error record for `thymian feedback`.
+   * A command that must not overwrite the record turns this off.
+   */
+  protected shouldWriteErrorRecord(): boolean {
+    return true;
   }
 
   public shouldSuppressFeedback(): boolean {

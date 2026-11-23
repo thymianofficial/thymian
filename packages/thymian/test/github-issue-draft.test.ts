@@ -1,17 +1,17 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import os from 'node:os';
 
-import { createGithubIssueUrlForError } from '../src/create-github-issue-url-for-error.js';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { createGithubIssueDraft } from '../src/github-issue-draft.js';
 import { aCachedError } from './support/cached-error.js';
 
-describe('createGithubIssueUrlForError', () => {
-  const originalHome = process.env.HOME;
-
+describe('createGithubIssueDraft', () => {
   beforeEach(() => {
-    process.env.HOME = '/home/testuser';
+    vi.spyOn(os, 'homedir').mockReturnValue('/home/testuser');
   });
 
   afterEach(() => {
-    process.env.HOME = originalHome;
+    vi.restoreAllMocks();
   });
 
   it('should generate correct GitHub issue URL', () => {
@@ -27,7 +27,7 @@ describe('createGithubIssueUrlForError', () => {
       },
     });
 
-    const url = createGithubIssueUrlForError(error);
+    const url = createGithubIssueDraft(error).url;
 
     expect(url).toContain(
       'https://github.com/thymianofficial/thymian/issues/new',
@@ -41,7 +41,7 @@ describe('createGithubIssueUrlForError', () => {
       commandName: 'init',
     });
 
-    const url = createGithubIssueUrlForError(error);
+    const url = createGithubIssueDraft(error).url;
     const parsedUrl = new URL(url);
 
     expect(parsedUrl.searchParams.get('title')).toBe(
@@ -52,7 +52,7 @@ describe('createGithubIssueUrlForError', () => {
   it('should set labels parameter to bug', () => {
     const error = aCachedError();
 
-    const url = createGithubIssueUrlForError(error);
+    const url = createGithubIssueDraft(error).url;
     const parsedUrl = new URL(url);
 
     expect(parsedUrl.searchParams.get('labels')).toBe('bug');
@@ -68,7 +68,7 @@ describe('createGithubIssueUrlForError', () => {
       },
     });
 
-    const url = createGithubIssueUrlForError(error);
+    const url = createGithubIssueDraft(error).url;
     const parsedUrl = new URL(url);
     const body = parsedUrl.searchParams.get('body');
 
@@ -83,7 +83,7 @@ describe('createGithubIssueUrlForError', () => {
       commandName: 'lint',
     });
 
-    const body = new URL(createGithubIssueUrlForError(error)).searchParams.get(
+    const body = new URL(createGithubIssueDraft(error).url).searchParams.get(
       'body',
     );
 
@@ -98,7 +98,7 @@ describe('createGithubIssueUrlForError', () => {
   ])('should render no command when the command name is %s', (_, value) => {
     const error = aCachedError({ commandName: value });
 
-    const parsedUrl = new URL(createGithubIssueUrlForError(error));
+    const parsedUrl = new URL(createGithubIssueDraft(error).url);
     const title = parsedUrl.searchParams.get('title');
     const body = parsedUrl.searchParams.get('body');
 
@@ -116,7 +116,7 @@ describe('createGithubIssueUrlForError', () => {
       ],
     });
 
-    const url = createGithubIssueUrlForError(error);
+    const url = createGithubIssueDraft(error).url;
     const parsedUrl = new URL(url);
     const body = parsedUrl.searchParams.get('body');
 
@@ -128,7 +128,7 @@ describe('createGithubIssueUrlForError', () => {
   it('should show "none" when no plugins installed', () => {
     const error = aCachedError();
 
-    const url = createGithubIssueUrlForError(error);
+    const url = createGithubIssueDraft(error).url;
     const parsedUrl = new URL(url);
     const body = parsedUrl.searchParams.get('body');
 
@@ -141,7 +141,7 @@ describe('createGithubIssueUrlForError', () => {
       stack: 'Error: Test error\n  at test.ts:10\n  at run.ts:20',
     });
 
-    const url = createGithubIssueUrlForError(error);
+    const url = createGithubIssueDraft(error).url;
     const parsedUrl = new URL(url);
     const body = parsedUrl.searchParams.get('body');
 
@@ -154,7 +154,7 @@ describe('createGithubIssueUrlForError', () => {
   it('should handle missing stack trace gracefully', () => {
     const error = aCachedError();
 
-    const url = createGithubIssueUrlForError(error);
+    const url = createGithubIssueDraft(error).url;
     const parsedUrl = new URL(url);
     const body = parsedUrl.searchParams.get('body');
 
@@ -167,7 +167,7 @@ describe('createGithubIssueUrlForError', () => {
       stack: `Error: Test\n  at /home/testuser/project/src/test.ts:10\n  at /home/testuser/.config/test.js:20`,
     });
 
-    const url = createGithubIssueUrlForError(error);
+    const url = createGithubIssueDraft(error).url;
     const parsedUrl = new URL(url);
     const body = parsedUrl.searchParams.get('body');
 
@@ -179,7 +179,7 @@ describe('createGithubIssueUrlForError', () => {
   it('should handle missing osVersion gracefully', () => {
     const error = aCachedError();
 
-    const url = createGithubIssueUrlForError(error);
+    const url = createGithubIssueDraft(error).url;
     const parsedUrl = new URL(url);
     const body = parsedUrl.searchParams.get('body');
 
@@ -192,7 +192,7 @@ describe('createGithubIssueUrlForError', () => {
       timestamp,
     });
 
-    const url = createGithubIssueUrlForError(error);
+    const url = createGithubIssueDraft(error).url;
     const parsedUrl = new URL(url);
     const body = parsedUrl.searchParams.get('body');
 
@@ -203,7 +203,7 @@ describe('createGithubIssueUrlForError', () => {
   it('should include markdown formatting for body', () => {
     const error = aCachedError();
 
-    const url = createGithubIssueUrlForError(error);
+    const url = createGithubIssueDraft(error).url;
     const parsedUrl = new URL(url);
     const body = parsedUrl.searchParams.get('body');
 
@@ -219,7 +219,7 @@ describe('createGithubIssueUrlForError', () => {
       pluginVersions: [{ name: '@thymian/plugin-openapi', version: '1.0.0' }],
     });
 
-    const url = createGithubIssueUrlForError(error);
+    const url = createGithubIssueDraft(error).url;
     const parsedUrl = new URL(url);
     const body = parsedUrl.searchParams.get('body');
 
@@ -227,5 +227,31 @@ describe('createGithubIssueUrlForError', () => {
     expect(body).toContain('<summary>');
     expect(body).toContain('</details>');
     expect(body).toContain('</summary>');
+  });
+  describe('the draft', () => {
+    const error = aCachedError({
+      stack: 'Error: Test\n  at /home/testuser/project/src/test.ts:10',
+      commandName: 'lint',
+    });
+
+    it('carries exactly the title and body that the URL opens', () => {
+      const draft = createGithubIssueDraft(error);
+      const params = new URL(draft.url).searchParams;
+
+      expect(draft.heading).toBe('TestError while running in command `lint`');
+      expect(params.get('title')).toBe(draft.heading);
+      expect(params.get('body')).toBe(draft.body);
+    });
+
+    it('leaves the stack out, with a placeholder line in its place', () => {
+      const draft = createGithubIssueDraft(error, { withoutStack: true });
+      const body = new URL(draft.url).searchParams.get('body');
+
+      expect(body).toBe(draft.body);
+      expect(draft.body.split('\n')).toContain('_Stack trace left out._');
+      expect(draft.body).not.toContain('at ~/project/src/test.ts:10');
+      expect(draft.body).not.toContain('Click to expand Stacktrace');
+      expect(draft.body).toContain('**Command:** `lint`');
+    });
   });
 });
