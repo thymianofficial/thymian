@@ -296,7 +296,7 @@ describe('the rule-author guide: testing a rule', () => {
       });
     });
 
-    it('no longer recognises the transaction in a recording that names another content-type', async () => {
+    it('places a recording that names another content-type on its operation, not its transaction', async () => {
       const executions = await createRuleTester(
         clientErrorsAreProblemJson,
       ).runAnalyze(format, {
@@ -314,7 +314,10 @@ describe('the rule-author guide: testing a rule', () => {
         { location: { elementId: launchMissing }, status: 'notApplicable' },
         { location: { elementId: astronautCreated }, status: 'notApplicable' },
         { location: { elementId: astronautRejected }, status: 'notApplicable' },
-        { location: expect.stringContaining('/launches'), status: 'failed' },
+        {
+          location: { elementType: 'node', label: 'GET /launches/{id}' },
+          status: 'failed',
+        },
       ]);
     });
 

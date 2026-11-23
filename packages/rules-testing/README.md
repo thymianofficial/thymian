@@ -120,7 +120,7 @@ A transaction may be recorded several times, and each recording is judged on its
 
 An override replaces a field of the conforming request or response as a whole: `{ request: { headers: { authorization: 'Bearer apollo' } } }` records exactly that request header, which is how a rule about a request header is tested. One thing is kept: the media type the format declares is still named as `content-type`, because the analyzer recognises the transaction by it, unless the headers you give name a `content-type` themselves. `recorded` throws for an id the format has no transaction with, for a request that cannot be built, and for a `default` transaction unless the override names its status: `{ response: { statusCode: 503 } }`.
 
-A recording that the analyzer matches to no transaction of the format, for example one with another path or status, has no transaction to appear on. What the rule says about it is located on a free string, the label of the recording, and comes last:
+A recording that the analyzer matches to no transaction of the format has no transaction to appear on. When its request still matches an operation and only the response is undocumented, for example one with another status or media type, what the rule says about it is located on that operation's request node. Otherwise, for example for another path, it is located on a free string, the label of the recording. Either way it comes last:
 
 ```typescript
 const executions = await ruleTester.runAnalyze(format, {

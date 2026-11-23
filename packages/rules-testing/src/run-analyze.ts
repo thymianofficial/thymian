@@ -66,7 +66,8 @@ type Analysis = {
  * located on a recording's label takes the place of the transaction that
  * recording matched and keeps the label as its location. A recording that
  * matches no transaction has no entry of its own: what the engine reports on
- * it, it locates on a free string.
+ * it, it locates on the operation's request node when only the response is
+ * undocumented, otherwise on a free string.
  */
 export async function runAnalyze(
   underTest: RuleUnderTest,
