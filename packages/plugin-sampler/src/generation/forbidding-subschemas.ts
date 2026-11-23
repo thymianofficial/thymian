@@ -62,11 +62,11 @@ export function forbiddingSubschemasToBoolean(input: unknown): unknown {
   }
 
   const out: Record<string, unknown> = {};
-  const closesTuple =
+  const hasPrefixItems =
     Array.isArray(input['prefixItems']) && input['prefixItems'].length > 0;
 
   for (const [key, value] of Object.entries(input)) {
-    if (key === 'items' && closesTuple && forbidsEverything(value)) {
+    if (key === 'items' && hasPrefixItems && forbidsEverything(value)) {
       continue;
     }
 
