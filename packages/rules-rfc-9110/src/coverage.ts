@@ -880,7 +880,7 @@ const coverage: CoverageRecord<typeof units> = defineCoverage({
         static: {
           verdict: 'impossible',
           reason: 'not-representable',
-          note: 'This rule diffs the body a proxy received against the body it forwarded on a no-transform response (forwardingHops, scoped to the proxy role).',
+          note: 'The schema format has no concept of a correlated multi-hop trace or of participant role -- both of which this rule needs to compare the content a proxy received with the content it forwarded.',
         },
         test: {
           verdict: 'impossible',

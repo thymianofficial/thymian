@@ -28,10 +28,17 @@ export default httpRule(
   .rule((ctx) =>
     ctx.validateCapturedHttpTraces((trace, location) => {
       const results: RuleFnResult[] = [];
+      // Bodies are compared as captured. A source that stores content after
+      // content-decoding (as HAR's content.text does) makes a proxy that only
+      // adds or removes a content coding look unchanged here; the
+      // Content-Encoding change is still reported by
+      // proxy-should-not-modify-endpoint-and-representation-headers.
       for (const { inbound, outbound } of forwardingHops(trace, ['proxy'])) {
         // Responses flow upstream -> proxy -> downstream, so the proxy received
         // `outbound.response` from upstream and sent `inbound.response` onward.
         // The directive binds the proxy only if it was on what it received.
+        // No Capture Gap guard: an uncaptured Cache-Control can only hide a
+        // violation, never invent one.
         const received = outbound.response.data;
         const forwarded = inbound.response.data;
         if (
