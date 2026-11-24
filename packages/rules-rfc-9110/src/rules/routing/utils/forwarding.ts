@@ -184,9 +184,15 @@ function decodeContent({
   if (!bodyEncoding) {
     return Buffer.from(body, 'utf8');
   }
-  // Buffer.from is lenient and silently drops characters outside the base64
-  // alphabet, so a malformed body is rejected rather than decoded by guesswork.
-  if (bodyEncoding.toLowerCase() === 'base64' && BASE64.test(body)) {
+  // Buffer.from is lenient: it silently drops characters outside the base64
+  // alphabet and decodes a truncated body ('abc', 'a') to fewer bytes, so a
+  // malformed body is rejected rather than decoded by guesswork. Padded base64
+  // always comes in groups of four characters.
+  if (
+    bodyEncoding.toLowerCase() === 'base64' &&
+    body.length % 4 === 0 &&
+    BASE64.test(body)
+  ) {
     return Buffer.from(body, 'base64');
   }
   return undefined;

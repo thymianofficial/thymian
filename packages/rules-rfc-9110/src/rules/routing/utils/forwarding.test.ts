@@ -340,6 +340,19 @@ describe('compareContent', () => {
     ).toBe('undeterminable');
   });
 
+  it('cannot tell when a base64 body has a length that is not a multiple of four', () => {
+    // Leniently decoded, 'abc' is the two bytes of 'abc=' and 'a' is no bytes.
+    expect(
+      compareContent(
+        { body: 'abc', bodyEncoding: 'base64' },
+        { body: 'abc=', bodyEncoding: 'base64' },
+      ),
+    ).toBe('undeterminable');
+    expect(
+      compareContent({ body: 'a', bodyEncoding: 'base64' }, { body: '' }),
+    ).toBe('undeterminable');
+  });
+
   it('compares an empty body as real content', () => {
     expect(compareContent({ body: '' }, { body: '' })).toBe('same');
     expect(compareContent({ body: '' }, { body: 'hello' })).toBe('different');
