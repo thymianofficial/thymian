@@ -78,10 +78,10 @@ await ruleTester.runTest(format, {
 
 Here `launchCreated` is `failed`: the server dropped the `Location` header the format declares. One condition can change many answers, for example `conforming.statusCode >= 400`. One operation with two answers gets two requests, one aimed at each transaction.
 
-Two things make a transaction `skipped` in `test`, each with a `reason`, because the tester does not ask the rule about it:
+The tester does not ask the rule about a transaction in `test`, and gives a `reason`, when:
 
-- **The live pair is outside the rule's applicability.** `thymian test` skips such a transaction too.
-- **The request cannot be built**, for example for a path parameter without an example: give its schema one, `createRequiredParameter({ schema: createStringSchema({ examples: ['apollo-11'] }) })`.
+- **The live pair is outside the rule's applicability**, for example because the server answers another status than the transaction declares. The transaction is `notApplicable`, as `thymian test` reports it.
+- **The request cannot be built**, for example for a path parameter without an example: give its schema one, `createRequiredParameter({ schema: createStringSchema({ examples: ['apollo-11'] }) })`. The transaction is `skipped`.
 
 ### The traffic in `analytics`
 
@@ -166,7 +166,7 @@ expect(await createRuleTester(resourcesSendEtagConsistently).runLint(format)).to
 ]);
 ```
 
-The key is what the context grouped by, spelled as that context spells it: grouped by `url()`, `static` and `test` give `https://localhost:443/launches` where `analytics` gives `https://localhost/launches`. In `test` the tester sends the requests of a group together. A member the server answers outside the rule's applicability is not judged. It reads `passed` unless no member of its group applies; then every member is `skipped`.
+The key is what the context grouped by, spelled as that context spells it: grouped by `url()`, `static` and `test` give `https://localhost:443/launches` where `analytics` gives `https://localhost/launches`. In `test` the tester sends the requests of a group together. A member the server answers outside the rule's applicability is not judged: it is `notApplicable`, with a `reason`, and the rule judges the other members.
 
 ### What comes back
 
@@ -178,7 +178,7 @@ A list of executions. Each one has:
 | `status`   | `failed`, `passed`, `notApplicable` or `skipped`.                                                                                                                  |
 | `message`  | When `failed`: the violation's message, or the rule's summary or description when it gives none.                                                                   |
 | `severity` | When `failed`: the severity the rule declares.                                                                                                                     |
-| `reason`   | When `skipped`: the reason the rule gave.                                                                                                                          |
+| `reason`   | When `skipped`: the reason the rule gave. When `notApplicable` in `test`: why the live pair is outside the rule's applicability.                                   |
 | `group`    | When a grouped rule located the execution on a group and not on one member: the group key. See [Grouped rules](#grouped-rules).                                    |
 | `findings` | What the rule attached to the execution, as a report carries it. Always a list; empty when the rule attached nothing.                                              |
 

@@ -240,8 +240,10 @@ a function returning results, and runs only on transactions `appliesTo` accepts.
 against whatever the context observes: the specification in `Lint`, the recorded pair in `Analyze`,
 and in `Test` `appliesTo` is evaluated twice, against the specification to choose which requests to
 send and against the pair that came back. That second check replaces the status-code gate: a pair
-it rejects is reported as skipped, naming the declared and the live status where they differ, and
-a judged pair whose status drifted carries an informational finding
+it rejects is reported as `notApplicable` and listed with its reason, naming the declared and the
+live status where they differ
+([ADR-0030](adr/0030-a-rule-that-applies-to-nothing-is-reported-not-applicable.md)), and a judged
+pair whose status drifted carries an informational finding
 ([ADR-0028](adr/0028-rule-context-calls-judge-the-live-status.md)). A fact only live traffic
 carries, such as `Content-Length`, belongs in `violatedWhen`.
 
