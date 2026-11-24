@@ -1,6 +1,11 @@
 import type { Logger } from '../logger/logger.js';
 import { resolveExecutionSeverity } from './finding-render.js';
-import type { Execution, RuleDescriptor, Severity } from './report.js';
+import type {
+  Execution,
+  RuleDescriptor,
+  Severity,
+  TestCaseExecution,
+} from './report.js';
 import { SEVERITY_GROUP_ORDER } from './report-style.js';
 
 /** The accepted `--sort-reports-by` values — the single source for the flag,
@@ -87,12 +92,24 @@ export function isListedExecution(execution: Execution): boolean {
     case 'notApplicable':
       return (
         execution.kind !== 'test' ||
-        execution.steps.length === 0 ||
+        isRuleLevelNotApplicable(execution) ||
         execution.status.reason !== undefined
       );
     default:
       return true;
   }
+}
+
+/**
+ * Whether a test execution stands for a rule that applied to nothing: a
+ * `notApplicable` test case without steps (ADR-0030).
+ */
+export function isRuleLevelNotApplicable(
+  execution: TestCaseExecution,
+): boolean {
+  return (
+    execution.status.kind === 'notApplicable' && execution.steps.length === 0
+  );
 }
 
 /** Pluralizes a severity word (`error`→`errors`, …) for severity-group headings. */

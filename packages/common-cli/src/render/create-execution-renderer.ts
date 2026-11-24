@@ -286,12 +286,11 @@ function groupedEntryRenderer<T extends Groupable>(
   ) => {
     const label = options.labelOf(execution, locationResolver, toolRun);
     const rule = execution.ruleId ? ruleIndex.get(execution.ruleId) : undefined;
+    const { kind } = execution.status;
     const symbol =
-      execution.status.kind === 'skipped'
-        ? SEVERITY_SYMBOLS.skipped + '  skipped:'
-        : execution.status.kind === 'notApplicable'
-          ? SEVERITY_SYMBOLS.notApplicable + '  not applicable:'
-          : '•';
+      kind === 'skipped' || kind === 'notApplicable'
+        ? `${SEVERITY_SYMBOLS[kind]}  ${kind === 'skipped' ? 'skipped' : 'not applicable'}:`
+        : '•';
 
     const reason =
       'reason' in execution.status ? execution.status.reason : undefined;

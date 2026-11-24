@@ -554,12 +554,7 @@ function renderTestCase(
 ): string[] {
   const lines: string[] = [];
 
-  const statusGlyph =
-    execution.status.kind === 'failed'
-      ? errorSymbol
-      : execution.status.kind === 'notApplicable'
-        ? notApplicableSymbol
-        : skippedSymbol;
+  const statusGlyph = SEVERITY_SYMBOLS[execution.status.kind];
   lines.push(
     `${headingPrefix} ${execution.name} · _${statusGlyph} ${execution.status.kind}_`,
   );

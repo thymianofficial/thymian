@@ -6,6 +6,7 @@ import {
   type HttpTestContext,
   type HttpTestHooks,
   isGroupedHttpTestCaseStep,
+  isRuleLevelNotApplicable,
   isRuleViolationGroupLocation,
   NoopLogger,
   resolveViolationLocation,
@@ -155,9 +156,7 @@ export async function runTest(
   // transaction; the list below already says `notApplicable` for each of them.
   const executions = (
     run?.runType === 'test' ? (run.executions ?? []) : []
-  ).filter(
-    ({ status, steps }) => status.kind !== 'notApplicable' || steps.length > 0,
-  );
+  ).filter((execution) => !isRuleLevelNotApplicable(execution));
   // The tester reports one execution per test case, in the order it ran them.
   const groups = (result[rule.meta.name]?.diagnostics?.calls ?? []).flatMap(
     ({ testResult, placements, rejectedCases = [] }) =>
