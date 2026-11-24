@@ -40,6 +40,7 @@ import {
 import {
   HttpTestApiContext,
   type HttpTesterRuleDiagnostics,
+  NOT_APPLICABLE_EXECUTION_NAME,
   type RuleFnResultPlacement,
 } from './http-test-api-context.js';
 
@@ -47,12 +48,10 @@ export {
   HttpTestApiContext,
   type HttpTesterCallDiagnostics,
   type HttpTesterRuleDiagnostics,
+  NOT_APPLICABLE_EXECUTION_NAME,
   NOT_APPLICABLE_REASONS,
   type RuleFnResultPlacement,
 } from './http-test-api-context.js';
-
-/** Name of the execution a rule that applied to nothing is reported on (ADR-0030). */
-export const NOT_APPLICABLE_EXECUTION_NAME = 'no applicable transaction';
 
 /**
  * A step-level rule violation is kept so a failed step stays visible, but

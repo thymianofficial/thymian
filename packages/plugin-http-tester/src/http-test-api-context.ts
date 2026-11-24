@@ -191,6 +191,9 @@ export type HttpTesterCallDiagnostics = {
   }>;
 };
 
+/** Name of the execution a rule that applied to nothing is reported on (ADR-0030). */
+export const NOT_APPLICABLE_EXECUTION_NAME = 'no applicable transaction';
+
 /** Why a rule applied to nothing (ADR-0030). */
 export const NOT_APPLICABLE_REASONS = {
   noTransaction: 'The input has no transaction this rule applies to.',
