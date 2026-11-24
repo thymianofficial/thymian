@@ -2,6 +2,7 @@ import { ux } from '@oclif/core';
 import {
   type AnalyzeExecution,
   isListedExecution,
+  isStatusWithoutSeverity,
   type LintExecution,
   type LocationResolver,
   pluralizeSeverity,
@@ -202,7 +203,7 @@ const severityHeading: RenderGroupHeadingFn<Groupable> = (key) => {
   // Keys here are always severity words or the `skipped`/`notApplicable`
   // buckets; those have a symbol but no severity color, so they are rendered
   // uncolored.
-  return key === 'skipped' || key === 'notApplicable'
+  return isStatusWithoutSeverity(key)
     ? `${SEVERITY_SYMBOLS[key]} ${label}`
     : ux.colorize(
         SEVERITY_COLORS[key as Severity],
@@ -287,10 +288,9 @@ function groupedEntryRenderer<T extends Groupable>(
     const label = options.labelOf(execution, locationResolver, toolRun);
     const rule = execution.ruleId ? ruleIndex.get(execution.ruleId) : undefined;
     const { kind } = execution.status;
-    const symbol =
-      kind === 'skipped' || kind === 'notApplicable'
-        ? `${SEVERITY_SYMBOLS[kind]}  ${kind === 'skipped' ? 'skipped' : 'not applicable'}:`
-        : '•';
+    const symbol = isStatusWithoutSeverity(kind)
+      ? `${SEVERITY_SYMBOLS[kind]}  ${kind === 'skipped' ? 'skipped' : 'not applicable'}:`
+      : '•';
 
     const reason =
       'reason' in execution.status ? execution.status.reason : undefined;

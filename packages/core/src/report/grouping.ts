@@ -34,8 +34,7 @@ export function severityGroupKey(
 ): string {
   return (
     resolveExecutionSeverity(execution, ruleIndex, logger) ??
-    (execution.status.kind === 'skipped' ||
-    execution.status.kind === 'notApplicable'
+    (isStatusWithoutSeverity(execution.status.kind)
       ? execution.status.kind
       : 'error')
   );
@@ -98,6 +97,13 @@ export function isListedExecution(execution: Execution): boolean {
     default:
       return true;
   }
+}
+
+/** Statuses that carry no severity, so they get a bucket of their own and no severity colour. */
+export function isStatusWithoutSeverity(
+  kind: string,
+): kind is 'skipped' | 'notApplicable' {
+  return kind === 'skipped' || kind === 'notApplicable';
 }
 
 /**

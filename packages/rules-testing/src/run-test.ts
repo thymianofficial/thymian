@@ -8,6 +8,7 @@ import {
   isGroupedHttpTestCaseStep,
   isRuleLevelNotApplicable,
   isRuleViolationGroupLocation,
+  isStatusWithoutSeverity,
   NoopLogger,
   resolveViolationLocation,
   type RuleFnResult,
@@ -140,7 +141,8 @@ export async function runTest(
             severity: declaredSeverity,
           }
         : {}),
-      ...((status.kind === 'skipped' || status.kind === 'notApplicable') &&
+      ...(isStatusWithoutSeverity(status.kind) &&
+      'reason' in status &&
       status.reason !== undefined
         ? { reason: status.reason }
         : {}),

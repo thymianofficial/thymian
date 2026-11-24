@@ -17,6 +17,7 @@ import {
   findingDetails,
   httpStatusCodeToPhrase,
   isListedExecution,
+  isStatusWithoutSeverity,
   isValidHttpStatusCode,
   pluralizeSeverity,
   resolveExecutionSeverity,
@@ -154,10 +155,9 @@ function groupHeadingText(
     return `${SEVERITY_SYMBOLS[severity]} ${severity}: ${escapeHtml(key)}`;
   }
   if (sortReportsBy === 'severity') {
-    const symbol =
-      key === 'skipped' || key === 'notApplicable'
-        ? SEVERITY_SYMBOLS[key]
-        : SEVERITY_SYMBOLS[key as Severity];
+    const symbol = isStatusWithoutSeverity(key)
+      ? SEVERITY_SYMBOLS[key]
+      : SEVERITY_SYMBOLS[key as Severity];
     return `${symbol} ${pluralizeSeverity(key).toUpperCase()}`;
   }
   return key;
@@ -444,11 +444,11 @@ function buildLintAnalyzeSection(
         rule?.summary?.text ??
         rule?.description?.text ??
         '';
-    } else if (
-      execution.status.kind === 'skipped' ||
-      execution.status.kind === 'notApplicable'
-    ) {
-      message = execution.status.reason ?? rule?.summary?.text ?? '';
+    } else if (isStatusWithoutSeverity(execution.status.kind)) {
+      message =
+        ('reason' in execution.status ? execution.status.reason : undefined) ??
+        rule?.summary?.text ??
+        '';
     } else {
       message = rule?.summary?.text ?? '';
     }
@@ -569,9 +569,12 @@ function renderTestCase(
         rule?.summary?.text ??
         rule?.description?.text ??
         '')
-      : execution.status.kind === 'skipped' ||
-          execution.status.kind === 'notApplicable'
-        ? (execution.status.reason ?? rule?.summary?.text ?? '')
+      : isStatusWithoutSeverity(execution.status.kind)
+        ? (('reason' in execution.status
+            ? execution.status.reason
+            : undefined) ??
+          rule?.summary?.text ??
+          '')
         : '';
 
   // The summary omits whatever the group heading already carries: the severity

@@ -5,6 +5,7 @@ import {
   createTestCaseExecution,
   createTestStep,
   isListedExecution,
+  isStatusWithoutSeverity,
 } from '../src/report/index.js';
 
 const step = createTestStep({
@@ -73,5 +74,17 @@ describe('isListedExecution', () => {
         }),
       ),
     ).toBe(false);
+  });
+});
+
+describe('isStatusWithoutSeverity', () => {
+  it.each([
+    ['skipped', true],
+    ['notApplicable', true],
+    ['failed', false],
+    ['passed', false],
+    ['error', false],
+  ])('says %s is %s', (kind, expected) => {
+    expect(isStatusWithoutSeverity(kind)).toBe(expected);
   });
 });
