@@ -78,29 +78,40 @@ export function headerValues(value: HeaderValue): string[] {
 
 /**
  * Splits a comma-separated header value on top-level commas only, ignoring
- * commas inside parenthesised comments. Via entries may carry `(...)` comments
- * that themselves contain commas, so a naive `split(',')` would corrupt the
- * received-by tokens. Nested comments and quoted-pairs (`\)`) are handled.
+ * commas inside parenthesised comments and inside quoted strings. Via entries
+ * may carry `(...)` comments, and Cache-Control directive arguments may be
+ * quoted strings (`private="a, b"`), that themselves contain commas, so a
+ * naive `split(',')` would corrupt the list members. Nested comments and
+ * quoted-pairs (`\)`, `\"`) are handled. A `"` opens a quoted string only
+ * outside a comment, since a comment's text may contain one; an unterminated
+ * quoted string runs to the end of the value.
  */
 export function splitTopLevelCommas(value: string): string[] {
   const parts: string[] = [];
   let depth = 0;
+  let quoted = false;
   let current = '';
   for (let i = 0; i < value.length; i++) {
     const char = value[i];
-    if (char === '\\' && depth > 0) {
-      // Quoted-pair inside a comment: keep the escaped pair verbatim so the
-      // escaped character cannot be misread as a paren or comma.
+    if (char === '\\' && (depth > 0 || quoted)) {
+      // Quoted-pair inside a comment or quoted string: keep the escaped pair
+      // verbatim so the escaped character cannot be misread as a delimiter.
       current += char + (value[i + 1] ?? '');
       i++;
       continue;
     }
-    if (char === '(') {
+    if (quoted) {
+      if (char === '"') {
+        quoted = false;
+      }
+    } else if (char === '"' && depth === 0) {
+      quoted = true;
+    } else if (char === '(') {
       depth++;
     } else if (char === ')' && depth > 0) {
       depth--;
     }
-    if (char === ',' && depth === 0) {
+    if (char === ',' && depth === 0 && !quoted) {
       parts.push(current);
       current = '';
     } else {
@@ -148,7 +159,7 @@ export function hasNoTransformDirective(
   headers: Record<string, HeaderValue>,
 ): boolean {
   return headerValues(getHeader(headers, 'cache-control'))
-    .flatMap((entry) => entry.split(','))
+    .flatMap((entry) => splitTopLevelCommas(entry))
     .some((directive) => directive.trim().toLowerCase() === 'no-transform');
 }
 

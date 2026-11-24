@@ -215,6 +215,28 @@ describe('splitTopLevelCommas', () => {
     expect(splitTopLevelCommas('1.1 a (x, y)')).toEqual(['1.1 a (x, y)']);
     expect(splitTopLevelCommas('')).toEqual(['']);
   });
+
+  it('ignores commas inside quoted strings', () => {
+    expect(splitTopLevelCommas('private="a, b", no-transform')).toEqual([
+      'private="a, b"',
+      ' no-transform',
+    ]);
+  });
+
+  it('keeps an escaped quote inside a quoted string', () => {
+    expect(splitTopLevelCommas('ext="a\\", b", no-transform')).toEqual([
+      'ext="a\\", b"',
+      ' no-transform',
+    ]);
+  });
+
+  it('treats a quote inside a comment as literal', () => {
+    expect(splitTopLevelCommas('1.1 a (say "hi), 1.1 b, 1.1 c')).toEqual([
+      '1.1 a (say "hi)',
+      ' 1.1 b',
+      ' 1.1 c',
+    ]);
+  });
 });
 
 describe('hasNoTransformDirective', () => {
@@ -243,6 +265,22 @@ describe('hasNoTransformDirective', () => {
     expect(hasNoTransformDirective({ 'cache-control': 'no-store' })).toBe(
       false,
     );
+  });
+
+  it('ignores no-transform inside a quoted directive argument', () => {
+    expect(
+      hasNoTransformDirective({
+        'cache-control': 'private="a, no-transform, b"',
+      }),
+    ).toBe(false);
+  });
+
+  it('finds no-transform after a quoted directive argument with commas', () => {
+    expect(
+      hasNoTransformDirective({
+        'cache-control': 'private="a, b", no-transform',
+      }),
+    ).toBe(true);
   });
 });
 
