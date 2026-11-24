@@ -12,18 +12,27 @@ import {
   type ThymianHttpResponse,
 } from '@thymian/core';
 import { createThymianFormatWithTransaction } from '@thymian/core-testing';
-import { HttpTestApiContext } from '@thymian/plugin-http-tester';
+import {
+  HttpTestApiContext,
+  type HttpTesterCallDiagnostics,
+} from '@thymian/plugin-http-tester';
 
 /**
  * Runs a rule's `test` function through the real `HttpTestApiContext` against
  * one described transaction, answering every request with `live` (or with what
- * `live` returns for it), and returns the test cases it ran next to its results.
+ * `live` returns for it), and returns the test cases it ran next to its results,
+ * with the cases in which the live re-check of `appliesTo` rejected pairs
+ * (ADR-0030).
  */
 export async function runTestRuleCases(
   rule: Rule,
   described: { req: ThymianHttpRequest; res: ThymianHttpResponse },
   live: HttpResponse | ((request: HttpRequest) => HttpResponse),
-): Promise<{ results: RuleFnResult[]; cases: HttpTestCase[] }> {
+): Promise<{
+  results: RuleFnResult[];
+  cases: HttpTestCase[];
+  rejectedCases: NonNullable<HttpTesterCallDiagnostics['rejectedCases']>;
+}> {
   const format = createThymianFormatWithTransaction(
     described.req,
     described.res,
@@ -59,11 +68,13 @@ export async function runTestRuleCases(
     { mode: 'test' },
     new NoopLogger(),
   );
-  const cases = (context.getRuleExecutionDiagnostics() ?? []).flatMap(
-    ({ testResult }) => testResult.cases,
+  const { calls } = context.getRuleExecutionDiagnostics();
+  const cases = calls.flatMap(({ testResult }) => testResult.cases);
+  const rejectedCases = calls.flatMap(
+    ({ rejectedCases = [] }) => rejectedCases,
   );
 
-  return { results, cases };
+  return { results, cases, rejectedCases };
 }
 
 /** {@link runTestRuleCases}, returning only the rule's results. */

@@ -84,13 +84,19 @@ describeRuleContextScenarios({
         .mockImplementation(async (_name, hook) => ({ result: hook.value })),
     });
 
+    const context = new HttpTestApiContext('scenario-rule', ctx);
+
     return {
-      context: new HttpTestApiContext('scenario-rule', ctx),
+      context,
       locationOf: (index) =>
         expect.objectContaining({
           elementType: 'edge',
           elementId: transactionIds[index],
         }),
+      rejectedCases: () =>
+        context
+          .getRuleExecutionDiagnostics()
+          .calls.flatMap(({ rejectedCases = [] }) => rejectedCases),
     };
   },
 });

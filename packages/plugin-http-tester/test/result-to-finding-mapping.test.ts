@@ -54,9 +54,9 @@ function runFor(
   cases: HttpTestCase[],
   placements: RuleFnResultPlacement[],
 ): TestCaseExecution[] {
-  const diagnostics: HttpTesterRuleDiagnostics = [
-    { testResult: { name: 'run', duration: 0, cases }, placements },
-  ];
+  const diagnostics: HttpTesterRuleDiagnostics = {
+    calls: [{ testResult: { name: 'run', duration: 0, cases }, placements }],
+  };
   const [run] = createRuns(
     PLUGIN,
     { [rule.meta.name]: { ruleFnResult: [], diagnostics } },

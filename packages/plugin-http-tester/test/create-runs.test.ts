@@ -1,19 +1,36 @@
 import {
+  and,
   createHttpTestContext,
+  type HttpRequestTemplate,
+  type HttpResponse,
   httpRule,
   type HttpTestCase,
   type HttpTestCaseStep,
   locateOnGroup,
   type Logger,
+  method,
+  NoopLogger,
+  responseHeader,
+  type Rule,
   type RuleFnResult,
+  type RuleRunnerAdapter,
   type RuleViolationGroupLocation,
   type RuleViolationLocation,
+  runRules,
+  singleTestCase,
+  statusCode,
   type TestCaseExecution,
   ThymianFormat,
   type ThymianHttpTransaction,
 } from '@thymian/core';
-import { method, NoopLogger, responseHeader, statusCode } from '@thymian/core';
-import { createHttpRequest, createHttpResponse } from '@thymian/core-testing';
+import {
+  createCreatedResponse,
+  createHttpRequest,
+  createHttpResponse,
+  createPostRequest,
+  createRequiredParameter,
+  createThymianFormatWithTransactions,
+} from '@thymian/core-testing';
 import { describe, expect, it, vi } from 'vitest';
 
 import {
@@ -175,9 +192,9 @@ describe('createRuns', () => {
     const placements: RuleFnResultPlacement[] = [
       { result, testCaseIndex: 0, stepIndex: 0 },
     ];
-    const diagnostics: HttpTesterRuleDiagnostics = [
-      { testResult: { name: 'run', duration: 0, cases }, placements },
-    ];
+    const diagnostics: HttpTesterRuleDiagnostics = {
+      calls: [{ testResult: { name: 'run', duration: 0, cases }, placements }],
+    };
 
     const [run] = createRuns(
       PLUGIN,
@@ -196,9 +213,11 @@ describe('createRuns', () => {
 
   it('maps a passed case to a passed status with duration (AC6)', () => {
     const cases = [makePassedCase('my-test', [])];
-    const diagnostics: HttpTesterRuleDiagnostics = [
-      { testResult: { name: 'run', duration: 0, cases }, placements: [] },
-    ];
+    const diagnostics: HttpTesterRuleDiagnostics = {
+      calls: [
+        { testResult: { name: 'run', duration: 0, cases }, placements: [] },
+      ],
+    };
 
     const [run] = createRuns(
       PLUGIN,
@@ -221,9 +240,9 @@ describe('createRuns', () => {
     const placements: RuleFnResultPlacement[] = [
       { result: violation, testCaseIndex: 0, stepIndex: 0 },
     ];
-    const diagnostics: HttpTesterRuleDiagnostics = [
-      { testResult: { name: 'run', duration: 0, cases }, placements },
-    ];
+    const diagnostics: HttpTesterRuleDiagnostics = {
+      calls: [{ testResult: { name: 'run', duration: 0, cases }, placements }],
+    };
 
     const [run] = createRuns(
       PLUGIN,
@@ -251,9 +270,9 @@ describe('createRuns', () => {
     const placements: RuleFnResultPlacement[] = [
       { result, testCaseIndex: 0, stepIndex: 0 },
     ];
-    const diagnostics: HttpTesterRuleDiagnostics = [
-      { testResult: { name: 'run', duration: 0, cases }, placements },
-    ];
+    const diagnostics: HttpTesterRuleDiagnostics = {
+      calls: [{ testResult: { name: 'run', duration: 0, cases }, placements }],
+    };
 
     const [run] = createRuns(
       PLUGIN,
@@ -282,9 +301,9 @@ describe('createRuns', () => {
     const placements: RuleFnResultPlacement[] = [
       { result, testCaseIndex: 0, stepIndex: 0 },
     ];
-    const diagnostics: HttpTesterRuleDiagnostics = [
-      { testResult: { name: 'run', duration: 0, cases }, placements },
-    ];
+    const diagnostics: HttpTesterRuleDiagnostics = {
+      calls: [{ testResult: { name: 'run', duration: 0, cases }, placements }],
+    };
 
     const [run] = createRuns(
       PLUGIN,
@@ -310,9 +329,9 @@ describe('createRuns', () => {
       { result: first, testCaseIndex: 0, stepIndex: 0 },
       { result: second, testCaseIndex: 0, stepIndex: 0 },
     ];
-    const diagnostics: HttpTesterRuleDiagnostics = [
-      { testResult: { name: 'run', duration: 0, cases }, placements },
-    ];
+    const diagnostics: HttpTesterRuleDiagnostics = {
+      calls: [{ testResult: { name: 'run', duration: 0, cases }, placements }],
+    };
 
     const [run] = createRuns(
       PLUGIN,
@@ -336,9 +355,9 @@ describe('createRuns', () => {
       { result: a, testCaseIndex: 0, stepIndex: 0 },
       { result: b, testCaseIndex: 0, stepIndex: 0 },
     ];
-    const diagnostics: HttpTesterRuleDiagnostics = [
-      { testResult: { name: 'run', duration: 0, cases }, placements },
-    ];
+    const diagnostics: HttpTesterRuleDiagnostics = {
+      calls: [{ testResult: { name: 'run', duration: 0, cases }, placements }],
+    };
 
     const [run] = createRuns(
       PLUGIN,
@@ -356,9 +375,11 @@ describe('createRuns', () => {
 
   it('maps a failed case WITHOUT a violation to skipped (could not execute)', () => {
     const cases = [makeFailedCase('failing-test', 'connection refused')];
-    const diagnostics: HttpTesterRuleDiagnostics = [
-      { testResult: { name: 'run', duration: 0, cases }, placements: [] },
-    ];
+    const diagnostics: HttpTesterRuleDiagnostics = {
+      calls: [
+        { testResult: { name: 'run', duration: 0, cases }, placements: [] },
+      ],
+    };
 
     const [run] = createRuns(
       PLUGIN,
@@ -382,9 +403,9 @@ describe('createRuns', () => {
     const placements: RuleFnResultPlacement[] = [
       { result: skipResult, testCaseIndex: 0, stepIndex: 0 },
     ];
-    const diagnostics: HttpTesterRuleDiagnostics = [
-      { testResult: { name: 'run', duration: 0, cases }, placements },
-    ];
+    const diagnostics: HttpTesterRuleDiagnostics = {
+      calls: [{ testResult: { name: 'run', duration: 0, cases }, placements }],
+    };
 
     const [run] = createRuns(
       PLUGIN,
@@ -403,9 +424,11 @@ describe('createRuns', () => {
 
   it('maps a skipped case to a skipped status (AC8)', () => {
     const cases = [makeSkippedCase('skipped-test')];
-    const diagnostics: HttpTesterRuleDiagnostics = [
-      { testResult: { name: 'run', duration: 0, cases }, placements: [] },
-    ];
+    const diagnostics: HttpTesterRuleDiagnostics = {
+      calls: [
+        { testResult: { name: 'run', duration: 0, cases }, placements: [] },
+      ],
+    };
 
     const [run] = createRuns(
       PLUGIN,
@@ -422,9 +445,11 @@ describe('createRuns', () => {
 
   it('produces a step for each step', () => {
     const cases = [makePassedCase('my-test', [makeStep(), makeStep()])];
-    const diagnostics: HttpTesterRuleDiagnostics = [
-      { testResult: { name: 'run', duration: 0, cases }, placements: [] },
-    ];
+    const diagnostics: HttpTesterRuleDiagnostics = {
+      calls: [
+        { testResult: { name: 'run', duration: 0, cases }, placements: [] },
+      ],
+    };
 
     const [run] = createRuns(
       PLUGIN,
@@ -441,9 +466,11 @@ describe('createRuns', () => {
 
   it('attaches httpTransactions to the step', () => {
     const cases = [makePassedCase('my-test', [makeStep(true)])];
-    const diagnostics: HttpTesterRuleDiagnostics = [
-      { testResult: { name: 'run', duration: 0, cases }, placements: [] },
-    ];
+    const diagnostics: HttpTesterRuleDiagnostics = {
+      calls: [
+        { testResult: { name: 'run', duration: 0, cases }, placements: [] },
+      ],
+    };
 
     const [run] = createRuns(
       PLUGIN,
@@ -463,9 +490,9 @@ describe('createRuns', () => {
     const placements: RuleFnResultPlacement[] = [
       { result: stepOneResult, testCaseIndex: 0, stepIndex: 1 },
     ];
-    const diagnostics: HttpTesterRuleDiagnostics = [
-      { testResult: { name: 'run', duration: 0, cases }, placements },
-    ];
+    const diagnostics: HttpTesterRuleDiagnostics = {
+      calls: [{ testResult: { name: 'run', duration: 0, cases }, placements }],
+    };
 
     const [run] = createRuns(
       PLUGIN,
@@ -487,9 +514,9 @@ describe('createRuns', () => {
     const placements: RuleFnResultPlacement[] = [
       { result: testCaseResult, testCaseIndex: 0, stepIndex: undefined },
     ];
-    const diagnostics: HttpTesterRuleDiagnostics = [
-      { testResult: { name: 'run', duration: 0, cases }, placements },
-    ];
+    const diagnostics: HttpTesterRuleDiagnostics = {
+      calls: [{ testResult: { name: 'run', duration: 0, cases }, placements }],
+    };
 
     const [run] = createRuns(
       PLUGIN,
@@ -516,9 +543,9 @@ describe('createRuns', () => {
     const placements: RuleFnResultPlacement[] = [
       { result: placedResult, testCaseIndex: 0, stepIndex: 0 },
     ];
-    const diagnostics: HttpTesterRuleDiagnostics = [
-      { testResult: { name: 'run', duration: 0, cases }, placements },
-    ];
+    const diagnostics: HttpTesterRuleDiagnostics = {
+      calls: [{ testResult: { name: 'run', duration: 0, cases }, placements }],
+    };
 
     const [run] = createRuns(
       PLUGIN,
@@ -543,9 +570,9 @@ describe('createRuns', () => {
     const placements: RuleFnResultPlacement[] = [
       { result: placedResult, testCaseIndex: 0, stepIndex: undefined },
     ];
-    const diagnostics: HttpTesterRuleDiagnostics = [
-      { testResult: { name: 'run', duration: 0, cases }, placements },
-    ];
+    const diagnostics: HttpTesterRuleDiagnostics = {
+      calls: [{ testResult: { name: 'run', duration: 0, cases }, placements }],
+    };
 
     const logger = makeLogger();
     const [run] = createRuns(
@@ -592,9 +619,11 @@ describe('createRuns', () => {
         results: [],
       } as unknown as HttpTestCase,
     ];
-    const diagnostics: HttpTesterRuleDiagnostics = [
-      { testResult: { name: 'run', duration: 0, cases }, placements: [] },
-    ];
+    const diagnostics: HttpTesterRuleDiagnostics = {
+      calls: [
+        { testResult: { name: 'run', duration: 0, cases }, placements: [] },
+      ],
+    };
 
     const logger = makeLogger();
     const [run] = createRuns(
@@ -629,9 +658,11 @@ describe('createRuns', () => {
           makeEdgeStep('tx-7', '/replayed'),
         ]),
       ];
-      const diagnostics: HttpTesterRuleDiagnostics = [
-        { testResult: { name: 'run', duration: 0, cases }, placements: [] },
-      ];
+      const diagnostics: HttpTesterRuleDiagnostics = {
+        calls: [
+          { testResult: { name: 'run', duration: 0, cases }, placements: [] },
+        ],
+      };
 
       const [run] = createRuns(
         PLUGIN,
@@ -655,9 +686,11 @@ describe('createRuns', () => {
           makeEdgeStep('tx-7', '/second-replayed'),
         ]),
       ];
-      const diagnostics: HttpTesterRuleDiagnostics = [
-        { testResult: { name: 'run', duration: 0, cases }, placements: [] },
-      ];
+      const diagnostics: HttpTesterRuleDiagnostics = {
+        calls: [
+          { testResult: { name: 'run', duration: 0, cases }, placements: [] },
+        ],
+      };
 
       const [run] = createRuns(
         PLUGIN,
@@ -688,24 +721,26 @@ describe('createRuns', () => {
       violation: { message: 'assertion failed in entry B' },
       findings: [],
     };
-    const diagnostics: HttpTesterRuleDiagnostics = [
-      {
-        testResult: {
-          name: 'validate',
-          duration: 0,
-          cases: [makePassedCase('case-a', [makeEdgeStep('tx-1')])],
+    const diagnostics: HttpTesterRuleDiagnostics = {
+      calls: [
+        {
+          testResult: {
+            name: 'validate',
+            duration: 0,
+            cases: [makePassedCase('case-a', [makeEdgeStep('tx-1')])],
+          },
+          placements: [],
         },
-        placements: [],
-      },
-      {
-        testResult: {
-          name: 'httpTest',
-          duration: 0,
-          cases: [makePassedCase('case-b', [makeEdgeStep('tx-1')])],
+        {
+          testResult: {
+            name: 'httpTest',
+            duration: 0,
+            cases: [makePassedCase('case-b', [makeEdgeStep('tx-1')])],
+          },
+          placements: [{ result: failing, testCaseIndex: 0, stepIndex: 0 }],
         },
-        placements: [{ result: failing, testCaseIndex: 0, stepIndex: 0 }],
-      },
-    ];
+      ],
+    };
 
     const [run] = createRuns(
       PLUGIN,
@@ -736,9 +771,11 @@ describe('createRuns', () => {
   describe('step locations', () => {
     function stepLocationFor(step: HttpTestCaseStep) {
       const cases = [makePassedCase('my-test', [step])];
-      const diagnostics: HttpTesterRuleDiagnostics = [
-        { testResult: { name: 'run', duration: 0, cases }, placements: [] },
-      ];
+      const diagnostics: HttpTesterRuleDiagnostics = {
+        calls: [
+          { testResult: { name: 'run', duration: 0, cases }, placements: [] },
+        ],
+      };
       const [run] = createRuns(
         PLUGIN,
         ruleResults([], diagnostics),
@@ -777,15 +814,17 @@ describe('createRuns', () => {
         'my-group',
         [{ elementType: 'edge', elementId: 'tx-1' }],
       );
-      const diagnostics: HttpTesterRuleDiagnostics = [
-        {
-          testResult: {
-            name: 'test',
-            cases: [makePassedCase('case', [makeGroupedStep('my-group')])],
-          } as never,
-          placements: [{ result: result!, testCaseIndex: 0, stepIndex: 0 }],
-        },
-      ];
+      const diagnostics: HttpTesterRuleDiagnostics = {
+        calls: [
+          {
+            testResult: {
+              name: 'test',
+              cases: [makePassedCase('case', [makeGroupedStep('my-group')])],
+            } as never,
+            placements: [{ result: result!, testCaseIndex: 0, stepIndex: 0 }],
+          },
+        ],
+      };
 
       const [run] = createRuns(
         PLUGIN,
@@ -871,16 +910,19 @@ describe('createRuns', () => {
       return testCases(run!.executions)[0]!;
     }
 
-    it('reports a pair the live re-check rejects as skipped, with a reason naming both statuses', async () => {
-      const execution = await runContext(200, (context) =>
-        context.validateCommonHttpTransactions({
+    it('reports a pair the live re-check rejects as notApplicable, with a reason naming both statuses', async () => {
+      let returned: RuleFnResult[] | undefined;
+      const execution = await runContext(200, async (context) => {
+        returned = await context.validateCommonHttpTransactions({
           appliesTo: statusCode(401),
           violatedWhen: responseHeader('www-authenticate'),
-        }),
-      );
+        });
+        return returned;
+      });
 
+      expect(returned).toEqual([]);
       expect(execution.status).toMatchObject({
-        kind: 'skipped',
+        kind: 'notApplicable',
         reason: expect.stringContaining(
           'the specification declares 401, the server answered 200',
         ),
@@ -926,5 +968,264 @@ describe('createRuns', () => {
         ]),
       );
     });
+  });
+});
+
+describe('createRuns: a rule that applies to nothing (ADR-0030)', () => {
+  const createdWithLocation = () =>
+    createCreatedResponse({
+      headers: { location: createRequiredParameter() },
+    });
+
+  // Two 201 transactions on example.com, one of which the server answers
+  // without the Location header it declares.
+  const format = () =>
+    createThymianFormatWithTransactions([
+      [
+        createPostRequest({ path: '/launches', host: 'example.com' }),
+        createdWithLocation(),
+      ],
+      [
+        createPostRequest({ path: '/astronauts', host: 'example.com' }),
+        createdWithLocation(),
+      ],
+    ]);
+
+  const liveResponse = (path: string): HttpResponse => ({
+    statusCode: 201,
+    duration: 0,
+    trailers: {},
+    headers: path === '/launches' ? {} : { location: '/astronauts/1' },
+  });
+
+  async function executionsOf(
+    rule: Rule,
+    options: { skipOrigins?: string[]; format?: ThymianFormat } = {},
+  ): Promise<TestCaseExecution[]> {
+    const thymianFormat = options.format ?? format();
+    const context = createHttpTestContext({
+      format: thymianFormat,
+      logger: new NoopLogger(),
+      locals: {},
+      sampleRequest: async (transaction): Promise<HttpRequestTemplate> => ({
+        method: transaction.thymianReq.method,
+        origin: 'https://example.com',
+        path: transaction.thymianReq.path,
+        headers: {},
+        pathParameters: {},
+        query: {},
+        cookies: {},
+        authorize: true,
+      }),
+      runRequest: async (request) => liveResponse(request.path),
+      runHook: async (_name, hook) =>
+        ({ result: (hook as { value: unknown }).value }) as never,
+    });
+    const adapter: RuleRunnerAdapter<
+      HttpTestApiContext,
+      HttpTesterRuleDiagnostics
+    > = {
+      errorName: 'TestLinterError',
+      mode: 'test',
+      getRuleFn: (r) => r.testRule,
+      createContext: (r) =>
+        new HttpTestApiContext(r.meta.name, context, options.skipOrigins),
+    };
+    const logger = new NoopLogger();
+    const results = await runRules(logger, [rule], thymianFormat, {}, adapter);
+    const [run] = createRuns(PLUGIN, results, [rule], thymianFormat, logger);
+
+    return testCases(run!.executions);
+  }
+
+  const validating = (appliesTo: Parameters<typeof and>[0]) =>
+    httpRule('test/applicability')
+      .severity('error')
+      .type('test')
+      .rule((ctx) =>
+        ctx.validateCommonHttpTransactions({
+          appliesTo,
+          violatedWhen: () => [],
+        }),
+      )
+      .done();
+
+  it('reports a rule that matches no transaction as one notApplicable execution', async () => {
+    const executions = await executionsOf(validating(statusCode(405)));
+
+    expect(executions).toEqual([
+      {
+        kind: 'test',
+        ruleId: 'test/applicability',
+        name: 'no applicable transaction',
+        status: {
+          kind: 'notApplicable',
+          reason: 'The input has no transaction this rule applies to.',
+        },
+        steps: [],
+      },
+    ]);
+  });
+
+  it('names skipOrigins as the cause when it removed every match', async () => {
+    const executions = await executionsOf(validating(statusCode(201)), {
+      skipOrigins: ['https://example.com'],
+    });
+
+    expect(executions).toEqual([
+      expect.objectContaining({
+        status: {
+          kind: 'notApplicable',
+          reason:
+            'skipOrigins excluded every transaction this rule applies to.',
+        },
+        steps: [],
+      }),
+    ]);
+  });
+
+  it('names the input as the cause when skipOrigins removed nothing the rule applies to', async () => {
+    const executions = await executionsOf(validating(statusCode(405)), {
+      skipOrigins: ['https://example.com'],
+    });
+
+    expect(executions.map(({ status }) => status)).toEqual([
+      {
+        kind: 'notApplicable',
+        reason: 'The input has no transaction this rule applies to.',
+      },
+    ]);
+  });
+
+  it('reports a rule that makes no rule-context call and returns nothing as notApplicable', async () => {
+    const executions = await executionsOf(
+      httpRule('test/applicability')
+        .severity('error')
+        .type('test')
+        .rule(() => [])
+        .done(),
+    );
+
+    expect(executions.map(({ status }) => status.kind)).toEqual([
+      'notApplicable',
+    ]);
+  });
+
+  it('surfaces a result that could not be placed instead of a notApplicable execution', async () => {
+    const executions = await executionsOf(
+      httpRule('test/applicability')
+        .severity('error')
+        .type('test')
+        .rule(() => [
+          { location: 'somewhere', violation: { message: 'x' }, findings: [] },
+        ])
+        .done(),
+    );
+
+    expect(executions.map(({ status }) => status.kind)).toEqual(['failed']);
+  });
+
+  it('is notApplicable, not passed, on a case whose live response appliesTo rejects', async () => {
+    const executions = await executionsOf(
+      validating(and(statusCode(201), responseHeader('location'))),
+    );
+
+    expect(executions.map(({ name, status }) => [name, status])).toEqual([
+      [
+        expect.stringContaining('/launches'),
+        {
+          kind: 'notApplicable',
+          reason: "The live pair is outside the rule's applicability.",
+        },
+      ],
+      [
+        expect.stringContaining('/astronauts'),
+        expect.objectContaining({ kind: 'passed' }),
+      ],
+    ]);
+  });
+
+  it('judges a partly rejected case on the transactions it did judge', async () => {
+    const judged: string[] = [];
+    const executions = await executionsOf(
+      httpRule('test/applicability')
+        .severity('error')
+        .type('test')
+        .rule((ctx) =>
+          ctx.validateGroupedCommonHttpTransactions({
+            appliesTo: and(statusCode(201), responseHeader('location')),
+            groupBy: method(),
+            violatedWhen: (_key, transactions) => {
+              judged.push(...transactions.map(([req]) => req.path));
+              return transactions.map(([, , location]) => ({
+                location,
+                violation: { message: 'judged' },
+                findings: [],
+              }));
+            },
+          }),
+        )
+        .done(),
+    );
+
+    expect(judged).toEqual(['/astronauts']);
+    expect(executions.map(({ status }) => status.kind)).toEqual(['failed']);
+  });
+
+  it('is notApplicable on a grouped case whose every live response appliesTo rejects', async () => {
+    const executions = await executionsOf(
+      httpRule('test/applicability')
+        .severity('error')
+        .type('test')
+        .rule((ctx) =>
+          ctx.validateGroupedCommonHttpTransactions({
+            appliesTo: and(statusCode(201), responseHeader('x-never')),
+            groupBy: method(),
+            violatedWhen: (_key, transactions) =>
+              transactions.map(([, , location]) => ({
+                location,
+                violation: {},
+                findings: [],
+              })),
+          }),
+        )
+        .done(),
+      {
+        format: createThymianFormatWithTransactions([
+          [
+            createPostRequest({ path: '/launches', host: 'example.com' }),
+            createCreatedResponse({
+              headers: { 'x-never': createRequiredParameter() },
+            }),
+          ],
+        ]),
+      },
+    );
+
+    expect(executions.map(({ status }) => status)).toEqual([
+      {
+        kind: 'notApplicable',
+        reason: "No live pair of the group is inside the rule's applicability.",
+      },
+    ]);
+  });
+
+  it('never marks a case of a bespoke ctx.httpTest pipeline notApplicable', async () => {
+    const executions = await executionsOf(
+      httpRule('test/applicability')
+        .severity('error')
+        .type('test')
+        .rule((ctx) =>
+          ctx.httpTest(
+            singleTestCase().forTransactionsWith(statusCode(201)).run().done(),
+          ),
+        )
+        .done(),
+    );
+
+    expect(executions.map(({ status }) => status.kind)).toEqual([
+      'passed',
+      'passed',
+    ]);
   });
 });

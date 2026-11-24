@@ -45,9 +45,14 @@ import {
 
 export {
   HttpTestApiContext,
+  type HttpTesterCallDiagnostics,
   type HttpTesterRuleDiagnostics,
+  NOT_APPLICABLE_REASONS,
   type RuleFnResultPlacement,
 } from './http-test-api-context.js';
+
+/** Name of the execution a rule that applied to nothing is reported on (ADR-0030). */
+export const NOT_APPLICABLE_EXECUTION_NAME = 'no applicable transaction';
 
 /**
  * A step-level rule violation is kept so a failed step stays visible, but
@@ -217,6 +222,11 @@ interface TestCaseSignals {
   hasRuleSkip: boolean;
   /** First rule-skip reason, if any. */
   ruleSkipReason?: string;
+  /**
+   * Set when the case ran and the live re-check of `appliesTo` rejected every
+   * pair sent in it: why (ADR-0030).
+   */
+  notApplicableReason?: string;
 }
 
 /**
@@ -225,6 +235,8 @@ interface TestCaseSignals {
  * - a rule violation ⇒ `failed` (the only path to `failed`);
  * - otherwise a `rule-skip` signal, a skipped case, or a case that could not be
  *   executed (HTTP-level failure without a violation) ⇒ `skipped`;
+ * - otherwise a case whose every pair the live re-check of `appliesTo`
+ *   rejected ⇒ `notApplicable`, with the reason it recorded (ADR-0030);
  * - otherwise ⇒ `passed`.
  */
 function computeTestCaseStatus(
@@ -254,6 +266,10 @@ function computeTestCaseStatus(
       kind: 'skipped',
       ...(testCase.reason ? { reason: testCase.reason } : {}),
     };
+  }
+
+  if (signals.notApplicableReason !== undefined) {
+    return { kind: 'notApplicable', reason: signals.notApplicableReason };
   }
 
   return {
@@ -371,9 +387,13 @@ export function createRuns(
       // Every result placed by ANY diagnostics entry, computed once. Guards
       // synthesis against cross-entry leaks (see resolvePlacements).
       const allPlacedResults = new Set(
-        diagnostics.flatMap((d) => d.placements).map((p) => p.result),
+        diagnostics.calls.flatMap((d) => d.placements).map((p) => p.result),
       );
-      for (const { testResult, placements } of diagnostics) {
+      for (const {
+        testResult,
+        placements,
+        rejectedCases = [],
+      } of diagnostics.calls) {
         const resolvedPlacements = resolvePlacements(
           testResult,
           placements,
@@ -392,6 +412,9 @@ export function createRuns(
           const signals: TestCaseSignals = {
             hasViolation: false,
             hasRuleSkip: false,
+            notApplicableReason: rejectedCases.find(
+              (rejected) => rejected.testCaseIndex === testCaseIndex,
+            )?.reason,
           };
           for (const { result } of casePlacements) {
             consumedResults.add(result);
@@ -447,6 +470,23 @@ export function createRuns(
           );
         });
       }
+    }
+
+    // A rule whose applicability accepted nothing is reported once, on an
+    // empty case, with the reason the context recorded (ADR-0030). A result
+    // it still returned is surfaced by the fallback below instead.
+    if (diagnostics?.notApplicable && ruleFnResult.length === 0) {
+      executions.push(
+        createTestCaseExecution({
+          name: NOT_APPLICABLE_EXECUTION_NAME,
+          ruleId: ruleName,
+          status: {
+            kind: 'notApplicable',
+            reason: diagnostics.notApplicable.reason,
+          },
+          steps: [],
+        }),
+      );
     }
 
     // Fallback: a result that could not be attached to any executed test
