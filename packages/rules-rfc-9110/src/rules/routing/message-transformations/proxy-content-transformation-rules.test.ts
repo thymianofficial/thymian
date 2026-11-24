@@ -1,16 +1,27 @@
-import type { CapturedTrace } from '@thymian/core';
+import type {
+  CapturedTrace,
+  CapturedTransaction,
+  HttpParticipantRole,
+} from '@thymian/core';
 import { describe, expect, it } from 'vitest';
 
-import { hop } from '../../../../test/captured-hop.js';
+import { hop, type HopOptions } from '../../../../test/captured-hop.js';
 import { runAnalyticsRule } from '../../../../test/run-analytics-rule.js';
-import proxyMayTransformContentWithoutNoTransformDirective from './proxy-may-transform-content-without-no-transform-directive.rule.js';
-import proxyMustNotTransformContentWithNoTransformDirective from './proxy-must-not-transform-content-with-no-transform-directive.rule.js';
+import mayRule from './proxy-may-transform-content-without-no-transform-directive.rule.js';
+import mustRule from './proxy-must-not-transform-content-with-no-transform-directive.rule.js';
 
-type CapturedResponse = {
+type CapturedResponse = Pick<HopOptions, 'body' | 'bodyEncoding'> & {
   headers?: Record<string, string>;
-  body?: string;
-  bodyEncoding?: string;
 };
+
+/** One hop whose response carries `headers`, `body` and `bodyEncoding`. */
+function responseHop(
+  from: HttpParticipantRole,
+  to: HttpParticipantRole,
+  { headers = {}, body, bodyEncoding }: CapturedResponse,
+): CapturedTransaction {
+  return hop(from, to, headers, { side: 'response', body, bodyEncoding });
+}
 
 /**
  * A proxy hop: the proxy forwarded `forwarded` downstream to the user agent
@@ -21,23 +32,12 @@ function proxyTrace(
   received: CapturedResponse,
 ): CapturedTrace {
   return [
-    hop('user-agent', 'proxy', forwarded.headers ?? {}, {
-      side: 'response',
-      body: forwarded.body,
-      bodyEncoding: forwarded.bodyEncoding,
-    }),
-    hop('proxy', 'origin server', received.headers ?? {}, {
-      side: 'response',
-      body: received.body,
-      bodyEncoding: received.bodyEncoding,
-    }),
+    responseHop('user-agent', 'proxy', forwarded),
+    responseHop('proxy', 'origin server', received),
   ];
 }
 
 const noTransform = { 'cache-control': 'no-transform' };
-
-const mustRule = proxyMustNotTransformContentWithNoTransformDirective;
-const mayRule = proxyMayTransformContentWithoutNoTransformDirective;
 
 describe('proxy-must-not-transform-content-with-no-transform-directive', () => {
   it('does not report a proxy that forwards no-transform content unchanged', async () => {
