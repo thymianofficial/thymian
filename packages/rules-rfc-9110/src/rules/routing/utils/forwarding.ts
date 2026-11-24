@@ -181,7 +181,7 @@ function decodeContent({
   if (body === undefined) {
     return undefined;
   }
-  if (bodyEncoding === undefined) {
+  if (!bodyEncoding) {
     return Buffer.from(body, 'utf8');
   }
   // Buffer.from is lenient and silently drops characters outside the base64
@@ -195,8 +195,9 @@ function decodeContent({
 /**
  * Compares the content a forwarding participant received with the content it
  * forwarded, byte for byte after decoding each body per its `bodyEncoding`
- * (`base64`, or UTF-8 text when absent). Yields `undeterminable` when either
- * side's bytes cannot be known, so rules skip the hop rather than guess.
+ * (`base64`, or UTF-8 text when absent or empty). Yields `undeterminable` when
+ * either side's bytes cannot be known, so rules skip the hop rather than
+ * guess.
  */
 export function compareContent(
   received: CapturedContent,

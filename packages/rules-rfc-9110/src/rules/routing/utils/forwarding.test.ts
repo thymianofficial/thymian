@@ -316,6 +316,12 @@ describe('compareContent', () => {
     expect(compareContent({ body: 'hello' }, {})).toBe('undeterminable');
   });
 
+  it('reads an empty bodyEncoding as no encoding', () => {
+    expect(
+      compareContent({ body: 'hello', bodyEncoding: '' }, { body: 'hello' }),
+    ).toBe('same');
+  });
+
   it('cannot tell when a body uses an encoding it does not decode', () => {
     expect(
       compareContent(
