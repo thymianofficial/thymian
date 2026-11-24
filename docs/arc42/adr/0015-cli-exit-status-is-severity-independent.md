@@ -21,6 +21,8 @@ from `status.severity` (an override) or the rule's configured severity via
 `resolveExecutionSeverity` (`packages/core/src/report/finding-render.ts`), and
 is a rendering concern, not a classification input.
 
+_Report Format v4 had these three kinds; [ADR-0030](0030-a-rule-that-applies-to-nothing-is-reported-not-applicable.md) adds a fourth, `notApplicable`, which, like `skipped`, never fails a run._
+
 When `packages/common-cli/src/workflow-outcome.ts` was rewritten to classify
 by execution instead of by finding, its default `isFinding` predicate became
 `execution.status.kind === 'failed'` — with no severity check at all. This was
@@ -110,6 +112,7 @@ false`): there is no distinct "the tool itself couldn't run" signal in the
 
 ## Status History
 
-| Date       | Status   | Notes                                                                  |
-| ---------- | -------- | ---------------------------------------------------------------------- |
-| 2026-07-07 | Accepted | Document severity-independent exit-code classification (Story 5, #334) |
+| Date       | Status   | Notes                                                                           |
+| ---------- | -------- | ------------------------------------------------------------------------------- |
+| 2026-07-07 | Accepted | Document severity-independent exit-code classification (Story 5, #334)          |
+| 2026-11-24 | Amended  | Note: ADR-0030 adds the notApplicable status kind; the v4 list stays as written |
