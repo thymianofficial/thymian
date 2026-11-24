@@ -1,105 +1,61 @@
-import type {
-  CapturedTrace,
-  CapturedTransaction,
-  HttpParticipantRole,
-  HttpResponse,
-  RuleFnResult,
-} from '@thymian/core';
+import type { CapturedTrace } from '@thymian/core';
 import { describe, expect, it } from 'vitest';
 
+import { hop } from '../../../../test/captured-hop.js';
+import { runAnalyticsRule } from '../../../../test/run-analytics-rule.js';
 import proxyMayTransformContentWithoutNoTransformDirective from './proxy-may-transform-content-without-no-transform-directive.rule.js';
 import proxyMustNotTransformContentWithNoTransformDirective from './proxy-must-not-transform-content-with-no-transform-directive.rule.js';
 
-type AnalyzeOnlyRule = {
-  analyzeRule?: (ctx: unknown) => RuleFnResult[];
+type CapturedResponse = {
+  headers?: Record<string, string>;
+  body?: string;
+  bodyEncoding?: string;
 };
 
 /**
- * Runs a captured-trace analytics rule against a single synthetic trace by
- * providing a minimal context whose validateCapturedHttpTraces invokes the
- * rule's callback with that trace.
- */
-function runOnTrace(
-  rule: AnalyzeOnlyRule,
-  trace: CapturedTrace,
-): RuleFnResult[] {
-  const analyze = rule.analyzeRule;
-  if (!analyze) {
-    throw new Error('rule is missing an analyzeRule');
-  }
-  const ctx = {
-    validateCapturedHttpTraces: (
-      validate: (t: CapturedTrace, location: string) => RuleFnResult[],
-    ) => validate(trace, 'trace-location'),
-  };
-  return analyze(ctx);
-}
-
-type CapturedResponse = Partial<
-  Pick<HttpResponse, 'body' | 'bodyEncoding' | 'headers'>
->;
-
-/**
- * Builds one captured transaction whose request and response are both stamped
- * with the given role.
- */
-function hop(
-  role: HttpParticipantRole,
-  response: CapturedResponse,
-): CapturedTransaction {
-  return {
-    request: {
-      data: { method: 'get', origin: 'https://example.com', path: '/' },
-      meta: { role },
-    },
-    response: {
-      data: {
-        statusCode: 200,
-        headers: {},
-        trailers: {},
-        duration: 1,
-        ...response,
-      },
-      meta: { role },
-    },
-  };
-}
-
-/**
- * A proxy hop: the proxy forwarded `forwarded` downstream (its own leg) after
- * receiving `received` from the origin server (the onward leg).
+ * A proxy hop: the proxy forwarded `forwarded` downstream to the user agent
+ * after receiving `received` from the origin server.
  */
 function proxyTrace(
   forwarded: CapturedResponse,
   received: CapturedResponse,
 ): CapturedTrace {
-  return [hop('proxy', forwarded), hop('origin server', received)];
+  return [
+    hop('user-agent', 'proxy', forwarded.headers ?? {}, {
+      side: 'response',
+      body: forwarded.body,
+      bodyEncoding: forwarded.bodyEncoding,
+    }),
+    hop('proxy', 'origin server', received.headers ?? {}, {
+      side: 'response',
+      body: received.body,
+      bodyEncoding: received.bodyEncoding,
+    }),
+  ];
 }
 
 const noTransform = { 'cache-control': 'no-transform' };
 
-const mustRule =
-  proxyMustNotTransformContentWithNoTransformDirective as unknown as AnalyzeOnlyRule;
-const mayRule =
-  proxyMayTransformContentWithoutNoTransformDirective as unknown as AnalyzeOnlyRule;
+const mustRule = proxyMustNotTransformContentWithNoTransformDirective;
+const mayRule = proxyMayTransformContentWithoutNoTransformDirective;
 
 describe('proxy-must-not-transform-content-with-no-transform-directive', () => {
-  it('does not report a proxy that forwards no-transform content unchanged', () => {
+  it('does not report a proxy that forwards no-transform content unchanged', async () => {
     const trace = proxyTrace(
       { body: 'hello' },
       { body: 'hello', headers: noTransform },
     );
 
-    expect(runOnTrace(mustRule, trace)).toHaveLength(0);
+    expect(await runAnalyticsRule(mustRule, [], [trace])).toHaveLength(0);
   });
 
-  it('reports a proxy that changes no-transform content', () => {
+  it('reports a proxy that changes no-transform content', async () => {
     const trace = proxyTrace(
       { body: 'HELLO' },
       { body: 'hello', headers: noTransform },
     );
 
-    const results = runOnTrace(mustRule, trace);
+    const results = await runAnalyticsRule(mustRule, [], [trace]);
 
     expect(results).toHaveLength(1);
     expect(results[0]?.violation?.message).toBe(
@@ -107,7 +63,7 @@ describe('proxy-must-not-transform-content-with-no-transform-directive', () => {
     );
   });
 
-  it('reports changed content when no-transform sits inside a comma list', () => {
+  it('reports changed content when no-transform sits inside a comma list', async () => {
     const trace = proxyTrace(
       { body: 'HELLO' },
       {
@@ -116,59 +72,61 @@ describe('proxy-must-not-transform-content-with-no-transform-directive', () => {
       },
     );
 
-    expect(runOnTrace(mustRule, trace)).toHaveLength(1);
+    expect(await runAnalyticsRule(mustRule, [], [trace])).toHaveLength(1);
   });
 
-  it('reports a proxy that strips no-transform before changing the content', () => {
+  it('reports a proxy that strips no-transform before changing the content', async () => {
     const trace = proxyTrace(
       { body: 'HELLO', headers: {} },
       { body: 'hello', headers: noTransform },
     );
 
-    expect(runOnTrace(mustRule, trace)).toHaveLength(1);
+    expect(await runAnalyticsRule(mustRule, [], [trace])).toHaveLength(1);
   });
 
-  it('does not report changed content without the no-transform directive', () => {
+  it('does not report changed content without the no-transform directive', async () => {
     const trace = proxyTrace(
       { body: 'HELLO' },
       { body: 'hello', headers: { 'cache-control': 'max-age=60' } },
     );
 
-    expect(runOnTrace(mustRule, trace)).toHaveLength(0);
+    expect(await runAnalyticsRule(mustRule, [], [trace])).toHaveLength(0);
   });
 
-  it('does not report a hop whose body was not captured on either side', () => {
+  it('does not report a hop whose body was not captured on either side', async () => {
     expect(
-      runOnTrace(
+      await runAnalyticsRule(
         mustRule,
-        proxyTrace({}, { body: 'hello', headers: noTransform }),
+        [],
+        [proxyTrace({}, { body: 'hello', headers: noTransform })],
       ),
     ).toHaveLength(0);
     expect(
-      runOnTrace(
+      await runAnalyticsRule(
         mustRule,
-        proxyTrace({ body: 'hello' }, { headers: noTransform }),
+        [],
+        [proxyTrace({ body: 'hello' }, { headers: noTransform })],
       ),
     ).toHaveLength(0);
   });
 
-  it('does not report the same bytes recorded as base64 and as text', () => {
+  it('does not report the same bytes recorded as base64 and as text', async () => {
     const trace = proxyTrace(
       { body: 'aGVsbG8=', bodyEncoding: 'base64' },
       { body: 'hello', headers: noTransform },
     );
 
-    expect(runOnTrace(mustRule, trace)).toHaveLength(0);
+    expect(await runAnalyticsRule(mustRule, [], [trace])).toHaveLength(0);
   });
 });
 
 describe('proxy-may-transform-content-without-no-transform-directive', () => {
-  it('does not hint on the same bytes recorded as base64 and as text', () => {
+  it('does not hint on the same bytes recorded as base64 and as text', async () => {
     const trace = proxyTrace(
       { body: 'aGVsbG8=', bodyEncoding: 'base64' },
       { body: 'hello' },
     );
 
-    expect(runOnTrace(mayRule, trace)).toHaveLength(0);
+    expect(await runAnalyticsRule(mayRule, [], [trace])).toHaveLength(0);
   });
 });
