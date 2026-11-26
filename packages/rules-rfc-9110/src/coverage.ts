@@ -880,7 +880,7 @@ const coverage: CoverageRecord<typeof units> = defineCoverage({
         static: {
           verdict: 'impossible',
           reason: 'not-representable',
-          note: 'This rule compares adjacent captured transactions (prev/curr) gated on the proxy role to detect a content change across a no-transform response.',
+          note: 'The schema format has no concept of a correlated multi-hop trace or of participant role -- both of which this rule needs to compare the content a proxy received with the content it forwarded.',
         },
         test: {
           verdict: 'impossible',

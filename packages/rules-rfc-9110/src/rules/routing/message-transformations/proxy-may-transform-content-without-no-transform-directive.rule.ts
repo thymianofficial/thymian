@@ -1,11 +1,10 @@
-import {
-  getHeader,
-  httpRule,
-  isHeaderCaptured,
-  type RuleFnResult,
-} from '@thymian/core';
+import { httpRule, isHeaderCaptured, type RuleFnResult } from '@thymian/core';
 
-import { forwardingHops, headerValues } from '../utils/forwarding.js';
+import {
+  compareContent,
+  forwardingHops,
+  hasNoTransformDirective,
+} from '../utils/forwarding.js';
 
 // eslint-disable-next-line thymian-internal/require-rule-tags -- permissive MAY, caching/performance behavior — no hazard in the permission
 export default httpRule(
@@ -34,25 +33,18 @@ export default httpRule(
     ctx.validateCapturedHttpTraces((trace, location) => {
       const results: RuleFnResult[] = [];
       for (const { inbound, outbound } of forwardingHops(trace, ['proxy'])) {
-        // Responses flow upstream -> proxy -> downstream, so the proxy received
-        // `outbound.response` from upstream and sent `inbound.response` onward.
-        const received = outbound.response.data;
-        const forwarded = inbound.response.data;
-        if (received.body === undefined || forwarded.body === undefined) {
-          continue;
-        }
         // An uncaptured Cache-Control cannot show that no-transform was absent.
         if (!isHeaderCaptured(outbound.response, 'cache-control')) {
           continue;
         }
-        const noTransform = headerValues(
-          getHeader(received.headers, 'cache-control'),
-        )
-          .flatMap((entry) => entry.split(','))
-          .some(
-            (directive) => directive.trim().toLowerCase() === 'no-transform',
-          );
-        if (!noTransform && received.body !== forwarded.body) {
+        // Responses flow upstream -> proxy -> downstream, so the proxy received
+        // `outbound.response` from upstream and sent `inbound.response` onward.
+        const received = outbound.response.data;
+        const forwarded = inbound.response.data;
+        if (
+          !hasNoTransformDirective(received.headers) &&
+          compareContent(received, forwarded) === 'different'
+        ) {
           results.push({ location, violation: {}, findings: [] });
         }
       }

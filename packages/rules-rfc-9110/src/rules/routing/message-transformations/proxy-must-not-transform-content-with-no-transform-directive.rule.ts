@@ -1,5 +1,10 @@
-import { getHeader, type RuleFnResult } from '@thymian/core';
-import { httpRule } from '@thymian/core';
+import { httpRule, type RuleFnResult } from '@thymian/core';
+
+import {
+  compareContent,
+  forwardingHops,
+  hasNoTransformDirective,
+} from '../utils/forwarding.js';
 
 // eslint-disable-next-line thymian-internal/require-rule-tags -- content-integrity preservation with no vocabulary member that fits without forcing one
 export default httpRule(
@@ -23,39 +28,33 @@ export default httpRule(
   .rule((ctx) =>
     ctx.validateCapturedHttpTraces((trace, location) => {
       const results: RuleFnResult[] = [];
-      for (let i = 1; i < trace.length; i++) {
-        // contains response from proxy (if there is a proxy)
-        const prev = trace[i - 1];
-        // contains response to proxy (if there is a proxy)
-        const curr = trace[i];
-
-        if (!prev || !curr || prev.response.meta.role !== 'proxy') {
-          continue;
-        }
-
-        const cacheControlHeader = getHeader(
-          curr.response.data.headers,
-          'cache-control',
-        );
-
-        if (!cacheControlHeader) {
-          continue;
-        }
-
-        const cacheDirectives = Array.isArray(cacheControlHeader)
-          ? cacheControlHeader
-          : [cacheControlHeader];
-
+      // Bodies are compared as captured. A source that stores content after
+      // content-decoding (as HAR's content.text does) makes a proxy that only
+      // adds or removes a content coding look unchanged here; the
+      // Content-Encoding change is still reported by
+      // proxy-should-not-modify-endpoint-and-representation-headers.
+      for (const { inbound, outbound } of forwardingHops(trace, ['proxy'])) {
+        // Responses flow upstream -> proxy -> downstream, so the proxy received
+        // `outbound.response` from upstream and sent `inbound.response` onward.
+        // The directive binds the proxy only if it was on what it received.
+        // No Capture Gap guard: an uncaptured Cache-Control can only hide a
+        // violation, never invent one.
+        const received = outbound.response.data;
+        const forwarded = inbound.response.data;
         if (
-          cacheDirectives.some(
-            (directive) => directive.toLowerCase().trim() === 'no-transform',
-          ) &&
-          prev.request.data !== curr.request.data
+          hasNoTransformDirective(received.headers) &&
+          compareContent(received, forwarded) === 'different'
         ) {
-          results.push({ location, violation: {}, findings: [] });
+          results.push({
+            location,
+            violation: {
+              message:
+                'Proxy transformed the content of a response carrying Cache-Control: no-transform.',
+            },
+            findings: [],
+          });
         }
       }
-
       return results;
     }),
   )

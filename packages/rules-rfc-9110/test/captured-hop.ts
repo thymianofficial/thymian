@@ -8,10 +8,14 @@ import type {
 export const NOT_CAPTURED: CaptureGap[] = [{ kind: 'headers-not-captured' }];
 
 export type HopOptions = {
-  /** The message `headers`, `body` and `captureGaps` go on; the other has none. */
+  /**
+   * The message `headers`, `body`, `bodyEncoding` and `captureGaps` go on;
+   * the other has none.
+   */
   side?: 'request' | 'response';
   method?: string;
   body?: string;
+  bodyEncoding?: string;
   statusCode?: number;
   captureGaps?: CaptureGap[];
 };
@@ -29,6 +33,7 @@ export function hop(
     side = 'request',
     method = 'get',
     body,
+    bodyEncoding,
     statusCode = 200,
     captureGaps,
   }: HopOptions = {},
@@ -43,6 +48,7 @@ export function hop(
         path: '/',
         headers: isSide('request') ? headers : {},
         body: isSide('request') ? body : undefined,
+        bodyEncoding: isSide('request') ? bodyEncoding : undefined,
       },
       meta: { role: from, ...(isSide('request') && gaps) },
     },
@@ -51,6 +57,7 @@ export function hop(
         statusCode,
         headers: isSide('response') ? headers : {},
         body: isSide('response') ? body : undefined,
+        bodyEncoding: isSide('response') ? bodyEncoding : undefined,
         trailers: {},
         duration: 1,
       },

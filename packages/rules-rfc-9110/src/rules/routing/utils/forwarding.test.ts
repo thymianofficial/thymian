@@ -6,9 +6,11 @@ import type {
 import { describe, expect, it } from 'vitest';
 
 import {
+  compareContent,
   connectionOptionNames,
   equalHeaderValues,
   forwardingHops,
+  hasNoTransformDirective,
   headerValues,
   parseMaxForwards,
   splitTopLevelCommas,
@@ -212,5 +214,147 @@ describe('splitTopLevelCommas', () => {
   it('returns the whole value when there is no top-level comma', () => {
     expect(splitTopLevelCommas('1.1 a (x, y)')).toEqual(['1.1 a (x, y)']);
     expect(splitTopLevelCommas('')).toEqual(['']);
+  });
+
+  it('ignores commas inside quoted strings', () => {
+    expect(splitTopLevelCommas('private="a, b", no-transform')).toEqual([
+      'private="a, b"',
+      ' no-transform',
+    ]);
+  });
+
+  it('keeps an escaped quote inside a quoted string', () => {
+    expect(splitTopLevelCommas('ext="a\\", b", no-transform')).toEqual([
+      'ext="a\\", b"',
+      ' no-transform',
+    ]);
+  });
+
+  it('treats a quote inside a comment as literal', () => {
+    expect(splitTopLevelCommas('1.1 a (say "hi), 1.1 b, 1.1 c')).toEqual([
+      '1.1 a (say "hi)',
+      ' 1.1 b',
+      ' 1.1 c',
+    ]);
+  });
+});
+
+describe('hasNoTransformDirective', () => {
+  it('finds no-transform inside a comma-separated Cache-Control value', () => {
+    expect(
+      hasNoTransformDirective({ 'cache-control': 'max-age=60, no-transform' }),
+    ).toBe(true);
+  });
+
+  it('ignores letter case and surrounding whitespace', () => {
+    expect(
+      hasNoTransformDirective({ 'Cache-Control': '  No-Transform ' }),
+    ).toBe(true);
+  });
+
+  it('finds no-transform in any of several field lines', () => {
+    expect(
+      hasNoTransformDirective({
+        'cache-control': ['max-age=60', 'public, no-transform'],
+      }),
+    ).toBe(true);
+  });
+
+  it('is false when Cache-Control is absent or lacks the directive', () => {
+    expect(hasNoTransformDirective({})).toBe(false);
+    expect(hasNoTransformDirective({ 'cache-control': 'no-store' })).toBe(
+      false,
+    );
+  });
+
+  it('ignores no-transform inside a quoted directive argument', () => {
+    expect(
+      hasNoTransformDirective({
+        'cache-control': 'private="a, no-transform, b"',
+      }),
+    ).toBe(false);
+  });
+
+  it('finds no-transform after a quoted directive argument with commas', () => {
+    expect(
+      hasNoTransformDirective({
+        'cache-control': 'private="a, b", no-transform',
+      }),
+    ).toBe(true);
+  });
+});
+
+describe('compareContent', () => {
+  it('reports identical text bodies as the same', () => {
+    expect(compareContent({ body: 'hello' }, { body: 'hello' })).toBe('same');
+  });
+
+  it('reports differing bodies as different', () => {
+    expect(compareContent({ body: 'hello' }, { body: 'HELLO' })).toBe(
+      'different',
+    );
+  });
+
+  it('reports the same bytes recorded as base64 and as text as the same', () => {
+    // 'aGVsbG8=' is base64 for 'hello'
+    expect(
+      compareContent(
+        { body: 'aGVsbG8=', bodyEncoding: 'base64' },
+        { body: 'hello' },
+      ),
+    ).toBe('same');
+    expect(
+      compareContent(
+        { body: 'hello' },
+        { body: 'aGVsbG8=', bodyEncoding: 'BASE64' },
+      ),
+    ).toBe('same');
+  });
+
+  it('cannot tell when a body was not captured on either side', () => {
+    expect(compareContent({}, { body: 'hello' })).toBe('undeterminable');
+    expect(compareContent({ body: 'hello' }, {})).toBe('undeterminable');
+  });
+
+  it('reads an empty bodyEncoding as no encoding', () => {
+    expect(
+      compareContent({ body: 'hello', bodyEncoding: '' }, { body: 'hello' }),
+    ).toBe('same');
+  });
+
+  it('cannot tell when a body uses an encoding it does not decode', () => {
+    expect(
+      compareContent(
+        { body: 'hello', bodyEncoding: 'quoted-printable' },
+        { body: 'hello' },
+      ),
+    ).toBe('undeterminable');
+  });
+
+  it('cannot tell when a base64 body is malformed', () => {
+    expect(
+      compareContent(
+        { body: 'not base64!', bodyEncoding: 'base64' },
+        { body: 'hello' },
+      ),
+    ).toBe('undeterminable');
+  });
+
+  it('cannot tell when a base64 body has a length that is not a multiple of four', () => {
+    // Leniently decoded, 'abc' is the two bytes of 'abc=' and 'a' is no bytes.
+    expect(
+      compareContent(
+        { body: 'abc', bodyEncoding: 'base64' },
+        { body: 'abc=', bodyEncoding: 'base64' },
+      ),
+    ).toBe('undeterminable');
+    expect(
+      compareContent({ body: 'a', bodyEncoding: 'base64' }, { body: '' }),
+    ).toBe('undeterminable');
+  });
+
+  it('compares an empty body as real content', () => {
+    expect(compareContent({ body: '' }, { body: '' })).toBe('same');
+    expect(compareContent({ body: '' }, { body: 'hello' })).toBe('different');
   });
 });
