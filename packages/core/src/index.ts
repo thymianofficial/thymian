@@ -20,6 +20,7 @@ export * from './logger/log-level.js';
 export * from './logger/logger.js';
 export * from './logger/noop.logger.js';
 export * from './logger/text.logger.js';
+export * from './redact-secrets.js';
 export * from './report/index.js';
 export * from './report-input-claim.js';
 export * from './rules/index.js';

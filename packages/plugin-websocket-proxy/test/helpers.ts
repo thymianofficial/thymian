@@ -53,3 +53,47 @@ export function waitForClose(
     });
   });
 }
+
+/**
+ * Resolves with the HTTP status code the server answered the upgrade request
+ * with, if it refused to open a WebSocket.
+ */
+export function waitForRejectedUpgrade(ws: WebSocket): Promise<number> {
+  return new Promise((resolve, reject) => {
+    ws.on('unexpected-response', (_req, res) => {
+      res.resume();
+      resolve(res.statusCode ?? 0);
+    });
+    ws.on('open', () =>
+      reject(new Error('Expected the upgrade to be rejected.')),
+    );
+    ws.on('error', reject);
+  });
+}
+
+/**
+ * Opens a connection, retrying while the server is not listening yet. Needed
+ * by tests that connect while `thymian.ready()` is still starting the server.
+ */
+export async function openWithRetry(
+  url: string,
+  options: { headers?: Record<string, string> } = {},
+  retries = 100,
+): Promise<WebSocket> {
+  for (let attempt = 0; ; attempt++) {
+    const ws = new WebSocket(url, options);
+
+    try {
+      await waitForOpen(ws);
+      return ws;
+    } catch (err) {
+      const refused = (err as { code?: string }).code === 'ECONNREFUSED';
+
+      if (!refused || attempt >= retries) {
+        throw err;
+      }
+
+      await new Promise((r) => setTimeout(r, 10));
+    }
+  }
+}

@@ -18,15 +18,25 @@ See also ThymianEmitter in `@thymian/core` — this protocol exposes the same su
 
 Before a connection can be established, the client must register to the server via a three-way handshake.
 
-1. Connect to WebSocket: `ws://<host>:<port>` (default port is 51234).
+1. Connect to WebSocket: `ws://<host>:<port>` (default is `ws://127.0.0.1:51234`; use `127.0.0.1`, not `localhost`).
+   If a token is configured for the plugin, send it as HTTP header of the connection request:
+
+   ```http
+   Authorization: Bearer s3cr3t
+   ```
+
+   The server answers the connection request without opening a WebSocket connection with:
+   - `401 Unauthorized` if the token is unknown, or if no token is sent although the server is reachable from the network,
+   - `403 Forbidden` if the request has no token and comes from a browser origin that is not allowed,
+   - `503 Service Unavailable` if too many connections without `Authorization` header are waiting to register.
+
 2. Register:
    - Client sends once:
 
      ```json5
      {
        type: 'register',
-       token: 's3cr3t', // optional, shared secret
-       name: 'remote-plugin', // name of the plugin
+       name: 'remote-plugin', // name of the plugin, must be the plugin the token belongs to
        onActions: ['core.run'], // only the actions listed here will be forwarded
        onEvents: ['core.report'], // ...same for events
      }
@@ -42,7 +52,11 @@ Before a connection can be established, the client must register to the server v
        config: { feature: true, threshold: 3 },
      }
      ```
-     The server acknowledges the registration and returns the configuration of the plugin. If the provided token is invalid or if the plugin name is already taken, the server responds with `ok: false`.
+     The server acknowledges the registration and returns the configuration of the plugin. If the plugin name is unknown, already taken or does not match the token of the connection, or if the token is invalid, the server responds with `ok: false` and a `reason`, and closes the connection with code 1008 (Policy Violation).
+
+:::note
+A client that cannot set HTTP headers, such as a plugin running in a browser, sends the token as `token` property of the `register` message instead of the `Authorization` header. The origin of a browser client must be listed in the `allowedOrigins` option of the proxy plugin.
+:::
 
 3. Send ready:
    After a successful `register-ack`, the client sends:

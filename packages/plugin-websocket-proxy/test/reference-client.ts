@@ -1,6 +1,7 @@
 import { WebSocket } from 'ws';
 
 import { RegisterAckMessage, ServerToClientMessage } from '../src/messages';
+import { openWithRetry } from './helpers';
 
 export class ReferenceClient {
   private socket!: WebSocket;
@@ -26,6 +27,7 @@ export class ReferenceClient {
     private readonly name: string,
     private readonly actions: string[],
     private readonly events: string[],
+    private readonly token?: string,
   ) {
     this.messageHandlers.set('register-ack', (message: RegisterAckMessage) => {
       if (message.ok) {
@@ -90,24 +92,16 @@ export class ReferenceClient {
     );
   }
 
-  init(): Promise<void> {
+  async init(): Promise<void> {
+    // the token is sent as HTTP header of the upgrade request
+    this.socket = await openWithRetry(`ws://127.0.0.1:${this.port}`, {
+      headers: this.token ? { Authorization: `Bearer ${this.token}` } : {},
+    });
+
+    this.socket.on('error', console.error);
+
     return new Promise((resolve) => {
-      this.socket = new WebSocket(`ws://127.0.0.1:${this.port}`);
-
-      this.socket.on('error', console.error);
-
-      this.socket.on('open', () => {
-        this.socket.send(
-          JSON.stringify({
-            type: 'register',
-            name: this.name,
-            onActions: this.actions,
-            onEvents: this.events,
-          }),
-        );
-
-        this.initResolve = resolve;
-      });
+      this.initResolve = resolve;
 
       this.socket.on('message', (data) => {
         const message = JSON.parse(data.toString()) as {
@@ -116,6 +110,15 @@ export class ReferenceClient {
 
         this.messageHandlers.get(message.type)?.(message);
       });
+
+      this.socket.send(
+        JSON.stringify({
+          type: 'register',
+          name: this.name,
+          onActions: this.actions,
+          onEvents: this.events,
+        }),
+      );
     });
   }
 
