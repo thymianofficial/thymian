@@ -1,9 +1,11 @@
 import { Socket } from 'node:net';
 
 import {
+  and,
   type HttpRequest,
   type HttpResponse,
   httpRule,
+  responseHeader,
   statusCode,
   statusCodeRange,
 } from '@thymian/core';
@@ -279,7 +281,7 @@ describe('createRuleTester(rule).runTest(format)', () => {
       expect(executions).toHaveLength(2);
     });
 
-    it("skips the transaction whose live status puts it outside the rule's applicability, with a reason", async () => {
+    it("reports the transaction whose live status puts it outside the rule's applicability notApplicable, with a reason", async () => {
       const format = createThymianFormat();
       const launchCreated = addTransaction(
         format,
@@ -304,7 +306,7 @@ describe('createRuleTester(rule).runTest(format)', () => {
       expect(executions).toMatchObject([
         {
           location: { elementId: launchCreated },
-          status: 'skipped',
+          status: 'notApplicable',
           reason: expect.stringContaining(
             'the specification declares 201, the server answered 500',
           ),
@@ -489,6 +491,75 @@ describe('createRuleTester(rule).runTest(format)', () => {
         },
       ]);
       expect(executions.flatMap(({ findings }) => findings)).toHaveLength(2);
+    });
+  });
+
+  describe('applicability', () => {
+    const createdWithLocationIsAbsolute = httpRule(
+      'test/created-with-location-is-absolute',
+    )
+      .severity('warn')
+      .type('test')
+      .rule((ctx) =>
+        ctx.validateCommonHttpTransactions({
+          appliesTo: and(statusCode(201), responseHeader('location')),
+          violatedWhen: () => [],
+        }),
+      )
+      .done();
+
+    it('is notApplicable on a transaction whose live response falls outside appliesTo', async () => {
+      const format = createThymianFormat();
+      const launchCreated = addTransaction(
+        format,
+        createPostRequest({ path: '/launches' }),
+        createCreatedResponse({
+          headers: { location: createRequiredParameter() },
+        }),
+      );
+      const astronautCreated = addTransaction(
+        format,
+        createPostRequest({ path: '/astronauts' }),
+        createCreatedResponse({
+          headers: { location: createRequiredParameter() },
+        }),
+      );
+
+      const executions = await createRuleTester(
+        createdWithLocationIsAbsolute,
+      ).runTest(format, {
+        respond: ({ transaction, conforming }) =>
+          transaction === launchCreated
+            ? { ...conforming, headers: {} }
+            : conforming,
+      });
+
+      expect(executions).toMatchObject([
+        { location: { elementId: launchCreated }, status: 'notApplicable' },
+        { location: { elementId: astronautCreated }, status: 'passed' },
+      ]);
+      expect(executions).toHaveLength(2);
+    });
+
+    it('lists no entry of its own for a rule that applies to nothing', async () => {
+      const format = createThymianFormat();
+      const launchesListed = addTransaction(
+        format,
+        createGetRequest({ path: '/launches' }),
+        createOkResponse(),
+      );
+
+      const executions = await createRuleTester(
+        createdWithLocationIsAbsolute,
+      ).runTest(format);
+
+      expect(executions).toEqual([
+        {
+          location: expect.objectContaining({ elementId: launchesListed }),
+          status: 'notApplicable',
+          findings: [],
+        },
+      ]);
     });
   });
 });

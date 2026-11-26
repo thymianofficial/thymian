@@ -51,10 +51,25 @@ export type RuleContextMethod =
 
 export type ViolatedWhenForm = 'expression' | 'function';
 
+/**
+ * A test case in which the live re-check of `appliesTo` rejected pairs, as the
+ * tester records it (ADR-0030). Typed structurally: core-testing cannot import
+ * the tester.
+ */
+export type ScenarioRejectedCase = {
+  reason?: string;
+  rejected: Array<{ transactionIndex: number; reason: string }>;
+};
+
 export type RuleContextScenarioSetup = {
   context: ApiContext;
   /** The location a result for the transaction at `index` is expected at. */
   locationOf(index: number, contextMethod: RuleContextMethod): unknown;
+  /**
+   * The rejected cases every call on `context` recorded, for a context that
+   * reports live checks and records them.
+   */
+  rejectedCases?(): ScenarioRejectedCase[];
 };
 
 /**
@@ -70,9 +85,10 @@ export interface RuleContextDriver {
     Record<RuleContextMethod | HttpFilterExpression['type'], string>
   >;
   /**
-   * The context re-checks `appliesTo` on the live pair and reports what it
-   * found: a `rule-skip` for a pair it rejects, a `Status drift` finding for
-   * a pair it judges with another status than declared (ADR-0028).
+   * The context re-checks `appliesTo` on the live pair: it returns nothing
+   * for a pair it rejects and records it as a rejected case, and adds a
+   * `Status drift` finding for a pair it judges with another status than
+   * declared (ADR-0028, ADR-0030).
    */
   reportsLiveChecks?: boolean;
   setup(transactions: ScenarioTransaction[]): Promise<RuleContextScenarioSetup>;
@@ -170,9 +186,10 @@ type RuleContextScenario = {
   actualDiffersFromDescribed?: boolean;
   /**
    * Indexes of the transactions sent for their described pair whose actual
-   * pair `appliesTo` rejects, which a context that reports live checks skips.
+   * pair `appliesTo` rejects, which a context that reports live checks
+   * records as rejected.
    */
-  skipped?: number[];
+  rejected?: number[];
   /**
    * Indexes of the judged transactions whose actual status differs from the
    * described one, for which a context that reports live checks reports a finding.
@@ -215,7 +232,7 @@ const scenarios: RuleContextScenario[] = [
     appliesTo: responseHeader('x-rate-limit'),
     applicable: [],
     actualDiffersFromDescribed: true,
-    skipped: [0],
+    rejected: [0],
   },
   {
     name: 'only the pair whose described pair matches appliesTo is validated',
@@ -245,7 +262,7 @@ const scenarios: RuleContextScenario[] = [
     appliesTo: responseHeader('x-rate-limit'),
     applicable: [0],
     actualDiffersFromDescribed: true,
-    skipped: [1],
+    rejected: [1],
   },
   {
     name: 'a live status the description does not declare is still judged',
@@ -265,7 +282,7 @@ const scenarios: RuleContextScenario[] = [
     appliesTo: statusCode(200),
     applicable: [],
     actualDiffersFromDescribed: true,
-    skipped: [0],
+    rejected: [0],
   },
   {
     name: 'one live status that does not match appliesTo leaves the others judged',
@@ -279,7 +296,7 @@ const scenarios: RuleContextScenario[] = [
     appliesTo: statusCode(200),
     applicable: [0],
     actualDiffersFromDescribed: true,
-    skipped: [1],
+    rejected: [1],
   },
   {
     name: 'method("GET") applies to a request sent as "get"',
@@ -488,9 +505,8 @@ async function validate(
 
 /**
  * What a context that reports live checks returns besides violations: a
- * `rule-skip` per skipped pair and a `Status drift` finding per drifted one. A
- * grouped call skips on the group, and only when it skips every pair sent;
- * `groupBy: method()` puts every pair of a scenario in one group.
+ * `Status drift` finding per drifted pair. A pair it rejects contributes
+ * nothing.
  */
 function liveCheckResults(
   driver: RuleContextDriver,
@@ -502,25 +518,7 @@ function liveCheckResults(
     return [];
   }
 
-  const skipped = scenario.skipped ?? [];
-  const skip = [expect.objectContaining({ kind: 'rule-skip' })];
-  const skips =
-    contextMethod === 'validateGroupedCommonHttpTransactions'
-      ? skipped.length > 0 && scenario.applicable.length === 0
-        ? [
-            expect.objectContaining({
-              location: expect.objectContaining({ elementType: 'group' }),
-              findings: skip,
-            }),
-          ]
-        : []
-      : skipped.map((index) =>
-          expect.objectContaining({
-            location: locationOf(index, contextMethod),
-            findings: skip,
-          }),
-        );
-  const drifts = (scenario.drifted ?? []).map((index) =>
+  return (scenario.drifted ?? []).map((index) =>
     expect.objectContaining({
       location: locationOf(index, contextMethod),
       findings: [
@@ -531,8 +529,45 @@ function liveCheckResults(
       ],
     }),
   );
+}
 
-  return [...skips, ...drifts];
+/**
+ * The rejected cases a context that reports live checks records: one per
+ * rejected pair for a single call, each the reason of its pair. A grouped call
+ * records one, listing every rejected pair, with a reason only when no pair
+ * applies; `groupBy: method()` puts every pair of a scenario in one group.
+ */
+function expectedRejectedCases(
+  scenario: RuleContextScenario,
+  contextMethod: RuleContextMethod,
+): unknown[] {
+  const rejected = scenario.rejected ?? [];
+  const pair = {
+    transactionIndex: expect.any(Number),
+    reason: expect.stringContaining("outside the rule's applicability"),
+  };
+
+  if (contextMethod === 'validateGroupedCommonHttpTransactions') {
+    return rejected.length === 0
+      ? []
+      : [
+          {
+            ...(scenario.applicable.length === 0
+              ? {
+                  reason: expect.stringContaining(
+                    "No live pair of the group is inside the rule's applicability",
+                  ),
+                }
+              : {}),
+            rejected: rejected.map(() => pair),
+          },
+        ];
+  }
+
+  return rejected.map(() => ({
+    reason: expect.stringContaining("outside the rule's applicability"),
+    rejected: [pair],
+  }));
 }
 
 function notApplicableReason(
@@ -573,7 +608,7 @@ export function describeRuleContextScenarios(driver: RuleContextDriver): void {
             }
 
             it(title, async () => {
-              const { context, locationOf } = await driver.setup(
+              const { context, locationOf, rejectedCases } = await driver.setup(
                 scenario.transactions,
               );
               const reached: RuleViolationLocation[] = [];
@@ -612,6 +647,15 @@ export function describeRuleContextScenarios(driver: RuleContextDriver): void {
               ];
               expect(results).toHaveLength(expected.length);
               expect(results).toEqual(expect.arrayContaining(expected));
+
+              if (driver.reportsLiveChecks && rejectedCases) {
+                expect(
+                  rejectedCases().map(({ reason, rejected }) => ({
+                    ...(reason !== undefined ? { reason } : {}),
+                    rejected,
+                  })),
+                ).toEqual(expectedRejectedCases(scenario, contextMethod));
+              }
 
               if (form === 'function') {
                 expect(reached).toEqual(

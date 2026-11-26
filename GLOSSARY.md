@@ -155,7 +155,8 @@ Which `Transaction`s a rule speaks about — "responses with status 405". Asked 
 `Validation Context` observes: the specification in `Lint`, the recorded pair in `Analyze`,
 and in `Test` twice — of the specification to choose what to send, then of the pair that came
 back, so a rule for 405 responses stays silent when the server answers 204. A transaction
-outside a rule's applicability is never a violation of it.
+outside a rule's applicability is never a violation of it, and a rule whose applicability
+accepts nothing is `Not Applicable`.
 _In code_: `appliesTo`.
 _Avoid_: filter, candidate set, selection
 
@@ -266,9 +267,18 @@ The concrete shape of a Thymian report — this project's implementation of the 
 `Unified Report Format`, and the contract another tool's output is converted into.
 
 **Execution**:
-One rule evaluated at one location, carrying a status — `passed`, `failed` or `skipped` — and
-its findings. A `Run` is a flat list of executions.
+One rule evaluated at one location, carrying a status — `passed`, `failed`, `skipped` or
+`notApplicable` — and its findings. A `Run` is a flat list of executions.
 _Avoid_: result, check, test run
+
+**Not Applicable**:
+The status of an `Execution` whose rule's `Applicability` accepted nothing it observed: so the
+rule judged nothing, as opposed to `skipped`, where it had something to judge and could not.
+In `Test` this includes a request whose live response the applicability rejects, though the
+specification placed the transaction inside it. Never a failure, and never silent: a rule that
+applied to nothing in a run is reported as not applicable rather than left out of the report.
+_In code_: `notApplicable`, in `ExecutionStatus` and in `rules-testing`.
+_Avoid_: n/a, inapplicable, vacuous pass, ignored
 
 **Finding**:
 This project's concrete `Governance Signal`: what a rule attaches to an `Execution`. Carried

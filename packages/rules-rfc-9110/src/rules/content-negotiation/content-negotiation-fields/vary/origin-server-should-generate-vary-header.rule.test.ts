@@ -12,17 +12,23 @@ import {
   createParameter,
   createThymianFormatWithTransaction,
 } from '@thymian/core-testing';
-import { HttpTestApiContext } from '@thymian/plugin-http-tester';
+import {
+  HttpTestApiContext,
+  type HttpTesterCallDiagnostics,
+} from '@thymian/plugin-http-tester';
 import { describe, expect, it } from 'vitest';
 
 import rule from './origin-server-should-generate-vary-header.rule.js';
 
 // The specification declares Accept-Language on a cacheable GET; the live
 // request either sends it or does not.
-async function runTest(
+async function runTestCases(
   liveRequestHeaders: Record<string, string>,
   response: HttpResponse,
-): Promise<RuleFnResult[]> {
+): Promise<{
+  results: RuleFnResult[];
+  rejectedCases: NonNullable<HttpTesterCallDiagnostics['rejectedCases']>;
+}> {
   const format = createThymianFormatWithTransaction(
     createHttpRequest({
       method: 'get',
@@ -50,13 +56,29 @@ async function runTest(
     runHook: async (_name, hook) => ({ result: hook.value }) as never,
   });
 
-  const context = new HttpTestApiContext('test-rule', ctx) as TestContext;
+  const context = new HttpTestApiContext('test-rule', ctx);
 
   if (!rule.testRule) {
     throw new Error('Expected the rule to define a test rule function.');
   }
 
-  return rule.testRule(context, { mode: 'test' }, new NoopLogger());
+  const results = await rule.testRule(
+    context as TestContext,
+    { mode: 'test' },
+    new NoopLogger(),
+  );
+  const rejectedCases = context
+    .getRuleExecutionDiagnostics()
+    .calls.flatMap(({ rejectedCases = [] }) => rejectedCases);
+
+  return { results, rejectedCases };
+}
+
+async function runTest(
+  liveRequestHeaders: Record<string, string>,
+  response: HttpResponse,
+): Promise<RuleFnResult[]> {
+  return (await runTestCases(liveRequestHeaders, response)).results;
 }
 
 const responseWithoutVary: HttpResponse = {
@@ -90,15 +112,17 @@ describe('rfc9110/origin-server-should-generate-vary-header (test)', () => {
     expect(results).toEqual([]);
   });
 
-  it('skips, without a violation, when the live request carried no negotiation header', async () => {
-    const results = await runTest({}, responseWithoutVary);
+  it('is not applicable, without a violation, when the live request carried no negotiation header', async () => {
+    const { results, rejectedCases } = await runTestCases(
+      {},
+      responseWithoutVary,
+    );
 
-    // Not applicable to the live pair: skipped, not passed (ADR-0028).
-    expect(results).toEqual([
-      expect.objectContaining({
-        findings: [expect.objectContaining({ kind: 'rule-skip' })],
-      }),
+    // Not applicable to the live pair: nothing returned, the case is
+    // notApplicable with the reason (ADR-0028, ADR-0030).
+    expect(results).toEqual([]);
+    expect(rejectedCases).toMatchObject([
+      { reason: "The live pair is outside the rule's applicability." },
     ]);
-    expect(results[0]?.violation).toBeUndefined();
   });
 });

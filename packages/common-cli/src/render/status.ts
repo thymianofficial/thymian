@@ -1,6 +1,7 @@
 import { ux } from '@oclif/core';
 import {
   type ExecutionStatus,
+  notApplicableSymbol,
   type Severity,
   SEVERITY_COLORS,
   SEVERITY_SYMBOLS,
@@ -35,5 +36,7 @@ export function renderStatus(
     }
     case 'skipped':
       return `${skippedSymbol}  skipped${status.reason ? `: ${status.reason}` : ''}`;
+    case 'notApplicable':
+      return `${notApplicableSymbol}  not applicable${status.reason ? `: ${status.reason}` : ''}`;
   }
 }

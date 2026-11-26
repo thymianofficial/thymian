@@ -295,8 +295,9 @@ flattened, and `expected`/`actual` values are folded into the message rather tha
 Pick `csv` when you want to sort, filter, or pivot results in a spreadsheet or BI tool:
 
 - **Tabular analysis**: thirteen fixed columns, one record per line, nothing nested to unwrap.
-- **Complete outcome tally**: unlike markdown, every execution gets a row — passed, failed, and
-  skipped alike — so you can compute pass rates instead of only counting failures.
+- **Complete outcome tally**: unlike markdown, every execution gets a row — passed, failed,
+  skipped, and notApplicable alike — so you can compute pass rates instead of only counting
+  failures.
 - **Two row types**: a `row_type=execution` row carries the outcome (`status` and resolved
   `severity`), and each `row_type=finding` row beneath it carries one assertion or informational
   detail.

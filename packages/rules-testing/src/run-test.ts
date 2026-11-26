@@ -6,7 +6,9 @@ import {
   type HttpTestContext,
   type HttpTestHooks,
   isGroupedHttpTestCaseStep,
+  isRuleLevelNotApplicable,
   isRuleViolationGroupLocation,
+  isStatusWithoutSeverity,
   NoopLogger,
   resolveViolationLocation,
   type RuleFnResult,
@@ -139,7 +141,9 @@ export async function runTest(
             severity: declaredSeverity,
           }
         : {}),
-      ...(status.kind === 'skipped' && status.reason !== undefined
+      ...(isStatusWithoutSeverity(status.kind) &&
+      'reason' in status &&
+      status.reason !== undefined
         ? { reason: status.reason }
         : {}),
       // The tester repeats a violation as a `rule-violation` finding on its
@@ -150,16 +154,23 @@ export async function runTest(
     };
   };
 
-  const executions = run?.runType === 'test' ? (run.executions ?? []) : [];
+  // A rule that applied to nothing gets one execution of its own, on no
+  // transaction; the list below already says `notApplicable` for each of them.
+  const executions = (
+    run?.runType === 'test' ? (run.executions ?? []) : []
+  ).filter((execution) => !isRuleLevelNotApplicable(execution));
   // The tester reports one execution per test case, in the order it ran them.
-  const groups = (result[rule.meta.name]?.diagnostics ?? []).flatMap(
-    ({ testResult, placements }) =>
+  const groups = (result[rule.meta.name]?.diagnostics?.calls ?? []).flatMap(
+    ({ testResult, placements, rejectedCases = [] }) =>
       testResult.cases.map((testCase, testCaseIndex) =>
         groupOf(
           testCase,
           placements
             .filter((placement) => placement.testCaseIndex === testCaseIndex)
             .map((placement) => placement.result),
+          rejectedCases.find(
+            (rejected) => rejected.testCaseIndex === testCaseIndex,
+          )?.rejected ?? [],
         ),
       ),
   );
@@ -179,10 +190,11 @@ export async function runTest(
 
 /**
  * The group a test case ran: the transactions the tester sent a request for
- * together, and what the rule returned about them.
+ * together, each with why the live re-check of `appliesTo` rejected it if it
+ * did, and what the rule returned about them.
  */
 type TestedGroup = {
-  members: ThymianHttpTransaction[];
+  members: { transaction: ThymianHttpTransaction; rejection?: string }[];
   returned: RuleFnResult<RuleViolationLocation | RuleViolationGroupLocation>[];
 };
 
@@ -190,6 +202,7 @@ type TestedGroup = {
 function groupOf(
   { steps }: HttpTestCase,
   returned: RuleFnResult<RuleViolationLocation | RuleViolationGroupLocation>[],
+  rejected: { transactionIndex: number; reason: string }[],
 ): TestedGroup | undefined {
   const [step] = steps;
 
@@ -197,10 +210,23 @@ function groupOf(
     return undefined;
   }
 
+  // `rejected` indexes the transactions of the step, members without a
+  // source included.
   return {
-    members: step.transactions.flatMap(({ source }) =>
-      source === undefined ? [] : [source],
-    ),
+    members: step.transactions.flatMap(({ source }, transactionIndex) => {
+      if (source === undefined) {
+        return [];
+      }
+      const rejection = rejected.find(
+        (pair) => pair.transactionIndex === transactionIndex,
+      )?.reason;
+      return [
+        {
+          transaction: source,
+          ...(rejection !== undefined ? { rejection } : {}),
+        },
+      ];
+    }),
     returned,
   };
 }
@@ -209,9 +235,10 @@ function groupOf(
  * The tester reports a group as one execution, on the group key: failed when
  * the rule returned a violation on any of it. Who is at fault is in what the
  * rule returned, read as core's report builder reads it in `static`: a member
- * it located a violation on, or the group, which is every member. A member the
- * rule returned nothing on has the status of the execution, and where that is
- * the failure of another member, it passed.
+ * it located a violation on, or the group, which is every judged member. A
+ * member the live re-check rejected is `notApplicable`, with its own reason
+ * (ADR-0030). A judged member the rule returned nothing on has the status of
+ * the execution, and where that is the failure of another member, it passed.
  */
 function executionsOnMembers(
   { members, returned }: TestedGroup,
@@ -239,12 +266,21 @@ function executionsOnMembers(
       : {};
 
   return [
-    ...members.flatMap((member) =>
-      executionsOn(member, said, 'passed').map((execution) =>
-        said.includes(execution) ? execution : { ...execution, ...skipped },
-      ),
+    ...members.flatMap(({ transaction, rejection }) =>
+      rejection !== undefined
+        ? executionsOn(transaction, said, 'notApplicable').map((execution) =>
+            said.includes(execution)
+              ? execution
+              : { ...execution, reason: rejection },
+          )
+        : executionsOn(transaction, said, 'passed').map((execution) =>
+            said.includes(execution) ? execution : { ...execution, ...skipped },
+          ),
     ),
-    ...executionsElsewhere(members, said),
+    ...executionsElsewhere(
+      members.map(({ transaction }) => transaction),
+      said,
+    ),
   ];
 }
 

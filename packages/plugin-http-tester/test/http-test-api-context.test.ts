@@ -465,9 +465,9 @@ describe('HttpTestApiContext', () => {
         },
       ]);
       // The result fails the test case of its group.
-      expect(context.getRuleExecutionDiagnostics()?.[0]?.placements).toEqual([
-        { result: result[0], testCaseIndex: 0, stepIndex: 0 },
-      ]);
+      expect(
+        context.getRuleExecutionDiagnostics().calls[0]?.placements,
+      ).toEqual([{ result: result[0], testCaseIndex: 0, stepIndex: 0 }]);
     });
   });
 
@@ -561,12 +561,12 @@ describe('HttpTestApiContext', () => {
   });
 
   describe('getRuleExecutionDiagnostics', () => {
-    it('should return undefined when no tests have been run', () => {
+    it('should record no call when no tests have been run', () => {
       const format = createThymianFormat();
       const mockContext = createMockHttpTestContext({ format });
       const context = new HttpTestApiContext('test', mockContext);
 
-      expect(context.getRuleExecutionDiagnostics()).toBeUndefined();
+      expect(context.getRuleExecutionDiagnostics().calls).toEqual([]);
     });
 
     it('should expose skipped test cases as rule diagnostics', async () => {
@@ -594,7 +594,7 @@ describe('HttpTestApiContext', () => {
           .done(),
       );
 
-      const diagnostics = context.getRuleExecutionDiagnostics();
+      const diagnostics = context.getRuleExecutionDiagnostics().calls;
       expect(diagnostics).toHaveLength(1);
       const skippedCase = diagnostics?.[0]?.testResult.cases.find(
         (c) => c.status === 'skipped',
@@ -629,7 +629,7 @@ describe('HttpTestApiContext', () => {
           .done(),
       );
 
-      const diagnosticsAfterFirst = context.getRuleExecutionDiagnostics();
+      const diagnosticsAfterFirst = context.getRuleExecutionDiagnostics().calls;
       expect(diagnosticsAfterFirst).toHaveLength(1);
       const casesAfterFirst =
         diagnosticsAfterFirst?.[0]?.testResult.cases ?? [];
@@ -651,7 +651,8 @@ describe('HttpTestApiContext', () => {
           .done(),
       );
 
-      const diagnosticsAfterSecond = context.getRuleExecutionDiagnostics();
+      const diagnosticsAfterSecond =
+        context.getRuleExecutionDiagnostics().calls;
       expect(diagnosticsAfterSecond).toHaveLength(2);
       const allCases =
         diagnosticsAfterSecond?.flatMap((r) => r.testResult.cases) ?? [];
@@ -684,7 +685,7 @@ describe('HttpTestApiContext', () => {
         singleTestCase().forTransactionsWith(method('get')).run().done(),
       );
 
-      const diagnostics = context.getRuleExecutionDiagnostics();
+      const diagnostics = context.getRuleExecutionDiagnostics().calls;
       expect(diagnostics).toHaveLength(1);
       const passedCases =
         diagnostics?.[0]?.testResult.cases.filter(
@@ -730,7 +731,7 @@ describe('HttpTestApiContext', () => {
         singleTestCase().forTransactionsWith(method('get')).run().done(),
       );
 
-      const diagnostics = context.getRuleExecutionDiagnostics();
+      const diagnostics = context.getRuleExecutionDiagnostics().calls;
       const allCases = diagnostics?.flatMap((r) => r.testResult.cases) ?? [];
       const skippedCase = allCases.find((c) => c.status === 'skipped');
       const passedCase = allCases.find((c) => c.status === 'passed');
@@ -781,7 +782,7 @@ describe('HttpTestApiContext', () => {
         (_req, _res, location) => [{ location, violation: {}, findings: [] }],
       );
 
-      const diagnostics = context.getRuleExecutionDiagnostics();
+      const diagnostics = context.getRuleExecutionDiagnostics().calls;
       expect(diagnostics?.[0]?.placements).toHaveLength(1);
     });
 
@@ -809,7 +810,7 @@ describe('HttpTestApiContext', () => {
         },
       ]);
 
-      const diagnostics = context.getRuleExecutionDiagnostics();
+      const diagnostics = context.getRuleExecutionDiagnostics().calls;
       // result is included in the returned violations but has no placement
       expect(diagnostics?.[0]?.placements).toHaveLength(0);
     });
@@ -835,7 +836,7 @@ describe('HttpTestApiContext', () => {
         (_req, _res, location) => [{ location, violation: {}, findings: [] }],
       );
 
-      const diagnostics = context.getRuleExecutionDiagnostics();
+      const diagnostics = context.getRuleExecutionDiagnostics().calls;
       expect(diagnostics?.[0]?.placements).toHaveLength(1);
     });
 
@@ -863,7 +864,7 @@ describe('HttpTestApiContext', () => {
         },
       ]);
 
-      const diagnostics = context.getRuleExecutionDiagnostics();
+      const diagnostics = context.getRuleExecutionDiagnostics().calls;
       expect(diagnostics?.[0]?.placements).toHaveLength(0);
     });
   });
@@ -1099,42 +1100,34 @@ describe('HttpTestApiContext', () => {
       'validateCommonHttpTransactions',
       'validateHttpTransactions',
     ] as const)('%s, named form', (validate) => {
-      it('skips a pair the live re-check rejects, naming both statuses', async () => {
-        const { context, transactionIds } = contextAnswering(['/users', 200]);
+      it('returns nothing for a pair the live re-check rejects and records it as a rejected case, naming both statuses', async () => {
+        const { context } = contextAnswering(['/users', 200]);
 
         const results = await context[validate]({
           appliesTo: statusCode(401),
           violatedWhen: not(responseHeader('www-authenticate')),
         });
 
-        expect(results).toEqual([
-          expect.objectContaining({
-            location: expect.objectContaining({
-              elementType: 'edge',
-              elementId: transactionIds[0],
-            }),
-            findings: [
-              expect.objectContaining({
-                kind: 'rule-skip',
-                title: 'test-rule',
-                message: expect.stringContaining(
-                  'the specification declares 401, the server answered 200',
-                ),
-              }),
-            ],
-          }),
-        ]);
-        expect(results[0]?.violation).toBeUndefined();
-        expect(context.getRuleExecutionDiagnostics()?.[0]?.placements).toEqual([
-          expect.objectContaining({
-            result: results[0],
+        expect(results).toEqual([]);
+        const [call] = context.getRuleExecutionDiagnostics().calls;
+        expect(call?.placements).toEqual([]);
+        expect(call?.rejectedCases).toEqual([
+          {
             testCaseIndex: 0,
-            stepIndex: 0,
-          }),
+            reason:
+              "The live pair is outside the rule's applicability (the specification declares 401, the server answered 200).",
+            rejected: [
+              {
+                transactionIndex: 0,
+                reason:
+                  "The live pair is outside the rule's applicability (the specification declares 401, the server answered 200).",
+              },
+            ],
+          },
         ]);
       });
 
-      it('skips a pair the live re-check rejects with the declared status, naming no status', async () => {
+      it('records a pair the live re-check rejects with the declared status, naming no status', async () => {
         const { context } = contextAnswering([
           '/users',
           401,
@@ -1146,14 +1139,12 @@ describe('HttpTestApiContext', () => {
           violatedWhen: statusCode(401),
         });
 
-        expect(results).toEqual([
+        expect(results).toEqual([]);
+        expect(
+          context.getRuleExecutionDiagnostics().calls[0]?.rejectedCases,
+        ).toEqual([
           expect.objectContaining({
-            findings: [
-              expect.objectContaining({
-                kind: 'rule-skip',
-                message: "The live pair is outside the rule's applicability.",
-              }),
-            ],
+            reason: "The live pair is outside the rule's applicability.",
           }),
         ]);
       });
@@ -1184,8 +1175,11 @@ describe('HttpTestApiContext', () => {
           },
         ]);
         expect(
-          context.getRuleExecutionDiagnostics()?.[0]?.placements,
+          context.getRuleExecutionDiagnostics().calls[0]?.placements,
         ).toHaveLength(2);
+        expect(
+          context.getRuleExecutionDiagnostics().calls[0]?.rejectedCases,
+        ).toBeUndefined();
       });
 
       it('notes no drift when the live status is the declared one', async () => {
@@ -1211,17 +1205,14 @@ describe('HttpTestApiContext', () => {
 
         expect(results).toEqual([]);
         expect(
-          context.getRuleExecutionDiagnostics()?.[0]?.testResult.cases[0],
+          context.getRuleExecutionDiagnostics().calls[0]?.testResult.cases[0],
         ).toMatchObject({ status: 'skipped' });
       });
     });
 
     describe('validateGroupedCommonHttpTransactions', () => {
-      it('skips a group none of whose pairs passes the live re-check, on the group, naming both statuses', async () => {
-        const { context, transactionIds } = contextAnswering(
-          ['/a', 200],
-          ['/b', 500],
-        );
+      it('returns nothing for a group none of whose pairs passes the live re-check, and records it with the group reason naming both statuses', async () => {
+        const { context } = contextAnswering(['/a', 200], ['/b', 500]);
 
         const results = await context.validateGroupedCommonHttpTransactions({
           appliesTo: statusCode(401),
@@ -1229,27 +1220,30 @@ describe('HttpTestApiContext', () => {
           violatedWhen: () => [],
         });
 
-        expect(results).toEqual([
-          expect.objectContaining({
-            location: expect.objectContaining({
-              elementType: 'group',
-              members: [
-                { elementType: 'edge', elementId: transactionIds[0] },
-                { elementType: 'edge', elementId: transactionIds[1] },
-              ],
-            }),
-            findings: [
-              expect.objectContaining({
-                kind: 'rule-skip',
-                message: expect.stringMatching(
-                  /the specification declares 401, the server answered 200.*the specification declares 401, the server answered 500/,
+        expect(results).toEqual([]);
+        const [call] = context.getRuleExecutionDiagnostics().calls;
+        expect(call?.placements).toEqual([]);
+        expect(call?.rejectedCases).toEqual([
+          {
+            testCaseIndex: 0,
+            reason: expect.stringMatching(
+              /^No live pair of the group is inside the rule's applicability \(.*the specification declares 401, the server answered 200.*the specification declares 401, the server answered 500\)\.$/,
+            ),
+            rejected: [
+              {
+                transactionIndex: 0,
+                reason: expect.stringContaining(
+                  'the specification declares 401, the server answered 200',
                 ),
-              }),
+              },
+              {
+                transactionIndex: 1,
+                reason: expect.stringContaining(
+                  'the specification declares 401, the server answered 500',
+                ),
+              },
             ],
-          }),
-        ]);
-        expect(context.getRuleExecutionDiagnostics()?.[0]?.placements).toEqual([
-          expect.objectContaining({ result: results[0], stepIndex: 0 }),
+          },
         ]);
       });
 
@@ -1273,6 +1267,20 @@ describe('HttpTestApiContext', () => {
           expect.objectContaining({ elementId: transactionIds[0] }),
         ]);
         expect(results).toEqual([]);
+        expect(
+          context.getRuleExecutionDiagnostics().calls[0]?.rejectedCases,
+        ).toEqual([
+          {
+            testCaseIndex: 0,
+            rejected: [
+              {
+                transactionIndex: 1,
+                reason:
+                  "The live pair is outside the rule's applicability (the specification declares 401, the server answered 500).",
+              },
+            ],
+          },
+        ]);
       });
 
       it('notes the status drift of a judged pair', async () => {

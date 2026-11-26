@@ -134,6 +134,8 @@ is the source of record for that decision.
 - [ADR-0015](0015-cli-exit-status-is-severity-independent.md): What determines
   the CLI exit status, downstream of the `ExecutionStatus` this ADR's
   `RuleFnResult`s are mapped into.
+- [ADR-0030](0030-a-rule-that-applies-to-nothing-is-reported-not-applicable.md): adds the
+  `notApplicable` status kind.
 
 ---
 

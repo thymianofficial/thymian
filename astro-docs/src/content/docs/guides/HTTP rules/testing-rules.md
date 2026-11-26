@@ -191,7 +191,7 @@ expect(executions[4]).toMatchObject({
 | `status`   | `failed`, `passed`, `notApplicable` or `skipped`.                                                           |
 | `message`  | When `failed`: the message of the violation, or the rule's summary or description when the rule gives none. |
 | `severity` | When `failed`: the severity the rule declares.                                                              |
-| `reason`   | When `skipped`, and a reason was given: why.                                                                |
+| `reason`   | When `skipped` or `notApplicable`, and a reason was given: why.                                             |
 | `group`    | When a grouped rule blamed a group as a whole: the group key. See [Grouped rules](#grouped-rules).          |
 | `findings` | What the rule attached to the execution, on a pass as much as on a violation. Always a list.                |
 
@@ -208,14 +208,14 @@ Compare with a partial match, as `toMatchObject` does, and write only the fields
 
 `passed` and `notApplicable` are what show a rule's scope: `passed` proves the rule looked at a transaction and accepted it, `notApplicable` proves it left the transaction alone.
 
-`notApplicable` exists only in a rule test. A report of `thymian lint`, `thymian test` or `thymian analyze` knows `failed`, `passed` and `skipped`.
+These are the statuses of a Thymian report. A report of `thymian test` also uses `notApplicable`: for a rule that applied to nothing, and for a test case whose response fell outside the rule's `appliesTo`, with the reason.
 
 ### Where `passed` and `notApplicable` Come From
 
 The linter and the analyzer report only what a rule returns, and a rule returns its violations. A transaction the rule accepted and one it never looked at both simply do not appear. So `createRuleTester` works the difference out itself:
 
 - In **`static`** and **`analytics`**, it reads the `appliesTo` the rule states in its rule-context calls. A transaction inside it that the engine reported nothing on is `passed`; one outside it is `notApplicable`. `static` asks `appliesTo` of the format, `analytics` of the recorded request and response.
-- In **`test`**, the tester itself reports `passed` and `skipped` for every transaction it sent a request for. `createRuleTester` takes these as reported and adds only `notApplicable`, for a transaction no request was sent for.
+- In **`test`**, the tester itself reports `passed`, `skipped` and `notApplicable` for every transaction it sent a request for: `notApplicable` when the response that came back is outside the rule's `appliesTo`. `createRuleTester` takes these as reported and adds `notApplicable` for a transaction no request was sent for.
 
 This works when `appliesTo` is a filter expression such as `statusCode(201)`. In `static`, a rule can also decide applicability in a **plain callback** (`validateHttpTransactions`). That cannot be read from outside, so every transaction the rule did not flag comes back as `passed`:
 
@@ -291,7 +291,7 @@ expect(executions).toMatchObject([
 
 A server that answers a transaction with a **different status than the format declares** leads to one of two outcomes. The tester asks the rule's `appliesTo` again of the pair that came back, as `thymian test` does.
 
-When the live pair is **outside the rule's applicability**, the transaction is `skipped`, not `failed`. The tester does not ask the rule about it, and the `reason` names the declared and the live status:
+When the live pair is **outside the rule's applicability**, the transaction is `notApplicable`, not `failed`. The tester does not ask the rule about it, and the `reason` names the declared and the live status:
 
 ```typescript
 const executions = await createRuleTester(createdResponsesHaveLocation).runTest(format, {
@@ -300,7 +300,7 @@ const executions = await createRuleTester(createdResponsesHaveLocation).runTest(
 
 expect(executions[1]).toMatchObject({
   location: { elementId: launchCreated },
-  status: 'skipped',
+  status: 'notApplicable',
   reason: expect.stringContaining('the specification declares 201, the server answered 500'),
 });
 ```
@@ -326,7 +326,7 @@ expect(executions[5]).toMatchObject({
 });
 ```
 
-A rule that calls a context method in its positional form, or an override that keeps `checkStatusCode`, still skips such a transaction with the reason `Expected status code …`.
+A rule that calls a context method in its positional form, or an override that keeps `checkStatusCode`, still skips such a transaction with the reason `Expected status code …`. An override that states its applicability with `skipIf` skips it too, with its own reason.
 
 So `respond` cannot turn a `201` into a `400` to see what the rule says about a `400`: `appliesTo` is asked of the format to choose what to send, and no request is sent for a `400` the format does not declare. Add a transaction that declares the `400` instead.
 
@@ -557,7 +557,7 @@ expect(inAnalytics?.group).toBe('https://localhost/launches');
 ## Limits You Will Meet
 
 - **A path parameter without an example.** A request cannot be built for it. In `test` the transaction is `skipped`, with the reason `Missing value for path parameter "id".`; in `analytics` the call throws, because there is nothing to record. Give the parameter's schema an example, as `getLaunch` does above.
-- **A group in `test` is sent together.** A member the server answers outside the rule's applicability is not judged. It reads `passed` unless no member of its group applies; then every member is `skipped`.
+- **A group in `test` is sent together.** A member the server answers outside the rule's applicability is not judged: it is `notApplicable`, with the reason, and the rule judges the other members.
 - **A transaction recorded several times, under a rule that compares.** The analyzer names the transaction an execution is about, not the recording. For a rule that judges each recording on its own, `createRuleTester` still tells the recordings apart, as shown above. What a grouped rule, or a rule that compares recordings with each other, reports on a transaction appears on **every** recording of it:
 
   ```typescript

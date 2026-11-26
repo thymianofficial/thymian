@@ -324,6 +324,117 @@ describe('cli report renderer', () => {
     expect(output).toContain('› example/skip');
   });
 
+  describe('notApplicable executions (ADR-0030)', () => {
+    const notApplicableReport = (): Parameters<typeof renderReport>[0] => ({
+      reportId: 'report-1',
+      createdAt: new Date().toISOString(),
+      runs: [
+        {
+          runId: 'run-1',
+          tool: { name: '@thymian/plugin-http-tester' },
+          runType: 'test',
+          runAt: new Date().toISOString(),
+          rules: [{ id: 'example/rule', severity: 'error' }],
+          executions: [
+            {
+              kind: 'test',
+              ruleId: 'example/rule',
+              name: 'no applicable transaction',
+              status: {
+                kind: 'notApplicable',
+                reason: 'The input has no transaction this rule applies to.',
+              },
+              steps: [],
+            },
+            {
+              kind: 'test',
+              ruleId: 'example/rule',
+              name: 'ruled-out case',
+              status: { kind: 'notApplicable' },
+              steps: [
+                {
+                  name: 'Step 1',
+                  location: { type: 'custom', value: 'GET /pets' },
+                  findings: [],
+                },
+              ],
+            },
+            {
+              kind: 'test',
+              ruleId: 'example/rule',
+              name: 'skipped case',
+              status: { kind: 'skipped', reason: 'no auth' },
+              steps: [],
+            },
+          ],
+        },
+      ],
+    });
+
+    it('renders a rule-level one as a row with its own symbol and reason', () => {
+      const output = stripAnsi(renderReport(notApplicableReport()));
+
+      expect(output).toContain('  no applicable transaction');
+      expect(output).toContain(
+        '∅  not applicable: The input has no transaction this rule applies to.',
+      );
+      expect(output).toContain('› example/rule');
+      expect(output).not.toContain('ruled-out case');
+    });
+
+    it('hides a case-level one under rule and severity grouping', () => {
+      for (const sortReportsBy of ['rule', 'severity'] as const) {
+        const output = stripAnsi(
+          renderReport(notApplicableReport(), { sortReportsBy }),
+        );
+        expect(output).not.toContain('ruled-out case');
+        expect(output).toContain('no applicable transaction');
+      }
+    });
+
+    it('lists a case-level one that carries a reason, with that reason', () => {
+      const report = notApplicableReport();
+      report.runs[0]?.executions?.push({
+        kind: 'test',
+        ruleId: 'example/rule',
+        name: 'rejected case',
+        status: {
+          kind: 'notApplicable',
+          reason: "The live pair is outside the rule's applicability.",
+        },
+        steps: [
+          {
+            name: 'Step 1',
+            location: { type: 'custom', value: 'GET /pets' },
+            findings: [],
+          },
+        ],
+      });
+
+      for (const sortReportsBy of ['rule', 'severity'] as const) {
+        const output = stripAnsi(renderReport(report, { sortReportsBy }));
+        expect(output).toContain('∅  not applicable: rejected case');
+        expect(output).toContain(
+          "➜ The live pair is outside the rule's applicability.",
+        );
+        expect(output).not.toContain('ruled-out case');
+      }
+    });
+
+    it('files a rule-level one under its own severity bucket, after skipped', () => {
+      const output = stripAnsi(
+        renderReport(notApplicableReport(), { sortReportsBy: 'severity' }),
+      );
+
+      expect(output).toContain('⏭ SKIPPED');
+      expect(output).toContain('∅ NOT APPLICABLE');
+      expect(output).toContain('∅  not applicable: no applicable transaction');
+      expect(output.indexOf('⏭ SKIPPED')).toBeLessThan(
+        output.indexOf('∅ NOT APPLICABLE'),
+      );
+    });
+  });
+
   it('uses rule metadata for display labels while preserving rule attribution', () => {
     const output = stripAnsi(
       renderReport({

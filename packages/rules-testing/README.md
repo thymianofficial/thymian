@@ -78,10 +78,10 @@ await ruleTester.runTest(format, {
 
 Here `launchCreated` is `failed`: the server dropped the `Location` header the format declares. One condition can change many answers, for example `conforming.statusCode >= 400`. One operation with two answers gets two requests, one aimed at each transaction.
 
-Two things make a transaction `skipped` in `test`, each with a `reason`, because the tester does not ask the rule about it:
+The tester does not ask the rule about a transaction in `test`, and gives a `reason`, when:
 
-- **The live pair is outside the rule's applicability.** `thymian test` skips such a transaction too.
-- **The request cannot be built**, for example for a path parameter without an example: give its schema one, `createRequiredParameter({ schema: createStringSchema({ examples: ['apollo-11'] }) })`.
+- **The live pair is outside the rule's applicability**, for example because the server answers another status than the transaction declares. The transaction is `notApplicable`, as `thymian test` reports it.
+- **The request cannot be built**, for example for a path parameter without an example: give its schema one, `createRequiredParameter({ schema: createStringSchema({ examples: ['apollo-11'] }) })`. The transaction is `skipped`.
 
 ### The traffic in `analytics`
 
@@ -166,7 +166,7 @@ expect(await createRuleTester(resourcesSendEtagConsistently).runLint(format)).to
 ]);
 ```
 
-The key is what the context grouped by, spelled as that context spells it: grouped by `url()`, `static` and `test` give `https://localhost:443/launches` where `analytics` gives `https://localhost/launches`. In `test` the tester sends the requests of a group together. A member the server answers outside the rule's applicability is not judged. It reads `passed` unless no member of its group applies; then every member is `skipped`.
+The key is what the context grouped by, spelled as that context spells it: grouped by `url()`, `static` and `test` give `https://localhost:443/launches` where `analytics` gives `https://localhost/launches`. In `test` the tester sends the requests of a group together. A member the server answers outside the rule's applicability is not judged: it is `notApplicable`, with a `reason`, and the rule judges the other members.
 
 ### What comes back
 
@@ -178,7 +178,7 @@ A list of executions. Each one has:
 | `status`   | `failed`, `passed`, `notApplicable` or `skipped`.                                                                                                                  |
 | `message`  | When `failed`: the violation's message, or the rule's summary or description when it gives none.                                                                   |
 | `severity` | When `failed`: the severity the rule declares.                                                                                                                     |
-| `reason`   | When `skipped`: the reason the rule gave.                                                                                                                          |
+| `reason`   | When `skipped`: the reason the rule gave. When `notApplicable` in `test`: why the live pair is outside the rule's applicability.                                   |
 | `group`    | When a grouped rule located the execution on a group and not on one member: the group key. See [Grouped rules](#grouped-rules).                                    |
 | `findings` | What the rule attached to the execution, as a report carries it. Always a list; empty when the rule attached nothing.                                              |
 
@@ -186,7 +186,7 @@ The `label` is the readable name of the location, so a failing comparison says w
 
 **Order.** Every transaction of the format, in the order it was added. A transaction the engine reported several executions on appears once per execution, in the order the engine reported them. In `analytics` an execution on the label of a recorded pair counts as reported on the transaction the pair matched: it takes that transaction's place and keeps the label as its `location`. The analyzer locates there what a rule returns from `validateCapturedHttpTransactions` and `validateCapturedHttpTraces`. Executions on any other location come last. With traffic handed to `analytics` the recordings come first, in traffic order, as described above.
 
-**Where `passed` and `notApplicable` come from.** In `test` the tester reports an execution for every transaction it sent a request for, `passed` and `skipped` included; `createRuleTester` takes them as reported and adds only `notApplicable`, for a transaction no request was sent for. The linter and the analyzer report only what a rule returns, which for most rules is its violations. In `static` and `analytics`, `createRuleTester` works out the rest from the `appliesTo` the rule states in its rule-context calls: a transaction inside it that the engine reported nothing on is `passed`, one outside it is `notApplicable`. Several calls count together; a transaction is applicable when any of them accepts it. `static` asks the `appliesTo` of the format, `analytics` of the recorded pair, so two recordings of one transaction can differ in it.
+**Where `passed` and `notApplicable` come from.** The statuses are the ones a Thymian report uses. In `test` the tester reports an execution for every transaction it sent a request for, `passed`, `skipped` and `notApplicable` included: a transaction whose response falls outside the rule's `appliesTo` is `notApplicable`, with a `reason`, as it is in `static` and `analytics`. `createRuleTester` takes them as reported and adds `notApplicable` for a transaction no request was sent for. The tester also reports a rule that applied to nothing with one execution of its own; a rule test leaves it out, since every transaction in its list already says `notApplicable`. The linter and the analyzer report only what a rule returns, which for most rules is its violations. In `static` and `analytics`, `createRuleTester` works out the rest from the `appliesTo` the rule states in its rule-context calls: a transaction inside it that the engine reported nothing on is `passed`, one outside it is `notApplicable`. Several calls count together; a transaction is applicable when any of them accepts it. `static` asks the `appliesTo` of the format, `analytics` of the recorded pair, so two recordings of one transaction can differ in it.
 
 A rule whose applicability cannot be read from outside gets `passed` for every transaction it did not flag. That is a rule that passes only a violation condition or makes no rule-context call at all, and:
 

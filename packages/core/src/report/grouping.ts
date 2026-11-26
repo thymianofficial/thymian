@@ -1,6 +1,11 @@
 import type { Logger } from '../logger/logger.js';
 import { resolveExecutionSeverity } from './finding-render.js';
-import type { Execution, RuleDescriptor, Severity } from './report.js';
+import type {
+  Execution,
+  RuleDescriptor,
+  Severity,
+  TestCaseExecution,
+} from './report.js';
 import { SEVERITY_GROUP_ORDER } from './report-style.js';
 
 /** The accepted `--sort-reports-by` values — the single source for the flag,
@@ -18,9 +23,9 @@ export type SortReportsBy = (typeof SORT_REPORTS_BY_VALUES)[number];
 export const UNNAMED_CHECK_LABEL = 'unnamed check';
 
 /**
- * Group key for an execution under `severity` grouping. Skipped executions have
- * no severity, so they get a dedicated `skipped` bucket rather than being
- * mislabelled as errors.
+ * Group key for an execution under `severity` grouping. Skipped and
+ * not-applicable executions have no severity, so each gets a dedicated bucket
+ * (`skipped`, `notApplicable`) rather than being mislabelled as errors.
  */
 export function severityGroupKey(
   execution: Execution,
@@ -29,7 +34,9 @@ export function severityGroupKey(
 ): string {
   return (
     resolveExecutionSeverity(execution, ruleIndex, logger) ??
-    (execution.status.kind === 'skipped' ? 'skipped' : 'error')
+    (isStatusWithoutSeverity(execution.status.kind)
+      ? execution.status.kind
+      : 'error')
   );
 }
 
@@ -54,15 +61,61 @@ export function resolveGroupSeverity(
 
 /**
  * Orders `severity` group keys by `SEVERITY_GROUP_ORDER` (error→warn→hint→info),
- * with any non-severity key (e.g. the `skipped` bucket) sorted last.
+ * then the `skipped` and `notApplicable` buckets, then any other key.
  */
 export function compareSeverityGroupKeys(a: string, b: string): number {
-  const order: readonly string[] = SEVERITY_GROUP_ORDER;
+  const order: readonly string[] = [
+    ...SEVERITY_GROUP_ORDER,
+    'skipped',
+    'notApplicable',
+  ];
   const rank = (key: string): number => {
     const index = order.indexOf(key);
     return index === -1 ? order.length : index;
   };
   return rank(a) - rank(b) || a.localeCompare(b);
+}
+
+/**
+ * Whether a report lists an execution as an entry of its own. A `passed`
+ * execution is only counted. A rule-level `notApplicable` — a test case
+ * without steps, or any lint/analyze one — is listed with its reason. A
+ * case-level `notApplicable`, a test case that ran and that the rule's
+ * applicability rejected, is listed when it carries a reason and only counted
+ * otherwise (ADR-0030).
+ */
+export function isListedExecution(execution: Execution): boolean {
+  switch (execution.status.kind) {
+    case 'passed':
+      return false;
+    case 'notApplicable':
+      return (
+        execution.kind !== 'test' ||
+        isRuleLevelNotApplicable(execution) ||
+        execution.status.reason !== undefined
+      );
+    default:
+      return true;
+  }
+}
+
+/** Statuses that carry no severity, so they get a bucket of their own and no severity colour. */
+export function isStatusWithoutSeverity(
+  kind: string,
+): kind is 'skipped' | 'notApplicable' {
+  return kind === 'skipped' || kind === 'notApplicable';
+}
+
+/**
+ * Whether a test execution stands for a rule that applied to nothing: a
+ * `notApplicable` test case without steps (ADR-0030).
+ */
+export function isRuleLevelNotApplicable(
+  execution: TestCaseExecution,
+): boolean {
+  return (
+    execution.status.kind === 'notApplicable' && execution.steps.length === 0
+  );
 }
 
 /** Pluralizes a severity word (`error`→`errors`, …) for severity-group headings. */
@@ -76,6 +129,8 @@ export function pluralizeSeverity(severity: string): string {
       return 'infos';
     case 'hint':
       return 'hints';
+    case 'notApplicable':
+      return 'not applicable';
     default:
       return severity;
   }

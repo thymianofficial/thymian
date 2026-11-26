@@ -44,15 +44,17 @@ We will drop the status-code gate only where a live applicability check replaces
 - **The positional form keeps the gate.** It has no live re-check, so a mismatching pair
   would reach the validation function unchecked. Removing the positional overloads, as
   ADR-0025 intended, is a separate change (thymian-workspace#779).
-- **A pair the live re-check rejects is `skipped`, not `passed`.** It surfaces as a
-  `rule-skip` whose reason says the live pair is outside the rule's applicability and,
-  when the live status differs from the declared one, names both ("The live pair is
-  outside the rule's applicability (the specification declares 401, the server answered
-  200)."). The exit code is unaffected
-  ([ADR-0015](0015-cli-exit-status-is-severity-independent.md) counts only `failed`). A
-  grouped call judges the transactions that pass the re-check and says nothing about the
-  rest; the group is `skipped`, located on the group and naming every member, only when
-  none of them does.
+- **A pair the live re-check rejects is `notApplicable`, not `passed`.** The call returns
+  nothing for it, and its test case is `notApplicable` with a reason that says the live pair
+  is outside the rule's applicability and, when the live status differs from the declared
+  one, names both ("The live pair is outside the rule's applicability (the specification
+  declares 401, the server answered 200)."). The report lists it with that reason. The exit
+  code is unaffected ([ADR-0015](0015-cli-exit-status-is-severity-independent.md) counts
+  only `failed`). A grouped call judges the transactions that pass the re-check and says
+  nothing about the rest; the group is `notApplicable`, with a reason naming every member
+  whose status differs, only when none of them does. _(Amended by
+  [ADR-0030](0030-a-rule-that-applies-to-nothing-is-reported-not-applicable.md); this was a
+  `rule-skip` reading `skipped`.)_
 - **A status mismatch on a judged pair is reported, not gating.** When the live status
   differs from the declared one but the pair is still applicable and judged, the execution
   carries an `informational` status-drift finding. It neither skips nor fails the
@@ -69,7 +71,9 @@ We will drop the status-code gate only where a live applicability check replaces
     because it must produce the declared response the replay is built from.
   - An override that selects by declared status and asserts about that status passes
     `checkStatusCode: false` and states the applicability on the live response with
-    `skipIf(not(statusCode(…)), reason)`, so its skip reads like the context calls' skip.
+    `skipIf(not(statusCode(…)), reason)`, so its reason reads like the context calls'. The
+    pair is reported `skipped`, not `notApplicable`: a bespoke pipeline has no `appliesTo`
+    ([ADR-0030](0030-a-rule-that-applies-to-nothing-is-reported-not-applicable.md)).
   - An override that compares against the declared response — `checkBody`, `checkHeaders`,
     `expectStatusCode` — keeps the default.
 - **The option is documented.** The rule-authoring guide states these four cases next to
@@ -82,28 +86,28 @@ We will drop the status-code gate only where a live applicability check replaces
 - Rules whose applicability does not hinge on the declared status are judged on the
   responses where the server and the specification disagree.
 - A grouped rule is no longer skipped wholesale by one undescribed status.
-- A transaction the rule did not judge says why, instead of reading as `passed` or as a
-  bare status mismatch.
+- A transaction the rule did not judge says why, as `notApplicable` with a reason, instead
+  of reading as `passed` or as a bare status mismatch.
 - `sampler check`, `thymian request` and the schema-conformance rules keep their behaviour.
 
 **Negative:**
 
-- Reports change: executions that were `skipped` become `passed` or `failed`, and newly
-  judged pairs can surface violations that were hidden before.
+- Reports change: executions that were `skipped` become `passed`, `failed` or
+  `notApplicable`, and newly judged pairs can surface violations that were hidden before.
 - The gate's meaning now depends on the call form. Positional `Test` calls — every `test`
   path of `rules-rfc-6265bis` and `rules-rfc-6797` — stay gated until they are converted
   (thymian-workspace#779).
 - Every test-builder override remains a place a rule author must decide the gate
   explicitly; the default does not do it for them.
-- In `@thymian/rules-testing`, a group member the re-check rejects is not judged but reads
-  `passed`, unless no member of its group applies.
+- An override that states its applicability with `skipIf` reports a rejected pair `skipped`,
+  where a rule-context call reports it `notApplicable`.
 
 **Neutral:**
 
 - `checkStatusCode` stays a public `run()` option and becomes a documented one.
-- A rule matching zero transactions (thymian-workspace#780), and the report model
-  collapsing a `failed` test case into `skipped` (thymian-workspace#781), are separate
-  problems this decision does not touch.
+- The report model collapsing a `failed` test case into `skipped` (thymian-workspace#781)
+  is a separate problem this decision does not touch. A rule matching zero transactions is
+  reported by [ADR-0030](0030-a-rule-that-applies-to-nothing-is-reported-not-applicable.md).
 
 ## Related
 
@@ -116,11 +120,14 @@ We will drop the status-code gate only where a live applicability check replaces
 - [ADR-0021](0021-http-security-rule-sets.md): cited the gate as an open prerequisite;
   amended to point here.
 - [Chapter 8](../08-crosscutting-concepts.md): rule contexts.
+- [ADR-0030](0030-a-rule-that-applies-to-nothing-is-reported-not-applicable.md): a pair the
+  live re-check rejects is `notApplicable`; amends the skip decided here.
 
 ---
 
 ## Status History
 
-| Date       | Status   | Notes         |
-| ---------- | -------- | ------------- |
-| 2026-11-18 | Accepted | Initial draft |
+| Date       | Status   | Notes                                                                                                                                                                                                       |
+| ---------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-11-18 | Accepted | Initial draft                                                                                                                                                                                               |
+| 2026-11-24 | Amended  | Decision, Consequences: a pair the live re-check rejects is `notApplicable`, listed with the same reason, not a `rule-skip` ([ADR-0030](0030-a-rule-that-applies-to-nothing-is-reported-not-applicable.md)) |

@@ -200,7 +200,7 @@ describe('createRuleTester(rule) with a grouped rule', () => {
     });
   });
 
-  it("skips every member of a group in test when no member's live status is inside the rule's applicability", async () => {
+  it("reports every member of a group in test notApplicable, each with its own reason, when no member's live status is inside the rule's applicability", async () => {
     const api = spaceAgency();
 
     const executions = await createRuleTester(
@@ -212,21 +212,22 @@ describe('createRuleTester(rule) with a grouped rule', () => {
           : conforming,
     });
 
-    const skipped = {
-      status: 'skipped',
-      reason: expect.stringContaining(
-        'the specification declares 200, the server answered 500',
-      ),
-      group: expect.stringContaining('/launches'),
+    const notApplicable = {
+      status: 'notApplicable',
+      reason:
+        "The live pair is outside the rule's applicability (the specification declares 200, the server answered 500).",
     };
     expect(executions).toMatchObject([
-      { location: { elementId: api.launchRead }, ...skipped },
-      { location: { elementId: api.launchReplaced }, ...skipped },
+      { location: { elementId: api.launchRead }, ...notApplicable },
+      { location: { elementId: api.launchReplaced }, ...notApplicable },
       { location: { elementId: api.launchCreated }, status: 'notApplicable' },
       { location: { elementId: api.astronautRead }, status: 'passed' },
       { location: { elementId: api.astronautReplaced }, status: 'passed' },
     ]);
     expect(executions).toHaveLength(5);
+    // Nothing is located on the group any more.
+    expect(executions[0]).not.toHaveProperty('group');
+    expect(executions[1]).not.toHaveProperty('group');
   });
 
   it("judges the members of a group in test whose live status is inside the rule's applicability", async () => {
@@ -243,9 +244,14 @@ describe('createRuleTester(rule) with a grouped rule', () => {
 
     expect(executions).toMatchObject([
       { location: { elementId: api.launchRead }, status: 'passed' },
-      // Not judged: the live re-check rejects it, and the tester lists a
-      // member the rule said nothing about with the status of its group.
-      { location: { elementId: api.launchReplaced }, status: 'passed' },
+      // Not judged: the live re-check rejects it.
+      {
+        location: { elementId: api.launchReplaced },
+        status: 'notApplicable',
+        reason: expect.stringContaining(
+          'the specification declares 200, the server answered 500',
+        ),
+      },
       { location: { elementId: api.launchCreated }, status: 'notApplicable' },
       { location: { elementId: api.astronautRead }, status: 'passed' },
       { location: { elementId: api.astronautReplaced }, status: 'passed' },

@@ -1,5 +1,6 @@
 import {
   buildRuleIndex,
+  type ExecutionStatus,
   type Logger,
   type Report,
   resolveExecutionSeverity,
@@ -9,7 +10,7 @@ import {
 } from '@thymian/core';
 
 /** Tallies of execution outcomes across a report. */
-export type StatusCounts = Record<'passed' | 'failed' | 'skipped', number>;
+export type StatusCounts = Record<ExecutionStatus['kind'], number>;
 
 export type ThymianReportStatistics = {
   numberOfReports: number;
@@ -21,7 +22,7 @@ export type ThymianReportStatistics = {
    * resolved severity; detail findings carry no severity and are not counted.
    */
   severityCounts: Record<Severity, number>;
-  /** Number of executions per outcome (`passed`/`failed`/`skipped`). */
+  /** Number of executions per outcome (`passed`/`failed`/`skipped`/`notApplicable`). */
   statusCounts: StatusCounts;
   /** Number of detail findings per `kind`. */
   kindCounts: Record<string, number>;
@@ -38,7 +39,12 @@ export function analyze(reports: Report[], logger?: Logger): ReportAnalysis {
     hint: 0,
     info: 0,
   };
-  const statusCounts: StatusCounts = { passed: 0, failed: 0, skipped: 0 };
+  const statusCounts: StatusCounts = {
+    passed: 0,
+    failed: 0,
+    skipped: 0,
+    notApplicable: 0,
+  };
   const kindCounts: Record<string, number> = {};
 
   let runCounter = 0;

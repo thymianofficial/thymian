@@ -8,6 +8,7 @@ import type { Report } from '../src/index.js';
 import {
   createLintExecution,
   createReport,
+  createTestCaseExecution,
   createToolRun,
   loadThymianReports,
   ThymianBaseError,
@@ -65,6 +66,38 @@ describe('loadThymianReports', () => {
 
     expect(reports).toHaveLength(1);
     expect(reports[0]?.reportId).toBe(source.reportId);
+  });
+
+  it('accepts a report whose executions are notApplicable (ADR-0030)', async () => {
+    const source = createReport([
+      createToolRun({
+        tool: { name: 'test-tool' },
+        runType: 'test',
+        executions: [
+          createTestCaseExecution({
+            name: 'no applicable transaction',
+            ruleId: 'example/rule',
+            status: {
+              kind: 'notApplicable',
+              reason: 'The input has no transaction this rule applies to.',
+            },
+            steps: [],
+          }),
+        ],
+      }),
+    ]);
+    const reportFile = await writeReportFile('not-applicable.json', source);
+
+    const reports = await loadThymianReports(
+      reportFile,
+      `thymian:${reportFile}`,
+      tmpDir,
+    );
+
+    expect(reports[0]?.runs[0]?.executions?.[0]?.status).toEqual({
+      kind: 'notApplicable',
+      reason: 'The input has no transaction this rule applies to.',
+    });
   });
 
   it('accepts an array of reports and returns every one', async () => {

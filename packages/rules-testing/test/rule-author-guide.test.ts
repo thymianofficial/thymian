@@ -195,7 +195,7 @@ describe('the rule-author guide: testing a rule', () => {
       });
     });
 
-    it("skips the transaction whose live status puts it outside the rule's applicability, with a reason", async () => {
+    it("reports the transaction whose live status puts it outside the rule's applicability notApplicable, with a reason", async () => {
       const executions = await createRuleTester(
         createdResponsesHaveLocation,
       ).runTest(format, {
@@ -207,7 +207,7 @@ describe('the rule-author guide: testing a rule', () => {
 
       expect(executions[1]).toMatchObject({
         location: { elementId: launchCreated },
-        status: 'skipped',
+        status: 'notApplicable',
         reason: expect.stringContaining(
           'the specification declares 201, the server answered 500',
         ),
