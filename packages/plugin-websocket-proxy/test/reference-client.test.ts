@@ -13,6 +13,7 @@ describe('Reference Client', () => {
       'remote-plugin',
       ['core.lint'],
       [],
+      's3cr3t',
     );
 
     client.onAction('core.lint', () => {
@@ -32,6 +33,7 @@ describe('Reference Client', () => {
         plugins: [
           {
             name: 'remote-plugin',
+            token: 's3cr3t',
             required: true,
             options: {
               key: 'turing',

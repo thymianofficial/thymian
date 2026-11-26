@@ -20,6 +20,7 @@ export const registerMessageSchema: JSONSchemaType<RegisterMessage> = {
     },
     name: {
       type: 'string',
+      minLength: 1,
       nullable: false,
     },
     token: {

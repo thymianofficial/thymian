@@ -22,6 +22,9 @@ describe('thymian serve (websocket)', () => {
         'serve',
         '-o',
         `@thymian/plugin-websocket-proxy.port=${wsPort}`,
+        // the e2e client registers under a name that is not configured
+        '-o',
+        '@thymian/plugin-websocket-proxy.allowUnauthenticatedPlugins=true',
         '-p',
         '@thymian/plugin-websocket-proxy',
       ],
@@ -46,7 +49,7 @@ describe('thymian serve (websocket)', () => {
       }),
     ).resolves.toBeTruthy();
 
-    const ws = new WebSocket(`ws://localhost:${wsPort}`);
+    const ws = new WebSocket(`ws://127.0.0.1:${wsPort}`);
     console.log('Created WebSocket instance');
 
     try {
