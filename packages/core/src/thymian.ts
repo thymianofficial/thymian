@@ -30,6 +30,7 @@ import type { LogLevel } from './logger/log-level.js';
 import { shouldLog } from './logger/log-level.js';
 import type { Logger } from './logger/logger.js';
 import { NoopLogger } from './logger/noop.logger.js';
+import { stringifyRedacted } from './redact-secrets.js';
 import { createReport, type Report, type ToolRun } from './report/index.js';
 import {
   type LoadedTraffic,
@@ -916,7 +917,8 @@ export class Thymian {
   ): Promise<void> {
     this.logger.info(`Registering plugin: ${registeredPlugin.plugin.name}`);
     this.logger.debug(
-      `Register plugin ${registeredPlugin.plugin.name} with options ${JSON.stringify(registeredPlugin.options)}`,
+      // options can hold credentials (e.g. the tokens of remote plugins)
+      `Register plugin ${registeredPlugin.plugin.name} with options ${stringifyRedacted(registeredPlugin.options)}`,
     );
 
     this.emitter.emit('core.register', {
