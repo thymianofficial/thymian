@@ -440,7 +440,7 @@ None.
 | rfc9110/origin-server-must-reject-requests-not-meeting-scheme-requirements    | impossible (only-origin-knows)   | impossible (only-origin-knows)   | impossible (only-origin-knows)         |
 | rfc9110/client-may-send-upgrade-header                                        | impossible (not-representable)   | observable                       | impossible (condition-not-producible)  |
 | rfc9110/recipient-should-use-case-insensitive-comparison-for-protocol-names   | impossible (peer-not-observable) | impossible (peer-not-observable) | impossible (peer-not-observable)       |
-| rfc9110/sender-must-send-upgrade-connection-option                            | impossible (not-representable)   | observable                       | impossible (condition-not-producible)  |
+| rfc9110/sender-must-send-upgrade-connection-option                            | impossible (not-representable)   | observable                       | impossible (participant-not-reachable) |
 | rfc9110/server-may-ignore-client-protocol-preference-order                    | impossible (tool-limitation)     | impossible (tool-limitation)     | impossible (tool-limitation)           |
 | rfc9110/server-may-ignore-upgrade-header                                      | impossible (tool-limitation)     | impossible (tool-limitation)     | impossible (tool-limitation)           |
 | rfc9110/server-may-send-upgrade-header-in-other-responses                     | observable                       | observable                       | impossible (condition-not-producible)  |
