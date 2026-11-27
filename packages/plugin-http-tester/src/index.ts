@@ -231,9 +231,13 @@ interface TestCaseSignals {
 /**
  * Map a test case to an {@link ExecutionStatus}. The execution status reflects
  * whether the *rule* found something, NOT the raw HTTP test-case outcome:
- * - a rule violation ⇒ `failed` (the only path to `failed`);
- * - otherwise a `rule-skip` signal, a skipped case, or a case that could not be
- *   executed (HTTP-level failure without a violation) ⇒ `skipped`;
+ * - a rule violation ⇒ `failed` (the only path to `failed`). An assertion
+ *   failure is one, and so is a hook's fail verdict, which core records as an
+ *   assertion failure (ADR-0031);
+ * - otherwise a `rule-skip` signal, a skipped case, or a case the pipeline
+ *   failed without an assertion failure ⇒ `skipped`. The latter is a defect in
+ *   the rule or the framework (e.g. a `.transactions()` callback that threw),
+ *   which must not blame the API under test;
  * - otherwise a case whose every pair the live re-check of `appliesTo`
  *   rejected ⇒ `notApplicable`, with the reason it recorded (ADR-0030);
  * - otherwise ⇒ `passed`.
@@ -246,9 +250,14 @@ function computeTestCaseStatus(
     testCase.end !== undefined ? testCase.end - testCase.start : undefined;
 
   if (signals.hasViolation) {
+    // A violation placed from an assertion failure carries no message of its
+    // own; the reason the pipeline failed the case with (the assertion's or the
+    // hook's message) is the one to show.
+    const reason = signals.violationReason ?? testCase.reason;
+
     return {
       kind: 'failed',
-      ...(signals.violationReason ? { reason: signals.violationReason } : {}),
+      ...(reason ? { reason } : {}),
       ...(durationMilliseconds !== undefined ? { durationMilliseconds } : {}),
     };
   }

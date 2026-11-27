@@ -373,8 +373,8 @@ describe('createRuns', () => {
     ).toHaveLength(1);
   });
 
-  it('maps a failed case WITHOUT a violation to skipped (could not execute)', () => {
-    const cases = [makeFailedCase('failing-test', 'connection refused')];
+  it('maps a failed case WITHOUT a violation to skipped (a rule or framework defect)', () => {
+    const cases = [makeFailedCase('failing-test', 'x is not a function')];
     const diagnostics: HttpTesterRuleDiagnostics = {
       calls: [
         { testResult: { name: 'run', duration: 0, cases }, placements: [] },
@@ -390,7 +390,7 @@ describe('createRuns', () => {
     );
     expect(testCases(run!.executions)[0]!.status).toMatchObject({
       kind: 'skipped',
-      reason: 'connection refused',
+      reason: 'x is not a function',
     });
   });
 
@@ -1226,6 +1226,131 @@ describe('createRuns: a rule that applies to nothing (ADR-0030)', () => {
     expect(executions.map(({ status }) => status.kind)).toEqual([
       'passed',
       'passed',
+    ]);
+  });
+});
+
+/**
+ * A test case the pipeline failed is a violation only when an assertion
+ * failed: a hook's fail verdict records one, a defect in the rule does not and
+ * stays skipped (ADR-0031).
+ */
+describe("createRuns: a hook's fail verdict and a rule defect", () => {
+  const sending = httpRule('test/sending')
+    .severity('error')
+    .type('test')
+    .rule(async (ctx) =>
+      ctx.httpTest(
+        singleTestCase()
+          .forTransactionsWith(method('GET'))
+          .run({ checkStatusCode: false })
+          .done(),
+      ),
+    )
+    .done();
+
+  async function executionsOf(
+    rule: Rule,
+    fail: { beforeRequest?: string; afterResponse?: string } = {},
+  ): Promise<TestCaseExecution[]> {
+    const thymianFormat = createThymianFormatWithTransactions([
+      [
+        createHttpRequest({ method: 'GET', path: '/users' }),
+        createHttpResponse({ statusCode: 200 }),
+      ],
+    ]);
+    const context = createHttpTestContext({
+      format: thymianFormat,
+      logger: new NoopLogger(),
+      locals: {},
+      sampleRequest: async (transaction): Promise<HttpRequestTemplate> => ({
+        method: transaction.thymianReq.method,
+        origin: 'https://api.example.com',
+        path: transaction.thymianReq.path,
+        headers: {},
+        pathParameters: {},
+        query: {},
+        cookies: {},
+        authorize: false,
+      }),
+      runRequest: async () => ({
+        statusCode: 200,
+        headers: {},
+        trailers: {},
+        duration: 0,
+      }),
+      runHook: async (name, hook) =>
+        ({
+          result: (hook as { value: unknown }).value,
+          fail: name === 'authorize' ? undefined : fail[name],
+        }) as never,
+    });
+    const adapter: RuleRunnerAdapter<
+      HttpTestApiContext,
+      HttpTesterRuleDiagnostics
+    > = {
+      errorName: 'TestLinterError',
+      mode: 'test',
+      getRuleFn: (r) => r.testRule,
+      createContext: (r) => new HttpTestApiContext(r.meta.name, context),
+    };
+    const logger = new NoopLogger();
+    const results = await runRules(logger, [rule], thymianFormat, {}, adapter);
+    const [run] = createRuns(PLUGIN, results, [rule], thymianFormat, logger);
+
+    return testCases(run!.executions);
+  }
+
+  it('reports a beforeRequest hook fail as a failed execution with its message as reason', async () => {
+    const executions = await executionsOf(sending, {
+      beforeRequest: 'precondition violated',
+    });
+
+    expect(executions.map(({ status }) => status)).toEqual([
+      expect.objectContaining({
+        kind: 'failed',
+        reason: 'precondition violated',
+      }),
+    ]);
+  });
+
+  it('reports an afterResponse hook fail as a failed execution, located on the transaction it judged', async () => {
+    const executions = await executionsOf(sending, {
+      afterResponse: 'response is wrong',
+    });
+
+    expect(executions.map(({ status }) => status)).toEqual([
+      expect.objectContaining({ kind: 'failed', reason: 'response is wrong' }),
+    ]);
+    expect(executions[0]!.steps[0]!.findings).toContainEqual(
+      expect.objectContaining({
+        kind: 'assertion-failure',
+        transactionIndex: 0,
+      }),
+    );
+  });
+
+  it('reports a .transactions() callback that throws a TypeError as skipped with its reason', async () => {
+    const executions = await executionsOf(
+      httpRule('test/defect')
+        .severity('error')
+        .type('test')
+        .rule(async (ctx) =>
+          ctx.httpTest(
+            singleTestCase()
+              .forTransactionsWith(method('GET'))
+              .run({ checkStatusCode: false })
+              .transactions(() => {
+                throw new TypeError('cannot read properties of undefined');
+              })
+              .done(),
+          ),
+        )
+        .done(),
+    );
+
+    expect(executions.map(({ status }) => status)).toEqual([
+      { kind: 'skipped', reason: 'cannot read properties of undefined' },
     ]);
   });
 });
