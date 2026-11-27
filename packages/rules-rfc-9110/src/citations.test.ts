@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+
 import { loadRules } from '@thymian/core';
 import { describe, expect, it } from 'vitest';
 
@@ -45,6 +47,45 @@ describe('the citation guard (thymianofficial/thymian-workspace#165)', () => {
         rule.meta.url.startsWith(`${rfc9110.url}#`),
         `"${rule.meta.name}" cites "${rule.meta.url}", not an anchor in "${rfc9110.url}"`,
       ).toBe(true);
+    }
+  }, 30_000);
+
+  // Being an anchor in the right document is not the same as being an anchor
+  // the document publishes. rfc-editor.org's renderer truncates the ids it
+  // generates for headings, so a fragment spelled out from the full heading
+  // text looks right and resolves to nothing: the reader lands at the top of
+  // the page. The ids below are taken from the page itself.
+  //
+  // The snapshot is checked in so the suite runs offline and does not depend
+  // on rfc-editor.org being reachable. It holds only the heading ids a
+  // citation may use (`name-*` and `section-<number>`), not paragraph or index
+  // ids. If the renderer changes, regenerate it from the package root with:
+  //
+  //   curl -s https://www.rfc-editor.org/rfc/rfc9110.html | grep -oE 'id="(section-[0-9A-Z][0-9.]*|name-[^"]*)"' | sed 's/id="//;s/"$//' | sort -u > test/rfc9110-anchors.txt
+  it('cites an anchor the document actually publishes, for every rule that carries a citation', async () => {
+    const published = new Set(
+      readFileSync(
+        new URL('../test/rfc9110-anchors.txt', import.meta.url),
+        'utf-8',
+      )
+        .split('\n')
+        .filter((line) => line !== ''),
+    );
+    const rules = await loadRules('@thymian/rules-rfc-9110');
+
+    for (const rule of rules) {
+      if (rule.meta.url === undefined) {
+        continue;
+      }
+
+      const fragment = rule.meta.url.slice(rule.meta.url.indexOf('#') + 1);
+
+      expect
+        .soft(
+          published.has(fragment),
+          `"${rule.meta.name}" cites "#${fragment}", which "${rfc9110.url}" does not publish`,
+        )
+        .toBe(true);
     }
   }, 30_000);
 

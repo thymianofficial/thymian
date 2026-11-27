@@ -7,7 +7,7 @@ export default httpRule(
   .type('analytics')
   .tags('security:spoofing')
   .url(
-    'https://www.rfc-editor.org/rfc/rfc9110.html#name-deprecation-of-userinfo-in-http',
+    'https://www.rfc-editor.org/rfc/rfc9110.html#name-deprecation-of-userinfo-in-',
   )
   .description(
     `A recipient SHOULD parse for userinfo and treat its presence as an error; it is likely being used to obscure the authority for the sake of phishing attacks.`,

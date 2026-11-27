@@ -11,7 +11,7 @@ export default httpRule(
     'Deciding that two normalization-equivalent URIs identify DISTINCT resources requires resource-semantic knowledge the authority holds; it cannot be inferred from recorded HTTP messages alone.',
   )
   .url(
-    'https://www.rfc-editor.org/rfc/rfc9110.html#name-https-normalization-and-comparison',
+    'https://www.rfc-editor.org/rfc/rfc9110.html#name-https-normalization-and-com',
   )
   .description(
     `Distinct resources SHOULD NOT be identified by HTTP URIs that are equivalent after normalization.`,

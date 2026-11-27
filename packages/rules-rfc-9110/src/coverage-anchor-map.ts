@@ -15,20 +15,6 @@
 // means, not asserting a requirement) rather than a stale mapping. Each is
 // commented rather than silently resolved, so a batch author sees the gap
 // instead of an id that turns out not to be in `units`.
-//
-// Two named anchors don't resolve against the live RFC page at all:
-// `#name-deprecation-of-userinfo-in-http` and
-// `#name-https-normalization-and-comparison`, cited by
-// `authority-should-not-use-equivalent-uris-for-distinct-resources`,
-// `http-component-may-perform-normalization`,
-// `recipient-should-treat-userinfo-in-uri-from-untrusted-source-as-error`
-// and `sender-must-not-generate-userinfo-in-uri` — rfc-editor.org truncates
-// its generated heading ids (`name-deprecation-of-userinfo-in-`,
-// `name-https-normalization-and-com`) below what those four rules cite.
-// Filed as thymianofficial/thymian-workspace#168 (a corpus citation bug,
-// out of this ticket's scope); resolved here against the real target
-// (§4.2.4 and §4.2.3, both units) regardless, so the anchor map stays
-// useful in the meantime.
 
 export const rfc9110CitedDocument =
   'https://www.rfc-editor.org/rfc/rfc9110.html';
@@ -116,7 +102,7 @@ export const rfc9110AnchorMap: Record<string, string> = {
   '#name-content-range': '14.4',
   '#name-credentials': '11.4',
   '#name-delete': '9.3.5',
-  '#name-deprecation-of-userinfo-in-http': '4.2.4',
+  '#name-deprecation-of-userinfo-in-': '4.2.4',
   '#name-determining-the-target-reso': '7.1',
   '#name-establishing-a-protection-s': '11.5',
   '#name-expect': '10.1.1',
@@ -127,7 +113,7 @@ export const rfc9110AnchorMap: Record<string, string> = {
   '#name-http-origins': '4.3.2',
   '#name-http-uri-scheme': '4.2.1',
   '#name-https-certificate-verificat': '4.3.4',
-  '#name-https-normalization-and-comparison': '4.2.3',
+  '#name-https-normalization-and-com': '4.2.3',
   '#name-https-uri-scheme': '4.2.2',
   '#name-idempotent-methods': '9.2.2',
   '#name-informational-1xx': '15.2',
