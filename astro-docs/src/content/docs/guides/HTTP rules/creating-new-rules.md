@@ -111,6 +111,34 @@ In `test`, `appliesTo` therefore acts twice. A rule for 405 responses sends requ
 Put a fact that only live traffic carries in `violatedWhen`, not in `appliesTo`. A header such as `Content-Length` or `Content-Type` is never declared in an OpenAPI description, so a specification cannot answer `responseHeader('content-length')`. In `appliesTo` it would select nothing in `test`, and no request would be sent. Select the transactions by what the specification does know, such as status code and method, and state the live-only part in `violatedWhen`.
 :::
 
+### Responses Documented Only Through a Range
+
+An OpenAPI description may document a status code range such as `4XX` instead of each code. Thymian turns that range into one response per registered code in it, so a description that documents only `4XX` still has a `402` response. Such a response is a **Range-Derived Response**: its `derivedFromRange` field names the range it came from (`'4XX'`). A code the description documents on its own always wins over a range for the same status.
+
+A rule about one status code often should not read a `4XX` range as a statement about that code. "A 402 is reserved" would otherwise flag every operation that documents `4XX`. Narrow `appliesTo` with `explicitlyDocumented()`:
+
+```typescript
+ctx.validateCommonHttpTransactions({
+  appliesTo: and(statusCode(402), explicitlyDocumented()),
+  violatedWhen: constant(true),
+});
+```
+
+`explicitlyDocumented()` judges only the specification. What it answers depends on what the command checks against:
+
+| Checked against                                                        | `explicitlyDocumented()` is                                       |
+| ---------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| a response in the specification (`lint`, and `test` choosing requests) | false on a range-derived or `default` response, true on any other |
+| a recorded response in `analyze`                                       | always true: the server really sent that status                   |
+| the response that came back in `test`                                  | always true: the server really sent that status                   |
+
+So the rule above stays silent in `lint` on an operation that documents only `4XX`, sends no request for it in `test`, and still reports a recorded `402` in `analyze`, whatever the specification documents.
+
+- A `default` response documents no code, so `explicitlyDocumented()` is false on it, like every status filter, and `not(explicitlyDocumented())` matches it.
+- Inside `responseWith(…)`, the filter always judges the responses the specification declares, in every command: `responseWith(and(statusCode(405), explicitlyDocumented()))` means "the operation documents 405 under its own code".
+- It is opt-in: no other status filter changes its meaning. Whether a range counts is a decision per rule.
+- It cannot be a `groupBy` key, see [UnsupportedGroupByExpression](/references/errors/unsupported-group-by-expression/).
+
 ### Step 4: Complete the Rule
 
 Always end with `.done()`:
@@ -228,6 +256,7 @@ statusCodeRange(400, 499); // Match status range
 responseHeader('location'); // Match header presence
 hasResponseBody(); // Has response body
 responseMediaType('application/json'); // Match content type
+explicitlyDocumented(); // Documented under its own code, not only through a range
 ```
 
 ### Logical Operators

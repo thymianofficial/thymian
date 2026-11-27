@@ -54,6 +54,8 @@ The HTTP linter automatically adapts your rule logic to each context:
 
 The two keys mean the same thing in every mode. `appliesTo` is the rule's **Applicability**: which transactions it speaks about. `violatedWhen` is its **Violation Condition**: what is wrong with them, checked only on transactions `appliesTo` accepts. In `test`, `appliesTo` is checked twice: against the specification to choose which requests to send, then against the response that came back. A response it rejects is never a violation. A fact only live traffic carries, such as a `Content-Length` header, belongs in `violatedWhen`.
 
+A rule about one status code can leave out the responses an API Specification documents only through a range such as `4XX` with `and(statusCode(402), explicitlyDocumented())`. That filter judges only the specification: in `lint` and when `test` chooses which requests to send, it rejects a range-derived or `default` response; against a recorded response in `analyze` and the response that came back in `test`, it is always true, because the server really sent that status. Inside `responseWith(…)` it judges the declared responses in every mode. See [Responses Documented Only Through a Range](/guides/http-rules/creating-new-rules/#responses-documented-only-through-a-range).
+
 ## When to Use Hybrid Rules
 
 ### Use Case 1: Prevent API Drift

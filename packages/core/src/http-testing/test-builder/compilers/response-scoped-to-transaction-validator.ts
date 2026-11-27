@@ -42,6 +42,9 @@ export function compileResponseScopedExpressionToTransactionValidationFn(
       };
     case 'constant':
       return () => Boolean(expression.value);
+    case 'explicitlyDocumented':
+      // A live response really carries its status (ADR-0031).
+      return () => true;
     case 'statusCode':
       return (transaction) =>
         assert.strictEqual(

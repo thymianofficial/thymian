@@ -1,4 +1,5 @@
 import {
+  explicitlyDocumented,
   hasResponseBody,
   type HttpRequest,
   type HttpRequestTemplate,
@@ -20,6 +21,7 @@ import {
   responseHeader,
   responseMediaType,
   responseTrailer,
+  responseWith,
   singleTestCase,
   statusCode,
   ThymianFormat,
@@ -1053,8 +1055,85 @@ describe('HttpTestApiContext', () => {
           ).resolves.toBe(matches);
         },
       );
+
+      it('evaluates explicitlyDocumented() as true on a live response, even one the specification derives from a range', async () => {
+        await expect(
+          countMatches(explicitlyDocumented(), {
+            format: rangeDerivedFormat(),
+          }),
+        ).resolves.toBe(1);
+      });
+
+      it('evaluates explicitlyDocumented() inside responseWith() on the declared responses', async () => {
+        await expect(
+          countMatches(
+            responseWith(and(statusCode(200), explicitlyDocumented())),
+            { format: rangeDerivedFormat() },
+          ),
+        ).resolves.toBe(0);
+        await expect(
+          countMatches(
+            responseWith(and(statusCode(200), explicitlyDocumented())),
+          ),
+        ).resolves.toBe(1);
+      });
     },
   );
+
+  describe('range-derived transactions', () => {
+    it('sends no request for a transaction explicitlyDocumented() excludes on the specification side', async () => {
+      const format = createThymianFormatWithTransactions([
+        [
+          createHttpRequest({ method: 'get', path: '/invoices' }),
+          createHttpResponse({ statusCode: 402, headers: {} }),
+        ],
+        [
+          createHttpRequest({ method: 'get', path: '/receipts' }),
+          createHttpResponse({
+            statusCode: 402,
+            derivedFromRange: '4XX',
+            headers: {},
+          }),
+        ],
+      ]);
+      const mockContext = createMockHttpTestContext({ format });
+      vi.mocked(mockContext.runRequest).mockResolvedValue({
+        statusCode: 402,
+        duration: 0,
+        trailers: {},
+        headers: {},
+      });
+      const context = new HttpTestApiContext('test-rule', mockContext);
+
+      const result = await context.validateCommonHttpTransactions(
+        and(statusCode(402), explicitlyDocumented()),
+        (_req, _res, location) => [{ location, violation: {}, findings: [] }],
+      );
+
+      expect(mockContext.runRequest).toHaveBeenCalledTimes(1);
+      expect(mockContext.runRequest).toHaveBeenCalledWith(
+        expect.objectContaining({ path: '/invoices' }),
+      );
+      expect(result).toHaveLength(1);
+    });
+
+    it('cannot group by explicitlyDocumented()', async () => {
+      const context = new HttpTestApiContext(
+        'test-rule',
+        createMockHttpTestContext({ format: rangeDerivedFormat() }),
+      );
+
+      await expect(
+        context.validateGroupedCommonHttpTransactions(
+          method('get'),
+          explicitlyDocumented(),
+          () => [],
+        ),
+      ).rejects.toThrow(
+        expect.objectContaining({ name: 'UnsupportedGroupByExpression' }),
+      );
+    });
+  });
 
   describe('a live status that differs from the declared one', () => {
     function contextAnswering(
@@ -1348,3 +1427,11 @@ describe('HttpTestApiContext', () => {
     });
   });
 });
+
+/** A GET /users whose 200 the specification documents only through `2XX`. */
+function rangeDerivedFormat(): ThymianFormat {
+  return createThymianFormatWithTransaction(
+    createHttpRequest({ method: 'GET', path: '/users' }),
+    createHttpResponse({ statusCode: 200, derivedFromRange: '2XX' }),
+  );
+}

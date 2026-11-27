@@ -9,6 +9,7 @@ import type {
 import {
   and,
   authorization,
+  explicitlyDocumented,
   hasRequestBody,
   hasResponseBody,
   method,
@@ -506,6 +507,37 @@ describe('http-filter-expression-to-transaction-filter', () => {
       expect(statusesMatching(not(statusCode(200)))).toStrictEqual(['default']);
       expect(statusesMatching(not(statusCodeRange(100, 599)))).toStrictEqual([
         'default',
+      ]);
+    });
+  });
+
+  describe('visitExplicitlyDocumented', () => {
+    const pathsMatching = (
+      expression: Parameters<typeof httpFilterExpressionToTransactionFilter>[0],
+    ): string[] => {
+      const format = createFormatWithTransactions([
+        [{ path: '/explicit' }, { statusCode: 402 }],
+        [{ path: '/range' }, { statusCode: 402, derivedFromRange: '4XX' }],
+        [{ path: '/default' }, { statusCode: 'default' }],
+      ]);
+      const filter = httpFilterExpressionToTransactionFilter(expression);
+      const transactions = format.getThymianHttpTransactions();
+
+      return transactions
+        .filter((t) => filter(t, transactions, format))
+        .map((t) => t.thymianReq.path);
+    };
+
+    it('matches only a response documented under its own code', () => {
+      expect(
+        pathsMatching(and(statusCode(402), explicitlyDocumented())),
+      ).toStrictEqual(['/explicit']);
+    });
+
+    it('is matched by its negation on a range-derived and a default response', () => {
+      expect(pathsMatching(not(explicitlyDocumented()))).toStrictEqual([
+        '/range',
+        '/default',
       ]);
     });
   });

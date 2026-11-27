@@ -56,6 +56,22 @@ describe('processResponsesObject', () => {
     ).toBe(true);
   });
 
+  it('should mark the responses a range implies with that range, and no explicit or default one', () => {
+    const notFound: OpenAPIV3_1.ResponseObject = { description: 'not found' };
+    const responses = processResponsesObject(
+      { default: okResponse, '4XX': okResponse, '404': notFound },
+      parameters,
+      document,
+    ).flatMap(({ responses }) => responses);
+    const byStatus = new Map(responses.map((r) => [r.statusCode, r]));
+
+    expect(byStatus.get(402)).toHaveProperty('derivedFromRange', '4XX');
+    expect(byStatus.get(409)).toHaveProperty('derivedFromRange', '4XX');
+    expect(byStatus.get(404)).toMatchObject({ description: 'not found' });
+    expect(byStatus.get(404)).not.toHaveProperty('derivedFromRange');
+    expect(byStatus.get('default')).not.toHaveProperty('derivedFromRange');
+  });
+
   it('should skip specification extension keys instead of coercing them to NaN', () => {
     const statusCodes = statusCodesOf({
       '200': okResponse,

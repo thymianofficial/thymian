@@ -29,6 +29,8 @@ type TransactionFilterFn = (
  * specification knows — `isAuthorized`, `responseWith` and the path template —
  * is answered by the specification through the pair's `source`. Origins and
  * ports carry the default port explicitly, as the specification side does.
+ * `explicitlyDocumented` is always true here: the server really sent the
+ * status, whatever the specification documents (ADR-0031).
  */
 export function httpFilterToTransactionValidationFn(
   filterExpression: HttpFilterExpression,
@@ -43,7 +45,7 @@ export function httpFilterToTransactionValidationFn(
 function createTransactionValidationVisitor(
   format: ThymianFormat,
 ): HttpFilterVisitor<TransactionFilterFn> {
-  return createFilterVisitor({
+  return createFilterVisitor<TransactionFilterFn>({
     visitMethod({ method }) {
       if (typeof method === 'undefined') {
         return () => false;
@@ -180,6 +182,9 @@ function createTransactionValidationVisitor(
       const regExp = createRegExpFromOriginWildcard(origin);
 
       return (req: HttpRequest) => regExp.test(req.origin ?? '');
+    },
+    visitExplicitlyDocumented() {
+      return () => true;
     },
   });
 }

@@ -290,7 +290,10 @@ not(method('GET'));
 ```typescript
 statusCode(401);
 statusCodeRange(200, 299); // 2xx responses
+and(statusCode(402), explicitlyDocumented()); // 402 documented under its own code
 ```
+
+For a single-code rule that declares `static`, decide whether a response the specification documents only through a range (`4XX`) should count. If not, add `explicitlyDocumented()` to `appliesTo`. See "Responses Documented Only Through a Range" in the creating-new-rules guide.
 
 **Header matchers:**
 

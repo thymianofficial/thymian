@@ -13,6 +13,7 @@ Unsupported expressions include:
 - `hasResponseBody` - Whether a response has a body
 - `statusCodeRange` - Status code ranges
 - `responseTrailer` - Response trailer headers
+- `explicitlyDocumented` - Whether the specification documents a response under its own status code
 
 ## The Solution
 

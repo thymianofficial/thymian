@@ -280,6 +280,11 @@ const visitor = createFilterVisitor<OperationObjectFilterFn>({
   visitResponseTrailer() {
     throw new Error('Response trailers are not currently supported.');
   },
+  visitExplicitlyDocumented() {
+    // Load-time filtering keeps its "operation has some such response"
+    // meaning, so this filter excludes nothing here (ADR-0031).
+    return () => true;
+  },
 });
 
 export function httpFilterExpressionToOperationFilter(
