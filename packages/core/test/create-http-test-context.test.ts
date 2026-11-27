@@ -1,10 +1,15 @@
-import { Subject } from 'rxjs';
+import { lastValueFrom, of, Subject } from 'rxjs';
 import { describe, expect, it } from 'vitest';
 
 import { ThymianEmitter } from '../src/emitter/thymian-emitter.js';
-import { ThymianFormat } from '../src/format/index.js';
+import {
+  ThymianFormat,
+  type ThymianHttpTransaction,
+} from '../src/format/index.js';
 import type { HttpRequest, HttpRequestTemplate } from '../src/http.js';
 import { createContextFromEmitter } from '../src/http-testing/http-test/create-http-test-context.js';
+import type { HttpTestCase } from '../src/http-testing/http-test/index.js';
+import { runRequests } from '../src/http-testing/operators/run-requests.operator.js';
 import { NoopLogger } from '../src/logger/noop.logger.js';
 
 const DESCRIBED = 'https://api.example.test';
@@ -130,5 +135,100 @@ describe('createContextFromEmitter with a target-url override', () => {
     });
 
     expect(dispatched.map((request) => request.origin)).toEqual([OVERRIDE]);
+  });
+});
+
+function caseFor(
+  transaction: ThymianHttpTransaction,
+  requestTemplate: HttpRequestTemplate,
+): HttpTestCase {
+  return {
+    start: 0,
+    status: 'running',
+    name: 'case',
+    steps: [
+      {
+        type: 'single',
+        source: transaction,
+        transactions: [{ requestTemplate, source: transaction }],
+      },
+    ],
+    results: [],
+  };
+}
+
+async function runWithHooks(hooks: {
+  beforeRequest?: string;
+  afterResponse?: string;
+}): Promise<{ testCase: HttpTestCase; transaction: ThymianHttpTransaction }> {
+  const { emitter } = emitterWithSampler();
+  const { format, transaction } = oneTransaction();
+
+  emitter.onAction('http-testing.beforeRequest', ({ value }, ctx) => {
+    ctx.reply({ result: value, fail: hooks.beforeRequest });
+  });
+  emitter.onAction('http-testing.afterResponse', ({ value }, ctx) => {
+    ctx.reply({ result: value, fail: hooks.afterResponse });
+  });
+
+  const context = createContextFromEmitter(format, new NoopLogger(), emitter);
+  const requestTemplate = await context.sampleRequest(transaction);
+
+  const { current } = await lastValueFrom(
+    of({ current: caseFor(transaction, requestTemplate), ctx: context }).pipe(
+      runRequests({ checkStatusCode: false }),
+    ),
+  );
+
+  return { testCase: current, transaction };
+}
+
+/**
+ * A hook's `fail` is the user declaring the request or response wrong, so it
+ * is recorded as an assertion failure on the transaction it judged: that is
+ * what tells a violation apart from a test case a defect ended (ADR-0031).
+ */
+describe("a hook's fail verdict", () => {
+  it('fails the test case with an assertion failure when the beforeRequest hook fails', async () => {
+    const { testCase, transaction } = await runWithHooks({
+      beforeRequest: 'precondition violated',
+    });
+
+    expect(testCase.status).toBe('failed');
+    expect(testCase.reason).toBe('precondition violated');
+    expect(testCase.results).toContainEqual(
+      expect.objectContaining({
+        type: 'assertion-failure',
+        message: 'precondition violated',
+        transaction,
+        location: { stepIdx: 0, transactionIdx: 0 },
+      }),
+    );
+  });
+
+  it('fails the test case with an assertion failure when the afterResponse hook fails', async () => {
+    const { testCase, transaction } = await runWithHooks({
+      afterResponse: 'response is wrong',
+    });
+
+    expect(testCase.status).toBe('failed');
+    expect(testCase.reason).toBe('response is wrong');
+    expect(testCase.results).toContainEqual(
+      expect.objectContaining({
+        type: 'assertion-failure',
+        message: 'response is wrong',
+        transaction,
+        location: { stepIdx: 0, transactionIdx: 0 },
+      }),
+    );
+  });
+
+  it('records no assertion failure when no hook fails', async () => {
+    const { testCase } = await runWithHooks({});
+
+    expect(testCase.status).toBe('running');
+    expect(testCase.results).not.toContainEqual(
+      expect.objectContaining({ type: 'assertion-failure' }),
+    );
   });
 });

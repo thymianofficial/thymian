@@ -9,6 +9,7 @@ import {
   type HttpTestCase,
   type HttpTestCaseResult,
   type HttpTestCaseStep,
+  type HttpTestCaseStepTransaction,
   type HttpTestContextLocals,
   isFailedTestCase,
   isSkippedTestCase,
@@ -106,6 +107,15 @@ export function runRequests<
             `Test case ${current.name} failed after "beforeEach" hook.`,
           );
 
+          current.results.push(
+            hookFailure(
+              beforeRequest.fail,
+              transaction,
+              stepIdx,
+              transactionIdx,
+            ),
+          );
+
           return ctx.fail(current, beforeRequest.fail);
         }
 
@@ -177,7 +187,16 @@ export function runRequests<
 
         if (afterResponse.fail) {
           ctx.logger.debug(
-            `Skipping test case "${current.name}" after "afterEach" hook.`,
+            `Test case ${current.name} failed after "afterEach" hook.`,
+          );
+
+          current.results.push(
+            hookFailure(
+              afterResponse.fail,
+              transaction,
+              stepIdx,
+              transactionIdx,
+            ),
           );
 
           return ctx.fail(current, afterResponse.fail);
@@ -280,4 +299,26 @@ export function runRequests<
 
     return { current, ctx };
   });
+}
+
+/**
+ * A hook's `fail` is a verdict on the transaction it ran for: the user declared
+ * the request or the response wrong. Recording it as an assertion failure is
+ * what makes the test case a violation rather than a case a defect ended,
+ * since "failed iff an assertion failed" is the only rule the report applies
+ * (ADR-0031).
+ */
+function hookFailure(
+  message: string,
+  transaction: HttpTestCaseStepTransaction,
+  stepIdx: number,
+  transactionIdx: number,
+): HttpTestCaseResult {
+  return {
+    type: 'assertion-failure',
+    message,
+    transaction: transaction.source,
+    timestamp: Date.now(),
+    location: { stepIdx, transactionIdx },
+  };
 }
