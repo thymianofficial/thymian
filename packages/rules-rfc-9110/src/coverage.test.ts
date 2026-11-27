@@ -62,12 +62,12 @@ describe('coverage record', () => {
       );
     });
 
-    it('carries 206 cells, each with a reason and a non-empty note', () => {
+    it('carries 205 cells, each with a reason and a non-empty note', () => {
       const cells = Object.values(coverage.rules).flatMap((entry) =>
         entry.contexts === undefined ? [] : Object.values(entry.contexts),
       );
 
-      expect(cells.length).toBe(206);
+      expect(cells.length).toBe(205);
       expect(
         cells.every(
           (cell) =>

@@ -606,25 +606,12 @@ const coverage: CoverageRecord<typeof units> = defineCoverage({
     },
     'rfc9110/client-may-send-upgrade-header': {
       covers: ['7.8'],
-      declared: { types: ['analytics'], severity: 'hint' },
+      declared: { types: ['static', 'analytics'], severity: 'hint' },
       contexts: {
-        static: {
-          verdict: 'impossible',
-          reason: 'not-representable',
-          note: "This rule's filter (requestHeader('upgrade')) is an HttpFilterExpression; static's own validateHttpTransactions needs a plain predicate function, an incompatible shape.",
-        },
-        // Likely a mis-declaration, not a real impossibility: sending
-        // Upgrade is entirely within Thymian's own control as the client
-        // (executability-gate.md's "Probes" section -- a well-formed,
-        // spec-permitted message needs no server cooperation), and
-        // server-must-send-upgrade-header-in-101-response already declares
-        // test for a closely related Upgrade check in this same package.
-        // Filed as thymianofficial/thymian-workspace#170 rather than
-        // declaring test on a rule this ticket leaves untouched.
         test: {
           verdict: 'impossible',
-          reason: 'condition-not-producible',
-          note: 'The shared .rule() handler is not yet exercised under test. Likely a mis-declaration rather than a structural impossibility — see thymianofficial/thymian-workspace#170.',
+          reason: 'participant-not-reachable',
+          note: "In test Thymian is the client: the request this rule judges is one Thymian built from the API description and sent itself, so a hint on it describes Thymian's own message. What it says about the API is what the description says, which static already reads (ADR-0021 §4).",
         },
       },
     },
