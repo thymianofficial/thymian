@@ -30,6 +30,8 @@ jobs:
         run: npx nx affected -t lint
       - name: run formatter check
         run: npx nx affected -t format:check
+      - name: run typecheck
+        run: npx nx affected -t typecheck
 
   license-check:
     runs-on: ubuntu-latest
