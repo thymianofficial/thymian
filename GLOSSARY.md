@@ -280,6 +280,13 @@ applied to nothing in a run is reported as not applicable rather than left out o
 _In code_: `notApplicable`, in `ExecutionStatus` and in `rules-testing`.
 _Avoid_: n/a, inapplicable, vacuous pass, ignored
 
+**Skipped**:
+The status of an `Execution` whose rule had something to judge and could not: a precondition
+never held, the request could not be built as described, a hook skipped it, or the rule itself
+broke. Never a failure. A hook that declares the response wrong produces a failed execution,
+never a skipped one.
+_Avoid_: ignored, errored, could not run
+
 **Finding**:
 This project's concrete `Governance Signal`: what a rule attaches to an `Execution`. Carried
 whether the rule passed or not, so a pass that still has something to report is not discarded.
