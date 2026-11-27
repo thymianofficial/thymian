@@ -991,16 +991,10 @@ const coverage: CoverageRecord<typeof units> = defineCoverage({
           reason: 'not-representable',
           note: "This rule's filter (requestHeader('upgrade')) is an HttpFilterExpression; static's own validateHttpTransactions needs a plain predicate function, an incompatible shape.",
         },
-        // Likely a mis-declaration, not a real impossibility: same shape as
-        // client-may-send-upgrade-header (#170) -- Thymian fully controls
-        // whether and how it lists Upgrade in Connection when it sends the
-        // header, and server-must-send-upgrade-header-in-101-response
-        // already declares test for a closely related check in this same
-        // package. Filed as thymianofficial/thymian-workspace#171.
         test: {
           verdict: 'impossible',
-          reason: 'condition-not-producible',
-          note: 'The shared .rule() handler is not yet exercised under test. Likely a mis-declaration rather than a structural impossibility — see thymianofficial/thymian-workspace#171.',
+          reason: 'participant-not-reachable',
+          note: "The obligation is on the sender of Upgrade, and in test the request's sender is Thymian: a verdict would judge the request Thymian built from the specification, not the API under test. Thymian's HTTP client (undici) also refuses to send an Upgrade request header at all.",
         },
       },
     },
