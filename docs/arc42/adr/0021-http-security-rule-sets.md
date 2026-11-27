@@ -214,6 +214,12 @@ _impossible with a named reason_.
   rule. `nothing-to-check` is a statement of fact, a definition, or a requirement addressed to
   a specification's author rather than to a message. _(Amended 2026-09-18; see Status History.)_
 
+  An assertion judged on the request in `test` judges Thymian's own message, so its `test`
+  cell is `participant-not-reachable`: Thymian occupies the client role there. What that
+  request says about the API is `static`'s to read, from the description. This holds whatever
+  role the rule names, and for a `MAY` too: Thymian's own requests in `test` are not among the
+  messages available to it. _(Amended 2026-11-27; see Status History.)_
+
   Tier 1 reasons are claims about the **world** that no release can falsify. Tier 2 reasons
   are claims about **one context**. `tool-limitation` is deliberately the only code in both
   tiers, because the distinction it draws — us versus the world — is orthogonal to the
@@ -418,3 +424,4 @@ of this.
 | 2026-10-16 | Amended  | §1: a source that is still an Internet-Draft carries its slug as rule-id prefix and `RuleSet.name`, cites its versioned revision, and is renamed to the RFC's name, as a breaking change announced in the release, once the RFC is published; §5: the Cookies denominator example corrected to the recount of draft-22                                                               |
 | 2026-11-18 | Amended  | §4, §5: an informational rule whose reason is `tool-limitation` records the tier-2 reason that holds in each of its other contexts in `coverage.ts`; at least one context keeps the whole-rule reason, and the checker refuses cells that contradict it                                                                                                                              |
 | 2026-11-18 | Amended  | Consequences: the `test`-context status-code gate cited as a prerequisite is resolved by [ADR-0028](0028-rule-context-calls-judge-the-live-status.md) for named-form rule-context calls; positional calls stay gated until thymian-workspace#779                                                                                                                                     |
+| 2026-11-27 | Amended  | §4: an assertion judged on the request in `test` judges Thymian's own message, so its `test` cell is `participant-not-reachable` whatever role the rule names; what that request says about the API is `static`'s to read, and Thymian's own requests are not among the messages a `MAY` is judged on                                                                                |

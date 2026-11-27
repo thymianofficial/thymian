@@ -70,6 +70,8 @@ whole `CapturedTrace`, which is how `server-should-send-same-header-fields-in-re
 compares two of them), makes the rule executable at `hint`. It is `informational` only where
 the answer is genuinely no: the act stays inside a peer (`peer-not-observable`), it turns on
 origin state (`only-origin-knows`), or Thymian cannot do it yet (`tool-limitation`, cited).
+Thymian's own requests in `test` are not among the messages available to it: a client's
+`MAY` is read from recorded traffic, or from the description in `static`.
 
 One context → **tier 2**, recorded in `coverage.ts` against that context:
 
@@ -158,6 +160,13 @@ Three traps:
 `test` sends only what the specification describes, which is a property of the context
 rather than a per-rule defect. Where it is the specific blocker for one unit, that is
 `condition-not-producible`.
+
+**The request is Thymian's own.** An assertion judged on the request in `test` judges the
+message Thymian itself sent, so its `test` cell is `participant-not-reachable`: Thymian
+occupies the client role. What that request says about the API is `static`'s to read, from
+the description. The trigger is the judged message, not the role the rule names: a
+`sender-must-…` rule judged on requests is caught too, and a rule that only selects on the
+request and judges the live response is not.
 
 **The candidate filter selects described transactions.** It decides what `test` sends,
 from the description, so a response-side condition in it — `responseHeader(...)`, a status
