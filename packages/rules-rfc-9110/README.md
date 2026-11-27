@@ -512,7 +512,7 @@ None.
 | rfc9110/clients-should-detect-and-intervene-cyclical-redirections                             | impossible (peer-not-observable) | impossible (peer-not-observable) | impossible (peer-not-observable)       |
 | rfc9110/user-agent-may-redirect-to-location-header-uri-for-3xx-response                       | impossible (tool-limitation)     | impossible (tool-limitation)     | impossible (tool-limitation)           |
 | rfc9110/user-agent-shoud-resend-original-request-with-modifications-for-redirected-requests   | impossible (peer-not-observable) | impossible (peer-not-observable) | impossible (peer-not-observable)       |
-| rfc9110/server-may-send-retry-after-header-for-503-response                                   | impossible (not-representable)   | observable                       | impossible (condition-not-producible)  |
+| rfc9110/server-may-send-retry-after-header-for-503-response                                   | observable                       | observable                       | impossible (condition-not-producible)  |
 | rfc9110/server-should-generate-representation-for-505-response                                | observable                       | observable                       | observable                             |
 | rfc9110/server-should-send-error-representation-for-5xx-response                              | observable                       | observable                       | observable                             |
 | rfc9110/user-agent-should-display-representation-to-the-user-for-5xx-response                 | impossible (peer-not-observable) | impossible (peer-not-observable) | impossible (peer-not-observable)       |
