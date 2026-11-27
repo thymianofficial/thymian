@@ -253,6 +253,11 @@ export default httpRule('<prefix>/<actor>-<keyword>-<constraint>')
   per context, use `.overrideStaticRule()` / `.overrideTest()` / `.overrideAnalyticsRule()` with helpers shared
   inside the same file. Both are single-source-of-truth; the rule **file** is the source of
   truth, not the common interface.
+- A single-code rule that declares `static` decides whether a response the specification
+  documents only through a range (`4XX`) counts. If not, narrow `appliesTo` with
+  `explicitlyDocumented()`, e.g. `and(statusCode(405), explicitlyDocumented())`; it judges only
+  the specification and is always true on observed traffic
+  ([ADR-0031](../../../docs/arc42/adr/0031-range-derived-responses-are-marked-and-judged-only-in-the-specification.md)).
 - A trace rule that reads a header from recorded traffic asks `isHeaderCaptured(message, name)`
   from `@thymian/core` first, or `isHeaderCapturedOnBoth(a, b, name)` for a field it compares
   across two messages, and skips the pair when the field was not captured: a Capture

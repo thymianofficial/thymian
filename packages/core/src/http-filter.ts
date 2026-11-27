@@ -274,7 +274,7 @@ export const successfulStatusCode = () => statusCodeRange(200, 299);
  * rather than only through a status code range (a Range-Derived Response) or as
  * its `default` response. Narrow a single-code filter with it, e.g.
  * `and(statusCode(402), explicitlyDocumented())`, so a rule does not read a
- * generic `4XX` as a statement about 402.
+ * `4XX` range as a statement about 402.
  *
  * It judges only the specification (ADR-0031): against a response node it is
  * false on a range-derived or `default` node, and against an observed response

@@ -113,9 +113,9 @@ Put a fact that only live traffic carries in `violatedWhen`, not in `appliesTo`.
 
 ### Responses Documented Only Through a Range
 
-An OpenAPI description may document a status code range such as `4XX` instead of each code. Thymian turns that range into one response per registered code in it, so a description that documents only `4XX` still has a `402` response. Such a response is a **range-derived response**: its `derivedFromRange` field names the range it came from (`'4XX'`). A code the description documents on its own always wins over a range for the same status.
+An OpenAPI description may document a status code range such as `4XX` instead of each code. Thymian turns that range into one response per registered code in it, so a description that documents only `4XX` still has a `402` response. Such a response is a **Range-Derived Response**: its `derivedFromRange` field names the range it came from (`'4XX'`). A code the description documents on its own always wins over a range for the same status.
 
-A rule about one status code often should not read a generic `4XX` as a statement about that code. "A 402 is reserved" would otherwise flag every operation that documents `4XX`. Narrow `appliesTo` with `explicitlyDocumented()`:
+A rule about one status code often should not read a `4XX` range as a statement about that code. "A 402 is reserved" would otherwise flag every operation that documents `4XX`. Narrow `appliesTo` with `explicitlyDocumented()`:
 
 ```typescript
 ctx.validateCommonHttpTransactions({
