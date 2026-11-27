@@ -1,29 +1,13 @@
 {
   "extends": "../../tsconfig.base.json",
   "files": [],
-  "include": ["src/**/*.ts", "test/**/*.ts"],
-  "compilerOptions": {
-    "outDir": "dist",
-    "rootDir": "dist"
-  },
+  "include": [],
   "references": [
     {
-      "path": "../plugin-request-dispatcher"
-    },
-    {
-      "path": "../core"
-    },
-    {
-      "path": "../common-cli"
-    },
-    {
-      "path": "../core-testing"
-    },
-    {
       "path": "./tsconfig.lib.json"
+    },
+    {
+      "path": "./tsconfig.spec.json"
     }
-  ],
-  "nx": {
-    "addTypecheckTarget": false
-  }
+  ]
 }
