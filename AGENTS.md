@@ -130,12 +130,16 @@ above and are superseded.
 ## Type-level tests
 
 Compile-refusal tests (`// @ts-expect-error` in `test/**`) and `expectTypeOf` assertions in
-`*.test-d.ts` are enforced by `nx run core:typecheck`, not by `nx test`. Vitest transpiles
-without type-checking, so `nx test` is runtime only. `core:typecheck` builds `test/**/*.ts`
-through `tsconfig.spec.json` against the **emitted `.d.ts`** of `tsconfig.lib.json`, which is
-what an external consumer of `@thymian/core` sees, and CI runs it via `nx affected -t typecheck`.
+`*.test-d.ts` are enforced by the package's `typecheck` target, not by `nx test`. Vitest
+transpiles without type-checking, so `nx test` is runtime only. In `core`, `plugin-har` and
+`plugin-sampler`, `typecheck` builds `test/**/*.ts` through `tsconfig.spec.json` against the
+**emitted `.d.ts`** of `tsconfig.lib.json`, which is what an external consumer of the package
+sees, and CI runs it via `nx affected -t typecheck`. In other packages, `test/**` is not
+type-checked yet. `plugin-openapi` is the known exception: its `typecheck` still covers
+`test/**` through a flat `tsconfig.json` over `src` and `test`, and it is waiting to be migrated
+to the `tsconfig.spec.json` pattern.
 
-To check one by hand, run `nx run core:typecheck`. Never use a flat `tsc -p` over `src` and
+To check one by hand, run `nx run <package>:typecheck`. Never use a flat `tsc -p` over `src` and
 `test` together: it reads source instead of declarations and can pass where the real check fails.
 
 ---
