@@ -1303,14 +1303,7 @@ const coverage: CoverageRecord<typeof units> = defineCoverage({
       },
     'rfc9110/general-purpose-servers-must-support-get-and-head': {
       covers: ['9.1'],
-      declared: { types: ['test', 'analytics'], severity: 'error' },
-      contexts: {
-        static: {
-          verdict: 'impossible',
-          reason: 'not-representable',
-          note: 'validateCommonHttpTransactions(statusCode(501)) is the same proven static-capable shape 402-status-code-is-reserved/status-code-305/306 already use. Likely a mis-declaration, not a real impossibility — see thymianofficial/thymian-workspace#172.',
-        },
-      },
+      declared: { types: ['static', 'test', 'analytics'], severity: 'error' },
     },
     'rfc9110/intermediary-must-attempt-to-send-outstanding-data-coming-from-closed-side-for-connect-request':
       {
