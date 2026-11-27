@@ -4,7 +4,7 @@ import { httpRule } from '@thymian/core';
 // eslint-disable-next-line thymian-internal/require-rule-tags -- permissive MAY, initiating negotiation — no hazard in the permission
 export default httpRule('rfc9110/client-may-send-upgrade-header')
   .severity('hint')
-  .type('analytics')
+  .type('static', 'analytics')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-upgrade')
   .description(
     'A client MAY send a list of protocol names in the Upgrade header field of a request to invite the server to switch to one or more of the named protocols, in order of descending preference, before sending the final response.',
@@ -17,7 +17,7 @@ export default httpRule('rfc9110/client-may-send-upgrade-header')
   // Surfaces use of the optional mechanism: the hint fires when a request
   // carries an Upgrade header, never on its absence.
   .rule((ctx) =>
-    ctx.validateHttpTransactions({
+    ctx.validateCommonHttpTransactions({
       appliesTo: requestHeader('upgrade'),
       violatedWhen: constant(true),
     }),
