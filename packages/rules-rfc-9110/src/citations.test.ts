@@ -50,6 +50,15 @@ describe('the citation guard (thymianofficial/thymian-workspace#165)', () => {
     }
   }, 30_000);
 
+  it('leaves exactly the two named, still-to-be-settled rules uncited', async () => {
+    const rules = await loadRules('@thymian/rules-rfc-9110');
+    const uncited = rules.filter((rule) => rule.meta.url === undefined);
+
+    expect(uncited.map((rule) => rule.meta.name).sort()).toEqual(
+      PENDING_DENOMINATOR_EXCEPTIONS,
+    );
+  }, 30_000);
+
   // Being an anchor in the right document is not the same as being an anchor
   // the document publishes. rfc-editor.org's renderer truncates the ids it
   // generates for headings, so a fragment spelled out from the full heading
@@ -78,7 +87,7 @@ describe('the citation guard (thymianofficial/thymian-workspace#165)', () => {
         continue;
       }
 
-      const fragment = rule.meta.url.slice(rule.meta.url.indexOf('#') + 1);
+      const fragment = new URL(rule.meta.url).hash.slice(1);
 
       expect
         .soft(
@@ -87,14 +96,5 @@ describe('the citation guard (thymianofficial/thymian-workspace#165)', () => {
         )
         .toBe(true);
     }
-  }, 30_000);
-
-  it('leaves exactly the two named, still-to-be-settled rules uncited', async () => {
-    const rules = await loadRules('@thymian/rules-rfc-9110');
-    const uncited = rules.filter((rule) => rule.meta.url === undefined);
-
-    expect(uncited.map((rule) => rule.meta.name).sort()).toEqual(
-      PENDING_DENOMINATOR_EXCEPTIONS,
-    );
   }, 30_000);
 });
