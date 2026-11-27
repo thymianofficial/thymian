@@ -11,6 +11,7 @@ describe('validateJsonBody', () => {
     const response: ThymianHttpResponse = {
       type: 'http-response',
       label: '200 OK',
+      sourceName: 'test-source',
       headers: {},
       mediaType: 'application/json',
       statusCode: 200,
@@ -49,6 +50,7 @@ describe('validateJsonBody', () => {
     const response: ThymianHttpResponse = {
       type: 'http-response',
       label: '200 OK',
+      sourceName: 'test-source',
       headers: {},
       mediaType: 'application/json',
       statusCode: 200,
@@ -86,6 +88,7 @@ describe('validateJsonBody', () => {
     const response: ThymianHttpResponse = {
       type: 'http-response',
       label: '200 OK',
+      sourceName: 'test-source',
       headers: {},
       mediaType: 'application/json',
       statusCode: 200,
@@ -116,6 +119,7 @@ describe('validateJsonBody', () => {
     const response: ThymianHttpResponse = {
       type: 'http-response',
       label: '200 OK',
+      sourceName: 'test-source',
       headers: {},
       mediaType: 'application/json',
       statusCode: 200,
@@ -142,6 +146,7 @@ describe('validateJsonBody', () => {
     const response: ThymianHttpResponse = {
       type: 'http-response',
       label: '200 OK',
+      sourceName: 'test-source',
       headers: {},
       mediaType: 'application/json',
       statusCode: 200,
@@ -175,6 +180,7 @@ describe('validateJsonBody', () => {
     const response: ThymianHttpResponse = {
       type: 'http-response',
       label: '200 OK',
+      sourceName: 'test-source',
       headers: {},
       mediaType: 'application/json',
       statusCode: 200,
@@ -194,6 +200,7 @@ describe('validateJsonBody', () => {
     const response: ThymianHttpResponse = {
       type: 'http-response',
       label: '200 OK',
+      sourceName: 'test-source',
       headers: {},
       mediaType: 'application/json',
       statusCode: 200,
@@ -221,6 +228,7 @@ describe('validateJsonBody', () => {
     const response: ThymianHttpResponse = {
       type: 'http-response',
       label: '200 OK',
+      sourceName: 'test-source',
       headers: {},
       mediaType: 'application/json',
       statusCode: 200,
@@ -252,6 +260,7 @@ describe('validateBodyForResponse', () => {
     const response: ThymianHttpResponse = {
       type: 'http-response',
       label: '200 OK',
+      sourceName: 'test-source',
       headers: {},
       mediaType: 'text/plain',
       statusCode: 200,
