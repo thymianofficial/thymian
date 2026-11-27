@@ -21,8 +21,8 @@ function capturingLogger(): { logger: Logger; warnings: string[] } {
   const warnings: string[] = [];
 
   class CapturingLogger extends NoopLogger {
-    override warn(formatter: unknown, ...args: unknown[]): void {
-      warnings.push([formatter, ...args].map(String).join(' '));
+    override warn(...args: unknown[]): void {
+      warnings.push(args.map(String).join(' '));
     }
   }
 

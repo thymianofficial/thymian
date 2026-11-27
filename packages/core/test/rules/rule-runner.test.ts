@@ -4,6 +4,7 @@ import type {
   PartialBy,
   Rule,
   RuleFnResult,
+  RuleRunnerAdapter,
   ThymianHttpRequest,
   ThymianHttpResponse,
 } from '../../src/index.js';
@@ -46,6 +47,18 @@ class TestRuleContext {
   }
 }
 
+type StubContextRuleFn = ReturnType<
+  RuleRunnerAdapter<TestRuleContext, { detail: string }>['getRuleFn']
+>;
+
+// The rules under test never read their context, so the runner is driven with
+// TestRuleContext, a stub that is deliberately not a TestContext or LintContext.
+function withStubContext(
+  ruleFn: Rule['testRule'] | Rule['lintRule'],
+): StubContextRuleFn {
+  return ruleFn as unknown as StubContextRuleFn;
+}
+
 describe('runRules', () => {
   it('should collect diagnostics by rule name', async () => {
     const diagnosticsByRuleName = {
@@ -65,7 +78,7 @@ describe('runRules', () => {
           },
           severity: 'warn',
         },
-        testRule: () => [] as RuleFnResult,
+        testRule: () => [],
       },
       {
         meta: {
@@ -79,7 +92,7 @@ describe('runRules', () => {
           },
           severity: 'hint',
         },
-        testRule: () => [] as RuleFnResult,
+        testRule: () => [],
       },
     ];
 
@@ -91,7 +104,7 @@ describe('runRules', () => {
       {
         errorName: 'TestRuleRunnerError',
         mode: 'test',
-        getRuleFn: (rule) => rule.testRule,
+        getRuleFn: (rule) => withStubContext(rule.testRule),
         createContext: (rule) =>
           new TestRuleContext(
             diagnosticsByRuleName[
@@ -123,8 +136,8 @@ describe('runRules', () => {
         },
         severity: 'error',
       },
-      lintRule: () => [] as RuleFnResult,
-      testRule: () => [] as RuleFnResult,
+      lintRule: () => [],
+      testRule: () => [],
     };
 
     const staticResult = await runRules<TestRuleContext>(
@@ -135,7 +148,7 @@ describe('runRules', () => {
       {
         errorName: 'TestRuleRunnerError',
         mode: 'static',
-        getRuleFn: (rule) => rule.lintRule,
+        getRuleFn: (rule) => withStubContext(rule.lintRule),
         createContext: () => new TestRuleContext(),
       },
     );
@@ -150,7 +163,7 @@ describe('runRules', () => {
       {
         errorName: 'TestRuleRunnerError',
         mode: 'test',
-        getRuleFn: (rule) => rule.testRule,
+        getRuleFn: (rule) => withStubContext(rule.testRule),
         createContext: () => new TestRuleContext(),
       },
     );
@@ -193,7 +206,7 @@ describe('runRules', () => {
         {
           errorName: 'TestRuleRunnerError',
           mode: 'test',
-          getRuleFn: (rule) => rule.testRule,
+          getRuleFn: (rule) => withStubContext(rule.testRule),
           createContext: () => new TestRuleContext(),
         },
       );
@@ -206,7 +219,11 @@ describe('runRules', () => {
         [member],
       );
 
-      return result?.location;
+      if (typeof result?.location !== 'object') {
+        throw new Error('locateOnGroup returned no group location');
+      }
+
+      return result.location;
     }
 
     it('keeps one a validation context made', async () => {
@@ -299,8 +316,14 @@ describe('resolveViolationLocation', () => {
       'test-source',
     );
     // Add a second request node so we can create an http-link
-    const req2Id = format.addRequest({ ...minimalRequest, path: '/other' });
-    const linkId = format.addHttpLink(resId, req2Id, {});
+    const req2Id = format.addRequest({
+      ...minimalRequest,
+      path: '/other',
+      sourceName: 'test-source',
+    });
+    const linkId = format.addHttpLink(resId, req2Id, {
+      sourceName: 'test-source',
+    });
 
     const result = resolveViolationLocation(
       { elementType: 'edge', elementId: linkId },
@@ -332,6 +355,7 @@ describe('resolveViolationLocation', () => {
     const format = new ThymianFormat();
     const reqId = format.addRequest({
       ...minimalRequest,
+      sourceName: 'test-source',
       sourceLocation: {
         path: '/some/spec.yaml',
         position: { line: 5, column: 0, offset: 0 },
@@ -358,7 +382,7 @@ describe('resolveViolationLocation', () => {
         ...minimalRequest,
         sourceLocation: {
           path: '/some/file.yaml',
-          position: { line: 1, column: 0 },
+          position: { line: 1, column: 0, offset: 0 },
         },
       },
       minimalResponse,
