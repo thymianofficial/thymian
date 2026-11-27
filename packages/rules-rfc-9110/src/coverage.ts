@@ -361,25 +361,8 @@ const coverage: CoverageRecord<typeof units> = defineCoverage({
     },
     'rfc9110/server-may-send-retry-after-header-for-503-response': {
       covers: ['15.6.4'],
-      declared: { types: ['analytics'], severity: 'hint' },
+      declared: { types: ['static', 'analytics'], severity: 'hint' },
       contexts: {
-        // Likely a mis-declaration, not a real impossibility: the check is a
-        // bare header-name presence test, which the common interface can
-        // see in static too (executability-gate.md: "not observable in
-        // static" is a claim about pinning a *value*, never about the
-        // context being name-only). Whether a given target's own OpenAPI
-        // spec happens to document Retry-After for 503 varies per target —
-        // exactly the "specification does not pin the value" trap the same
-        // reference names as *not* an impossibility reason. The rule's own
-        // `.rule()` has no static/lint handler wired up today, so nothing
-        // runs here regardless; filed as thymianofficial/thymian-workspace#169
-        // rather than declaring static on a rule this ticket leaves
-        // untouched.
-        static: {
-          verdict: 'impossible',
-          reason: 'not-representable',
-          note: 'No static/lint handler is wired up on this rule today. Likely a mis-declaration rather than a structural impossibility — see thymianofficial/thymian-workspace#169.',
-        },
         test: {
           verdict: 'impossible',
           reason: 'condition-not-producible',
@@ -1113,7 +1096,7 @@ const coverage: CoverageRecord<typeof units> = defineCoverage({
         test: {
           verdict: 'impossible',
           reason: 'condition-not-producible',
-          note: "Whether a server chooses to place Accept-Ranges in a trailer rather than a header is server-side, optional behaviour a generic test exchange is unlikely to provoke on demand, the same shape as server-may-send-retry-after-header-for-503-response's static gap (#169) but for a live-exchange context instead.",
+          note: 'Whether a server chooses to place Accept-Ranges in a trailer rather than a header is server-side, optional behaviour a generic test exchange is unlikely to provoke on demand.',
         },
       },
     },

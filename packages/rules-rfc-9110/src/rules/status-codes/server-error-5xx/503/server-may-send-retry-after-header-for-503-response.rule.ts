@@ -11,7 +11,7 @@ export default httpRule(
   // DO carry a Retry-After header, so users learn the mechanism is in use,
   // rather than flagging the ones that omit it (cf.
   // server-may-send-accept-ranges-none).
-  .type('analytics')
+  .type('static', 'analytics')
   .url(
     'https://www.rfc-editor.org/rfc/rfc9110.html#name-503-service-unavailable',
   )
