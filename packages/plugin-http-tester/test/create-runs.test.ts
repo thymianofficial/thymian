@@ -6,6 +6,7 @@ import {
   httpRule,
   type HttpTestCase,
   type HttpTestCaseStep,
+  type HttpTestContext,
   locateOnGroup,
   type Logger,
   method,
@@ -971,6 +972,58 @@ describe('createRuns', () => {
   });
 });
 
+/**
+ * Run one rule in test mode through a real HTTP-test context and return the
+ * test-case executions the plugin reports for it.
+ */
+async function runTestRule(
+  rule: Rule,
+  thymianFormat: ThymianFormat,
+  options: {
+    origin: string;
+    authorize: boolean;
+    runRequest: HttpTestContext['runRequest'];
+    runHook?: HttpTestContext['runHook'];
+    skipOrigins?: string[];
+  },
+): Promise<TestCaseExecution[]> {
+  const context = createHttpTestContext({
+    format: thymianFormat,
+    logger: new NoopLogger(),
+    locals: {},
+    sampleRequest: async (transaction): Promise<HttpRequestTemplate> => ({
+      method: transaction.thymianReq.method,
+      origin: options.origin,
+      path: transaction.thymianReq.path,
+      headers: {},
+      pathParameters: {},
+      query: {},
+      cookies: {},
+      authorize: options.authorize,
+    }),
+    runRequest: options.runRequest,
+    runHook:
+      options.runHook ??
+      (async (_name, hook) =>
+        ({ result: (hook as { value: unknown }).value }) as never),
+  });
+  const adapter: RuleRunnerAdapter<
+    HttpTestApiContext,
+    HttpTesterRuleDiagnostics
+  > = {
+    errorName: 'TestLinterError',
+    mode: 'test',
+    getRuleFn: (r) => r.testRule,
+    createContext: (r) =>
+      new HttpTestApiContext(r.meta.name, context, options.skipOrigins),
+  };
+  const logger = new NoopLogger();
+  const results = await runRules(logger, [rule], thymianFormat, {}, adapter);
+  const [run] = createRuns(PLUGIN, results, [rule], thymianFormat, logger);
+
+  return testCases(run!.executions);
+}
+
 describe('createRuns: a rule that applies to nothing (ADR-0030)', () => {
   const createdWithLocation = () =>
     createCreatedResponse({
@@ -1002,40 +1055,12 @@ describe('createRuns: a rule that applies to nothing (ADR-0030)', () => {
     rule: Rule,
     options: { skipOrigins?: string[]; format?: ThymianFormat } = {},
   ): Promise<TestCaseExecution[]> {
-    const thymianFormat = options.format ?? format();
-    const context = createHttpTestContext({
-      format: thymianFormat,
-      logger: new NoopLogger(),
-      locals: {},
-      sampleRequest: async (transaction): Promise<HttpRequestTemplate> => ({
-        method: transaction.thymianReq.method,
-        origin: 'https://example.com',
-        path: transaction.thymianReq.path,
-        headers: {},
-        pathParameters: {},
-        query: {},
-        cookies: {},
-        authorize: true,
-      }),
+    return await runTestRule(rule, options.format ?? format(), {
+      origin: 'https://example.com',
+      authorize: true,
       runRequest: async (request) => liveResponse(request.path),
-      runHook: async (_name, hook) =>
-        ({ result: (hook as { value: unknown }).value }) as never,
+      skipOrigins: options.skipOrigins,
     });
-    const adapter: RuleRunnerAdapter<
-      HttpTestApiContext,
-      HttpTesterRuleDiagnostics
-    > = {
-      errorName: 'TestLinterError',
-      mode: 'test',
-      getRuleFn: (r) => r.testRule,
-      createContext: (r) =>
-        new HttpTestApiContext(r.meta.name, context, options.skipOrigins),
-    };
-    const logger = new NoopLogger();
-    const results = await runRules(logger, [rule], thymianFormat, {}, adapter);
-    const [run] = createRuns(PLUGIN, results, [rule], thymianFormat, logger);
-
-    return testCases(run!.executions);
   }
 
   const validating = (appliesTo: Parameters<typeof and>[0]) =>
@@ -1236,7 +1261,7 @@ describe('createRuns: a rule that applies to nothing (ADR-0030)', () => {
  * stays skipped (ADR-0031).
  */
 describe("createRuns: a hook's fail verdict and a rule defect", () => {
-  const sending = httpRule('test/sending')
+  const sendingGetRule = httpRule('test/sending')
     .severity('error')
     .type('test')
     .rule(async (ctx) =>
@@ -1253,56 +1278,34 @@ describe("createRuns: a hook's fail verdict and a rule defect", () => {
     rule: Rule,
     fail: { beforeRequest?: string; afterResponse?: string } = {},
   ): Promise<TestCaseExecution[]> {
-    const thymianFormat = createThymianFormatWithTransactions([
-      [
-        createHttpRequest({ method: 'GET', path: '/users' }),
-        createHttpResponse({ statusCode: 200 }),
-      ],
-    ]);
-    const context = createHttpTestContext({
-      format: thymianFormat,
-      logger: new NoopLogger(),
-      locals: {},
-      sampleRequest: async (transaction): Promise<HttpRequestTemplate> => ({
-        method: transaction.thymianReq.method,
+    return await runTestRule(
+      rule,
+      createThymianFormatWithTransactions([
+        [
+          createHttpRequest({ method: 'GET', path: '/users' }),
+          createHttpResponse({ statusCode: 200 }),
+        ],
+      ]),
+      {
         origin: 'https://api.example.com',
-        path: transaction.thymianReq.path,
-        headers: {},
-        pathParameters: {},
-        query: {},
-        cookies: {},
         authorize: false,
-      }),
-      runRequest: async () => ({
-        statusCode: 200,
-        headers: {},
-        trailers: {},
-        duration: 0,
-      }),
-      runHook: async (name, hook) =>
-        ({
-          result: (hook as { value: unknown }).value,
-          fail: name === 'authorize' ? undefined : fail[name],
-        }) as never,
-    });
-    const adapter: RuleRunnerAdapter<
-      HttpTestApiContext,
-      HttpTesterRuleDiagnostics
-    > = {
-      errorName: 'TestLinterError',
-      mode: 'test',
-      getRuleFn: (r) => r.testRule,
-      createContext: (r) => new HttpTestApiContext(r.meta.name, context),
-    };
-    const logger = new NoopLogger();
-    const results = await runRules(logger, [rule], thymianFormat, {}, adapter);
-    const [run] = createRuns(PLUGIN, results, [rule], thymianFormat, logger);
-
-    return testCases(run!.executions);
+        runRequest: async () => ({
+          statusCode: 200,
+          headers: {},
+          trailers: {},
+          duration: 0,
+        }),
+        runHook: async (name, hook) =>
+          ({
+            result: (hook as { value: unknown }).value,
+            fail: name === 'authorize' ? undefined : fail[name],
+          }) as never,
+      },
+    );
   }
 
   it('reports a beforeRequest hook fail as a failed execution with its message as reason', async () => {
-    const executions = await executionsOf(sending, {
+    const executions = await executionsOf(sendingGetRule, {
       beforeRequest: 'precondition violated',
     });
 
@@ -1315,7 +1318,7 @@ describe("createRuns: a hook's fail verdict and a rule defect", () => {
   });
 
   it('reports an afterResponse hook fail as a failed execution, located on the transaction it judged', async () => {
-    const executions = await executionsOf(sending, {
+    const executions = await executionsOf(sendingGetRule, {
       afterResponse: 'response is wrong',
     });
 

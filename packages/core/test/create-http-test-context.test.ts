@@ -138,7 +138,7 @@ describe('createContextFromEmitter with a target-url override', () => {
   });
 });
 
-function caseFor(
+function singleStepCase(
   transaction: ThymianHttpTransaction,
   requestTemplate: HttpRequestTemplate,
 ): HttpTestCase {
@@ -175,9 +175,10 @@ async function runWithHooks(hooks: {
   const requestTemplate = await context.sampleRequest(transaction);
 
   const { current } = await lastValueFrom(
-    of({ current: caseFor(transaction, requestTemplate), ctx: context }).pipe(
-      runRequests({ checkStatusCode: false }),
-    ),
+    of({
+      current: singleStepCase(transaction, requestTemplate),
+      ctx: context,
+    }).pipe(runRequests({ checkStatusCode: false })),
   );
 
   return { testCase: current, transaction };
