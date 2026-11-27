@@ -127,13 +127,35 @@ export function runRequests<
             `Running "authorize" hook for transaction ${transactionName} in test case ${current.name}.`,
           );
 
+          const authorize = await ctx.runHook('authorize', {
+            value: transaction.requestTemplate,
+            ctx: transaction.source,
+          });
+
+          current.results.push(...(authorize.testResults ?? []));
+
+          if (authorize.skip) {
+            ctx.logger.debug(
+              `Skipping test case "${current.name}" after "authorize" hook.`,
+            );
+
+            return ctx.skip(current, authorize.skip);
+          }
+
+          if (authorize.fail) {
+            ctx.logger.debug(
+              `Test case ${current.name} failed after "authorize" hook.`,
+            );
+
+            current.results.push(
+              hookFailure(authorize.fail, transaction, stepIdx, transactionIdx),
+            );
+
+            return ctx.fail(current, authorize.fail);
+          }
+
           transaction.requestTemplate =
-            (
-              await ctx.runHook('authorize', {
-                value: transaction.requestTemplate,
-                ctx: transaction.source,
-              })
-            ).result ?? transaction.requestTemplate;
+            authorize.result ?? transaction.requestTemplate;
         }
 
         // A request that cannot be built from the description and the hooks is

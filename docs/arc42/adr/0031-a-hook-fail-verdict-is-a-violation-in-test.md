@@ -16,7 +16,9 @@ Two different things reach that path:
 
 1. **A hook's verdict.** A hook answering `http-testing.beforeRequest` or
    `http-testing.afterResponse` returns `fail` (in the sampler: `utils.fail(message)`), and
-   `runRequests` calls `ctx.fail` without recording anything else.
+   `runRequests` calls `ctx.fail` without recording anything else. A hook answering
+   `http-testing.authorize` had its `fail` and `skip` dropped altogether, so the request was
+   sent anyway, in `Test` and in `sampler check` alike.
 2. **A defect in the rule or the framework.** A rule's `.transactions()` callback throws
    something other than an `AssertionError`, or `singleStepForTransaction` cannot resolve the
    previous step or the transaction.
@@ -32,11 +34,14 @@ CI.
 We will report a hook's fail verdict as a `failed` `Execution` in `Test`. A defect in the rule or
 the framework stays `skipped`, with its reason.
 
-- **The signal is an existing result type.** In both the `beforeRequest` and the
-  `afterResponse` branch, `runRequests` records the hook's `fail` as an `assertion-failure`
+- **The signal is an existing result type.** In the `beforeRequest`, `authorize` and
+  `afterResponse` branches, `runRequests` records the hook's `fail` as an `assertion-failure`
   carrying its message, the transaction and its step/transaction location, and then calls
-  `ctx.fail`. `httpTest` places it on the transaction's edge as it does any assertion failure,
-  and `computeTestCaseStatus` returns `failed` with no change to its logic. "A test case is a
+  `ctx.fail`. The `authorize` branch now also honours `skip` and keeps the hook's test results,
+  as the other two do. `httpTest` places it on the transaction's edge as it does any assertion
+  failure, and `computeTestCaseStatus` returns `failed`. It falls back to the case's reason
+  when the violation carries no message, so the hook's message (or a failed `expect`'s) is the
+  `Execution`'s reason. "A test case is a
   violation exactly when an assertion failed" stays the only rule, and no public type in
   `@thymian/core` changes.
 - **It lives in core, not the sampler**, because `fail` is part of the public
@@ -77,8 +82,9 @@ the framework stays `skipped`, with its reason.
 
 **Neutral:**
 
-- `sampler check` does not change: it already reports a failed test case as `failed`, and it
-  does not print a detail that repeats the case's reason.
+- `sampler check` changes only for `authorize`: it already reports a failed test case as
+  `failed` and does not print a detail that repeats the case's reason, but an `authorize`
+  hook's `fail` now reaches it at all.
 - A defect stays `skipped`. The report tells it apart from a deliberate skip only by its reason.
 
 ## Related

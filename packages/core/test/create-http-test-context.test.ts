@@ -8,7 +8,10 @@ import {
 } from '../src/format/index.js';
 import type { HttpRequest, HttpRequestTemplate } from '../src/http.js';
 import { createContextFromEmitter } from '../src/http-testing/http-test/create-http-test-context.js';
-import type { HttpTestCase } from '../src/http-testing/http-test/index.js';
+import type {
+  HttpTestCase,
+  HttpTestHookReturnType,
+} from '../src/http-testing/http-test/index.js';
 import { runRequests } from '../src/http-testing/operators/run-requests.operator.js';
 import { NoopLogger } from '../src/logger/noop.logger.js';
 
@@ -160,10 +163,18 @@ function singleStepCase(
 async function runWithHooks(hooks: {
   beforeRequest?: string;
   afterResponse?: string;
-}): Promise<{ testCase: HttpTestCase; transaction: ThymianHttpTransaction }> {
-  const { emitter } = emitterWithSampler();
+  authorize?: HttpTestHookReturnType<HttpRequestTemplate>;
+}): Promise<{
+  testCase: HttpTestCase;
+  transaction: ThymianHttpTransaction;
+  dispatched: HttpRequest[];
+}> {
+  const { emitter, dispatched } = emitterWithSampler();
   const { format, transaction } = oneTransaction();
 
+  emitter.onAction('http-testing.authorize', ({ value }, ctx) => {
+    ctx.reply({ ...hooks.authorize, result: value });
+  });
   emitter.onAction('http-testing.beforeRequest', ({ value }, ctx) => {
     ctx.reply({ result: value, fail: hooks.beforeRequest });
   });
@@ -172,7 +183,10 @@ async function runWithHooks(hooks: {
   });
 
   const context = createContextFromEmitter(format, new NoopLogger(), emitter);
-  const requestTemplate = await context.sampleRequest(transaction);
+  const requestTemplate = {
+    ...(await context.sampleRequest(transaction)),
+    authorize: hooks.authorize !== undefined,
+  };
 
   const { current } = await lastValueFrom(
     of({
@@ -181,7 +195,7 @@ async function runWithHooks(hooks: {
     }).pipe(runRequests({ checkStatusCode: false })),
   );
 
-  return { testCase: current, transaction };
+  return { testCase: current, transaction, dispatched };
 }
 
 /**
@@ -221,6 +235,50 @@ describe("a hook's fail verdict", () => {
         transaction,
         location: { stepIdx: 0, transactionIdx: 0 },
       }),
+    );
+  });
+
+  it('fails the test case with an assertion failure when the authorize hook fails, without sending the request', async () => {
+    const { testCase, transaction, dispatched } = await runWithHooks({
+      authorize: { result: undefined as never, fail: 'not allowed' },
+    });
+
+    expect(testCase.status).toBe('failed');
+    expect(testCase.reason).toBe('not allowed');
+    expect(testCase.results).toContainEqual(
+      expect.objectContaining({
+        type: 'assertion-failure',
+        message: 'not allowed',
+        transaction,
+        location: { stepIdx: 0, transactionIdx: 0 },
+      }),
+    );
+    expect(dispatched).toEqual([]);
+  });
+
+  it('skips the test case when the authorize hook skips, without sending the request', async () => {
+    const { testCase, dispatched } = await runWithHooks({
+      authorize: { result: undefined as never, skip: 'no credentials' },
+    });
+
+    expect(testCase.status).toBe('skipped');
+    expect(testCase.reason).toBe('no credentials');
+    expect(testCase.results).not.toContainEqual(
+      expect.objectContaining({ type: 'assertion-failure' }),
+    );
+    expect(dispatched).toEqual([]);
+  });
+
+  it("keeps the authorize hook's test results", async () => {
+    const { testCase } = await runWithHooks({
+      authorize: {
+        result: undefined as never,
+        testResults: [{ type: 'info', message: 'logged in as admin' }],
+      },
+    });
+
+    expect(testCase.results).toContainEqual(
+      expect.objectContaining({ type: 'info', message: 'logged in as admin' }),
     );
   });
 
