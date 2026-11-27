@@ -11,7 +11,7 @@ import { describe, expect, it } from 'vitest';
 
 import rule from './client-may-send-upgrade-header.rule.js';
 
-const hint = { status: 'failed', severity: 'hint' };
+const hinted = { status: 'failed', severity: 'hint' };
 
 describe(rule.meta.name, () => {
   const ruleTester = createRuleTester(rule);
@@ -43,7 +43,7 @@ describe(rule.meta.name, () => {
     const { format, invitesUpgrade, plain } = describedApi();
 
     expect(await ruleTester.runLint(format)).toMatchObject([
-      { location: { elementId: invitesUpgrade }, ...hint },
+      { location: { elementId: invitesUpgrade }, ...hinted },
       { location: { elementId: plain }, status: 'notApplicable' },
     ]);
   });
@@ -61,7 +61,7 @@ describe(rule.meta.name, () => {
     });
 
     expect(executions).toMatchObject([
-      { location: { elementId: invitesUpgrade }, ...hint },
+      { location: { elementId: invitesUpgrade }, ...hinted },
       { location: { elementId: plain }, status: 'notApplicable' },
     ]);
   });
