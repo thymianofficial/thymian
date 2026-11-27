@@ -11,7 +11,10 @@ import {
   type ThymianHttpResponse,
 } from '../../src/index.js';
 
-function attributeAllTo(exported: SerializedThymianFormat, path: string) {
+function setSourceOnAllElements(
+  exported: SerializedThymianFormat,
+  path: string,
+) {
   for (const element of [...exported.nodes, ...exported.edges]) {
     if (!element.attributes) {
       throw new Error('exported element has no attributes');
@@ -1215,8 +1218,11 @@ describe('ThymianFormat', () => {
       const exported1 = format.export();
       const exported2 = structuredClone(exported1);
 
-      attributeAllTo(exported1, '/Users/alice/project/openapi.yaml');
-      attributeAllTo(exported2, 'C:\\Users\\bob\\project\\openapi.yaml');
+      setSourceOnAllElements(exported1, '/Users/alice/project/openapi.yaml');
+      setSourceOnAllElements(
+        exported2,
+        'C:\\Users\\bob\\project\\openapi.yaml',
+      );
 
       expect(ThymianFormat.import(exported1).toHash()).toBe(
         ThymianFormat.import(exported2).toHash(),

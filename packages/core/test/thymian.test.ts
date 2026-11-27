@@ -907,6 +907,7 @@ describe('Thymian.reportConvert()', () => {
     // `format:<elementId>` text at render time) and the unused graph is
     // withheld — completing from --spec would attribute a format the run may
     // never have converted against.
+    expect(outcome.report.runs).toHaveLength(1);
     expect(outcome.report.runs[0]?.thymianFormatVersion).toBeUndefined();
     expect(outcome.report.thymianFormat).toBeUndefined();
 
