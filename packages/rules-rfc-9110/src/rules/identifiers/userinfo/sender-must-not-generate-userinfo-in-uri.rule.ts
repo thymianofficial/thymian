@@ -6,7 +6,7 @@ export default httpRule('rfc9110/sender-must-not-generate-userinfo-in-uri')
   .type('static', 'analytics')
   .tags('security:spoofing', 'security:disclosure')
   .url(
-    'https://www.rfc-editor.org/rfc/rfc9110.html#name-deprecation-of-userinfo-in-http',
+    'https://www.rfc-editor.org/rfc/rfc9110.html#name-deprecation-of-userinfo-in-',
   )
   .description(
     "A sender MUST NOT generate the userinfo subcomponent (and its '@' delimiter) when an 'http' or 'https' URI reference is generated within a message as a target URI or field value.",
