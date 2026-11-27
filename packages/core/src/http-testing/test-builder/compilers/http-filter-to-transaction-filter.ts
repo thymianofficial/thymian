@@ -1,4 +1,5 @@
 import {
+  isExplicitlyDocumented,
   isStatusCodeInRange,
   type RequestFilterExpression,
   thymianRequestToOrigin,
@@ -154,6 +155,12 @@ export function responseScopeHttpFilterToTransactionFilter(
         res: ThymianHttpResponse,
       ) =>
         isStatusCodeInRange(res.statusCode, expression.start, expression.end);
+    case 'explicitlyDocumented':
+      return (
+        req: ThymianHttpRequest,
+        reqId: string,
+        res: ThymianHttpResponse,
+      ) => isExplicitlyDocumented(res);
   }
 }
 

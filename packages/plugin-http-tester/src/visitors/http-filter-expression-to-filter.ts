@@ -3,6 +3,7 @@ import {
   createRegExpFromOriginWildcard,
   equalsIgnoreCase,
   type HttpFilterExpression,
+  isExplicitlyDocumented,
   isStatusCodeInRange,
   type ThymianFormat,
   type ThymianHttpTransaction,
@@ -131,6 +132,10 @@ const visitor = createFilterVisitor<StaticFilter>({
   },
   visitResponseTrailer() {
     throw new Error('Response trailers are not currently supported.');
+  },
+  visitExplicitlyDocumented() {
+    return (transaction: ThymianHttpTransaction) =>
+      isExplicitlyDocumented(transaction.thymianRes);
   },
   visitMatchesOrigin({ origin }) {
     if (typeof origin !== 'string') {

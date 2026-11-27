@@ -5,7 +5,11 @@ import {
 } from '../http-filter-visitor.js';
 import { isStatusCodeInRange } from '../http-status-codes/http-status-code-ranges.js';
 import { equalsIgnoreCase } from '../utils.js';
-import { ThymianFormat, type ThymianHttpTransaction } from './index.js';
+import {
+  isExplicitlyDocumented,
+  ThymianFormat,
+  type ThymianHttpTransaction,
+} from './index.js';
 
 export type TransactionFilterFn = (
   transaction: ThymianHttpTransaction,
@@ -118,6 +122,10 @@ const visitor = createFilterVisitor<TransactionFilterFn>({
   },
   visitResponseTrailer() {
     throw new Error('Response trailers are not currently supported.');
+  },
+  visitExplicitlyDocumented() {
+    return (transaction: ThymianHttpTransaction) =>
+      isExplicitlyDocumented(transaction.thymianRes);
   },
 });
 

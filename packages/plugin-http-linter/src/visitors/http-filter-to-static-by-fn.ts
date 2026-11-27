@@ -135,6 +135,16 @@ const visitor: HttpFilterVisitor<GroupByFn> = {
       },
     );
   },
+  visitExplicitlyDocumented() {
+    throw new ThymianBaseError(
+      `Unsupported group by expression "explicitlyDocumented" for grouping common HTTP transactions.`,
+      {
+        name: 'UnsupportedGroupByExpression',
+        ref: 'https://thymian.dev/references/errors/unsupported-group-by-expression/',
+        suggestions: ['Use another expression type.'],
+      },
+    );
+  },
   visitAnd(expr: Extract<LogicalExpression, { type: 'and' }>): GroupByFn {
     return (transaction, format) =>
       expr.filters

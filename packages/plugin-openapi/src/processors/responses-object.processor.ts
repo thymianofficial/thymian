@@ -68,12 +68,21 @@ export function processResponsesObject(
         const strCode = String(code);
 
         if (!Object.hasOwn(responses, strCode)) {
-          responses[strCode] = processResponseObject(
+          const derived = processResponseObject(
             resolvedResponse,
             code,
             parameters,
             document,
           );
+          // A Range-Derived Response records the range that implied it, so a
+          // rule can tell it from a code documented on its own (ADR-0031).
+          responses[strCode] = {
+            ...derived,
+            responses: derived.responses.map((response) => ({
+              ...response,
+              derivedFromRange: statusCode,
+            })),
+          };
         }
       });
     } else {

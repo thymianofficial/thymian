@@ -61,6 +61,9 @@ export interface HttpFilterVisitor<TResult> {
   visitResponseTrailer?(
     expr: Extract<ResponseFilterExpression, { type: 'responseTrailer' }>,
   ): TResult;
+  visitExplicitlyDocumented?(
+    expr: Extract<ResponseFilterExpression, { type: 'explicitlyDocumented' }>,
+  ): TResult;
 
   // Logical expression visitors
   visitAnd?(expr: Extract<LogicalExpression, { type: 'and' }>): TResult;
@@ -217,6 +220,13 @@ export function visitHttpFilter<TResult>(
             );
           }
           return visitor.visitResponseTrailer(expr);
+        case 'explicitlyDocumented':
+          if (!visitor.visitExplicitlyDocumented) {
+            throw new Error(
+              `Visitor does not implement visitExplicitlyDocumented for expression type: ${expr.type}`,
+            );
+          }
+          return visitor.visitExplicitlyDocumented(expr);
         default:
           throw new Error(
             `Unknown response filter type: ${(expr as ResponseFilterExpression).type}`,

@@ -32,6 +32,9 @@ export function compileResponseScopedToResponseChecker(
         response.statusCode <= expression.end &&
         response.statusCode >= expression.start
       );
+    case 'explicitlyDocumented':
+      // A live response really carries its status (ADR-0031).
+      return true;
     case 'and':
       return expression.filters.every((expr) =>
         compileResponseScopedToResponseChecker(expr, response),

@@ -2,6 +2,7 @@ import {
   and,
   DEFAULT_HEADER_SERIALIZATION_STYLE,
   DEFAULT_QUERY_SERIALIZATION_STYLE,
+  explicitlyDocumented,
   hasRequestBody,
   hasResponseBody,
   method,
@@ -556,6 +557,24 @@ describe('httpFilterExpressionToOperationFilter', () => {
           }),
         ),
       ).toBe(false);
+    });
+  });
+
+  describe('visitExplicitlyDocumented', () => {
+    it('excludes no operation, whatever its responses document', () => {
+      const filter = httpFilterExpressionToOperationFilter(
+        explicitlyDocumented(),
+      );
+
+      for (const responses of [
+        { '4XX': { description: 'Client error' } },
+        { default: { description: 'Anything' } },
+        {},
+      ]) {
+        expect(
+          filter(createOperationArgs({ operationObject: { responses } })),
+        ).toBe(true);
+      }
     });
   });
 

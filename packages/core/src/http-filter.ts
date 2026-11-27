@@ -61,7 +61,8 @@ export type ResponseFilterExpression =
       kind: 'response';
       trailer?: string;
       value?: unknown;
-    };
+    }
+  | { type: 'explicitlyDocumented'; kind: 'response' };
 
 export type LogicalExpression =
   | { type: 'and'; kind: 'logic'; filters: HttpFilterExpression[] }
@@ -267,6 +268,24 @@ export const url = (url?: string): RequestFilterExpression => ({
 });
 
 export const successfulStatusCode = () => statusCodeRange(200, 299);
+
+/**
+ * Whether the specification documents the response under its own status code,
+ * rather than only through a status code range (a Range-Derived Response) or as
+ * its `default` response. Narrow a single-code filter with it, e.g.
+ * `and(statusCode(402), explicitlyDocumented())`, so a rule does not read a
+ * generic `4XX` as a statement about 402.
+ *
+ * It judges only the specification (ADR-0031): against a response node it is
+ * false on a range-derived or `default` node, and against an observed response
+ * (a recorded pair in `analyze`, the live response in `test`) it is always
+ * true, because the server really sent that status. Nested in
+ * `responseWith(…)`, it judges the declared response nodes in every context.
+ */
+export const explicitlyDocumented = (): ResponseFilterExpression => ({
+  type: 'explicitlyDocumented',
+  kind: 'response',
+});
 
 export const matchesOrigin = (origin?: string): RequestFilterExpression => ({
   type: 'matches-origin',

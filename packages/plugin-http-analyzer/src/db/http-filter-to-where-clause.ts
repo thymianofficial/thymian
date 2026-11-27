@@ -134,6 +134,11 @@ export function compileHttpFilterToWhereClause(
     case 'constant':
       return { sql: filter.value ? '1=1' : '0=1', params: [] };
 
+    case 'explicitlyDocumented':
+      // A recorded response really carried its status, whatever the
+      // specification documents, so this excludes nothing (ADR-0031).
+      return { sql: '1=1', params: [] };
+
     case 'and': {
       const parts = filter.filters.map((expr) =>
         compileHttpFilterToWhereClause(expr, tableNames),

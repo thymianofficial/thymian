@@ -5,6 +5,7 @@ import {
   authorization,
   type CapturedTransaction,
   constant,
+  explicitlyDocumented,
   hasRequestBody,
   hasResponseBody,
   type HttpFilterExpression,
@@ -261,6 +262,14 @@ const supported: {
     {
       name: 'matches-origin',
       filter: matchesOrigin('other'),
+      matches: [ITEMS_PAGE_2],
+    },
+  ],
+  explicitlyDocumented: [
+    {
+      // A recorded response really carried its status (ADR-0031).
+      name: 'explicitlyDocumented',
+      filter: and(statusCode(404), explicitlyDocumented()),
       matches: [ITEMS_PAGE_2],
     },
   ],

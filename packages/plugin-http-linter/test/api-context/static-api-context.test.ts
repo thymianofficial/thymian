@@ -1,9 +1,11 @@
 import {
   and,
+  explicitlyDocumented,
   method,
   not,
   path,
   responseMediaType,
+  responseWith,
   statusCode,
   statusCodeRange,
   successfulStatusCode,
@@ -304,6 +306,87 @@ describe('StaticApiContext', () => {
           ),
         ),
       ).toStrictEqual(['default']);
+    });
+  });
+
+  describe('range-derived transactions', () => {
+    const format = createThymianFormatWithTransactions([
+      [
+        createHttpRequest({ method: 'get', path: '/invoices' }),
+        createHttpResponse({ statusCode: 402, headers: {} }),
+      ],
+      [
+        createHttpRequest({ method: 'get', path: '/receipts' }),
+        createHttpResponse({
+          statusCode: 402,
+          derivedFromRange: '4XX',
+          headers: {},
+        }),
+      ],
+      [
+        createHttpRequest({ method: 'get', path: '/refunds' }),
+        createHttpResponse({ statusCode: 'default', headers: {} }),
+      ],
+    ]);
+
+    const pathsOf = (
+      result: ReturnType<StaticApiContext['validateCommonHttpTransactions']>,
+    ): (string | undefined)[] =>
+      result.map((violation) => {
+        const location = violation.location;
+
+        return typeof location !== 'string'
+          ? format.getThymianHttpTransactionById(location.elementId)?.thymianReq
+              .path
+          : undefined;
+      });
+
+    it('are not selected by explicitlyDocumented(), and neither is a default one', () => {
+      const context = new StaticApiContext(format, new NoopLogger());
+
+      expect(
+        pathsOf(
+          context.validateCommonHttpTransactions(
+            and(statusCode(402), explicitlyDocumented()),
+            method('get'),
+          ),
+        ),
+      ).toStrictEqual(['/invoices']);
+      expect(
+        pathsOf(
+          context.validateCommonHttpTransactions(
+            not(explicitlyDocumented()),
+            method('get'),
+          ),
+        ),
+      ).toStrictEqual(['/receipts', '/refunds']);
+    });
+
+    it('do not count as the response an operation documents under its own code', () => {
+      const context = new StaticApiContext(format, new NoopLogger());
+
+      expect(
+        pathsOf(
+          context.validateCommonHttpTransactions(
+            responseWith(and(statusCode(402), explicitlyDocumented())),
+            method('get'),
+          ),
+        ),
+      ).toStrictEqual(['/invoices']);
+    });
+
+    it('cannot be grouped by explicitlyDocumented()', () => {
+      const context = new StaticApiContext(format, new NoopLogger());
+
+      expect(() =>
+        context.validateGroupedCommonHttpTransactions(
+          method('get'),
+          explicitlyDocumented(),
+          () => [],
+        ),
+      ).toThrow(
+        expect.objectContaining({ name: 'UnsupportedGroupByExpression' }),
+      );
     });
   });
 
