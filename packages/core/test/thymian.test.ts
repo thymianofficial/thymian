@@ -2,6 +2,7 @@ import type { JSONSchemaType } from 'ajv/dist/2020.js';
 import { describe, expect, it, vi } from 'vitest';
 
 import {
+  type ActionHandler,
   ajv,
   createAnalyzeExecution,
   createLintExecution,
@@ -11,11 +12,16 @@ import {
   type LintWorkflowInput,
   PluginRegistrationError,
   reportSchema,
+  type SerializedThymianFormat,
   Thymian,
   ThymianBaseError,
   ThymianFormat,
   type ThymianPlugin,
 } from '../src/index.js';
+
+function emptyFormat(hash: string): SerializedThymianFormat {
+  return { attributes: { hash }, options: {}, nodes: [], edges: [] };
+}
 
 describe('Thymian workflows', () => {
   it('returns clean-run with an assembled report when no findings exist', async () => {
@@ -350,7 +356,10 @@ describe('Thymian.reportConvert()', () => {
 
     expect(outcome.report.runs).toHaveLength(2);
     expect(
-      outcome.report.runs.map((run) => run.executions?.[0]?.location),
+      outcome.report.runs.map((run) => {
+        const execution = run.executions?.[0];
+        return execution?.kind === 'lint' ? execution.location : undefined;
+      }),
     ).toEqual([
       { type: 'custom', value: './a.json' },
       { type: 'custom', value: './b.json' },
@@ -366,11 +375,8 @@ describe('Thymian.reportConvert()', () => {
     const t = new Thymian();
 
     const makeFragmentReply =
-      (toolName: string) =>
-      async (
-        payload: { inputs: { type: string; location: unknown }[] },
-        ctx: { reply: (v: unknown) => void },
-      ) => {
+      (toolName: string): ActionHandler<'core.report.convert'> =>
+      async (payload, ctx) => {
         ctx.reply(
           payload.inputs.map((input) => ({
             input: { type: input.type, location: String(input.location) },
@@ -504,13 +510,9 @@ describe('Thymian.reportConvert()', () => {
   it('unions fragment thymianFormat maps by hash into the assembled report (#507)', async () => {
     const t = new Thymian();
 
-    const formatA = { attributes: { hash: 'hash-a' }, nodes: [], edges: [] };
-    const formatADuplicate = {
-      attributes: { hash: 'hash-a' },
-      nodes: [],
-      edges: [],
-    };
-    const formatB = { attributes: { hash: 'hash-b' }, nodes: [], edges: [] };
+    const formatA = emptyFormat('hash-a');
+    const formatADuplicate = emptyFormat('hash-a');
+    const formatB = emptyFormat('hash-b');
 
     // Two independent listeners, each claiming its own input type and
     // carrying its own format map; hash-a arrives twice (identical graphs).
@@ -629,7 +631,7 @@ describe('Thymian.reportConvert()', () => {
     const t = new Thymian();
 
     t.emitter.onAction('core.format.load', async (_payload, ctx) => {
-      ctx.reply({ attributes: { hash: 'spec-hash' }, nodes: [], edges: [] });
+      ctx.reply(emptyFormat('spec-hash'));
     });
     t.emitter.onAction('core.lint', async (_payload, ctx) => {
       ctx.reply([
@@ -664,7 +666,7 @@ describe('Thymian.reportConvert()', () => {
     const t = new Thymian();
 
     t.emitter.onAction('core.format.load', async (_payload, ctx) => {
-      ctx.reply({ attributes: { hash: 'spec-hash' }, nodes: [], edges: [] });
+      ctx.reply(emptyFormat('spec-hash'));
     });
     t.emitter.onAction('core.lint', async (_payload, ctx) => {
       ctx.reply([
@@ -697,7 +699,7 @@ describe('Thymian.reportConvert()', () => {
   it('completes a missing thymianFormatVersion from a single-entry fragment map (per-input provenance)', async () => {
     const t = new Thymian();
 
-    const format = { attributes: { hash: 'hash-a' }, nodes: [], edges: [] };
+    const format = emptyFormat('hash-a');
 
     t.emitter.onAction('core.report.convert', async (payload, ctx) => {
       ctx.reply(
@@ -842,7 +844,7 @@ describe('Thymian.reportConvert()', () => {
     const t = new Thymian();
 
     t.emitter.onAction('core.format.load', async (_payload, ctx) => {
-      ctx.reply({ attributes: { hash: 'spec-hash' }, nodes: [], edges: [] });
+      ctx.reply(emptyFormat('spec-hash'));
     });
     t.emitter.onAction('core.report.convert', async (payload, ctx) => {
       ctx.reply(
@@ -856,7 +858,7 @@ describe('Thymian.reportConvert()', () => {
             thymianFormatVersion: 'hash-a',
           }),
           thymianFormat: {
-            'hash-a': { attributes: { hash: 'hash-a' }, nodes: [], edges: [] },
+            'hash-a': emptyFormat('hash-a'),
           },
         })),
       );
@@ -878,7 +880,7 @@ describe('Thymian.reportConvert()', () => {
     const t = new Thymian();
 
     t.emitter.onAction('core.format.load', async (_payload, ctx) => {
-      ctx.reply({ attributes: { hash: 'spec-hash' }, nodes: [], edges: [] });
+      ctx.reply(emptyFormat('spec-hash'));
     });
     t.emitter.onAction('core.report.convert', async (payload, ctx) => {
       ctx.reply(
@@ -905,7 +907,7 @@ describe('Thymian.reportConvert()', () => {
     // `format:<elementId>` text at render time) and the unused graph is
     // withheld — completing from --spec would attribute a format the run may
     // never have converted against.
-    expect(outcome.report.runs[0].thymianFormatVersion).toBeUndefined();
+    expect(outcome.report.runs[0]?.thymianFormatVersion).toBeUndefined();
     expect(outcome.report.thymianFormat).toBeUndefined();
 
     await t.close();
@@ -916,14 +918,11 @@ describe('Thymian.reportConvert()', () => {
 
     // export() recomputes the hash from nodes/edges (the mocked attribute is
     // discarded), so derive the hash the assembled report will actually see.
-    const specHash = ThymianFormat.import({
-      attributes: { hash: 'ignored' },
-      nodes: [],
-      edges: [],
-    }).export().attributes.hash;
+    const specHash = ThymianFormat.import(emptyFormat('ignored')).export()
+      .attributes.hash;
 
     t.emitter.onAction('core.format.load', async (_payload, ctx) => {
-      ctx.reply({ attributes: { hash: 'ignored' }, nodes: [], edges: [] });
+      ctx.reply(emptyFormat('ignored'));
     });
     t.emitter.onAction('core.report.convert', async (payload, ctx) => {
       ctx.reply(

@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { NoopLogger } from '../src/logger/noop.logger.js';
 import type { Execution, FindingRecord } from '../src/report/index.js';
 import {
   buildRuleIndex,
@@ -117,7 +118,8 @@ describe('resolveExecutionSeverity', () => {
   });
 
   it('falls back to error and warns when a failed severity is unresolvable (AC17)', () => {
-    const logger = { warn: vi.fn() };
+    const logger = new NoopLogger();
+    vi.spyOn(logger, 'warn');
     const execution: Execution = {
       kind: 'lint',
       ruleId: 'not-in-rules',
@@ -132,7 +134,8 @@ describe('resolveExecutionSeverity', () => {
   });
 
   it('warns and ignores a severity on a non-failed status (AC16)', () => {
-    const logger = { warn: vi.fn() };
+    const logger = new NoopLogger();
+    vi.spyOn(logger, 'warn');
     const execution = {
       kind: 'lint',
       ruleId: 'rfc/foo',

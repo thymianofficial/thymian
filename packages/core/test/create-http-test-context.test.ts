@@ -15,7 +15,6 @@ function emitterWithSampler(): {
   dispatched: HttpRequest[];
 } {
   const emitter = new ThymianEmitter(new NoopLogger(), {
-    completed: new Set(),
     errors: new Subject(),
     events: new Subject(),
     listeners: new Map(),

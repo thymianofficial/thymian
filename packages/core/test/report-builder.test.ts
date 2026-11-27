@@ -56,7 +56,7 @@ describe('report builders', () => {
       .severity('error')
       .type('analytics')
       .summary('Example summary')
-      .rule(() => undefined)
+      .rule(() => [])
       .done();
     const format = new ThymianFormat();
 
@@ -288,7 +288,7 @@ describe('report builders', () => {
         .summary('Short summary')
         .explanation('Detailed explanation')
         .url('https://example.com/docs/example')
-        .rule(() => undefined)
+        .rule(() => [])
         .done();
 
       expect(rulesToRuleDescriptors([rule], 'test')).toEqual([
@@ -307,7 +307,7 @@ describe('report builders', () => {
       const rule = httpRule('rfc9110/minimal')
         .severity('error')
         .type('test')
-        .rule(() => undefined)
+        .rule(() => [])
         .done();
 
       expect(rulesToRuleDescriptors([rule], 'test')).toEqual([
@@ -319,7 +319,7 @@ describe('report builders', () => {
       const offRule = httpRule('rfc9110/disabled')
         .severity('off')
         .type('test')
-        .rule(() => undefined)
+        .rule(() => [])
         .done();
       const informationalRule = httpRule('rfc9110/info-only')
         .severity('warn')
@@ -328,7 +328,7 @@ describe('report builders', () => {
       const activeRule = httpRule('rfc9110/active')
         .severity('hint')
         .type('test')
-        .rule(() => undefined)
+        .rule(() => [])
         .done();
 
       expect(
@@ -343,12 +343,12 @@ describe('report builders', () => {
       const staticOnlyRule = httpRule('rfc9110/static-only')
         .severity('warn')
         .type('static')
-        .rule(() => undefined)
+        .rule(() => [])
         .done();
       const testRule = httpRule('rfc9110/test-only')
         .severity('error')
         .type('test')
-        .rule(() => undefined)
+        .rule(() => [])
         .done();
 
       expect(
