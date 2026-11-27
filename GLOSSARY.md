@@ -83,6 +83,13 @@ none of that operation's `Transaction`s by status and media type. Not the same a
 operation, for which no `Transaction` can be looked up at all.
 _Avoid_: unknown response, unmatched response, missing response
 
+**Range-Derived Response**:
+A response the `API Specification` documents only through a status code range such as `5XX`,
+not under its own code; in the `Thymian Format`, one response node per code in the range. A
+code documented explicitly takes precedence over the range.
+_Avoid_: implicit response (collides with the implicit HEAD), generic response (sounds like
+`default`)
+
 ### Recorded traffic
 
 **Trace**:
