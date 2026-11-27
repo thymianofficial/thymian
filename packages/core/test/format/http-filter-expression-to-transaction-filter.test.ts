@@ -96,7 +96,7 @@ describe('http-filter-expression-to-transaction-filter', () => {
       );
 
       expect(result).toHaveLength(1);
-      expect(result[0].thymianReq.method).toBe('get');
+      expect(result[0]?.thymianReq.method).toBe('get');
     });
 
     it('should be case-insensitive', () => {
@@ -295,7 +295,7 @@ describe('http-filter-expression-to-transaction-filter', () => {
       );
 
       expect(result).toHaveLength(1);
-      expect(result[0].thymianReq.path).toBe('/api/users');
+      expect(result[0]?.thymianReq.path).toBe('/api/users');
     });
 
     it('should return false for undefined path', () => {
@@ -333,7 +333,7 @@ describe('http-filter-expression-to-transaction-filter', () => {
       );
 
       expect(result).toHaveLength(1);
-      expect(result[0].thymianReq.host).toBe('localhost');
+      expect(result[0]?.thymianReq.host).toBe('localhost');
     });
   });
 
@@ -352,7 +352,7 @@ describe('http-filter-expression-to-transaction-filter', () => {
       );
 
       expect(result).toHaveLength(1);
-      expect(result[0].thymianReq.port).toBe(8080);
+      expect(result[0]?.thymianReq.port).toBe(8080);
     });
   });
 
@@ -371,7 +371,7 @@ describe('http-filter-expression-to-transaction-filter', () => {
       );
 
       expect(result).toHaveLength(1);
-      expect(result[0].thymianReq.protocol).toBe('https');
+      expect(result[0]?.thymianReq.protocol).toBe('https');
     });
   });
 
@@ -419,7 +419,7 @@ describe('http-filter-expression-to-transaction-filter', () => {
       );
 
       expect(result).toHaveLength(1);
-      expect(result[0].thymianReq.bodyRequired).toBe(true);
+      expect(result[0]?.thymianReq.bodyRequired).toBe(true);
     });
 
     it('should match when request does not have body', () => {
@@ -457,7 +457,7 @@ describe('http-filter-expression-to-transaction-filter', () => {
       );
 
       expect(result).toHaveLength(1);
-      expect(result[0].thymianReq.mediaType).toBe('application/json');
+      expect(result[0]?.thymianReq.mediaType).toBe('application/json');
     });
   });
 
@@ -476,7 +476,7 @@ describe('http-filter-expression-to-transaction-filter', () => {
       );
 
       expect(result).toHaveLength(1);
-      expect(result[0].thymianRes.statusCode).toBe(200);
+      expect(result[0]?.thymianRes.statusCode).toBe(200);
     });
   });
 
@@ -567,7 +567,7 @@ describe('http-filter-expression-to-transaction-filter', () => {
       );
 
       expect(result).toHaveLength(1);
-      expect(result[0].thymianRes.schema).toBeDefined();
+      expect(result[0]?.thymianRes.schema).toBeDefined();
     });
 
     it('should match when response does not have body', () => {
@@ -680,7 +680,7 @@ describe('http-filter-expression-to-transaction-filter', () => {
       );
 
       expect(result).toHaveLength(1);
-      expect(result[0].thymianRes.mediaType).toBe('application/json');
+      expect(result[0]?.thymianRes.mediaType).toBe('application/json');
     });
   });
 
@@ -781,8 +781,8 @@ describe('http-filter-expression-to-transaction-filter', () => {
       );
 
       expect(result).toHaveLength(1);
-      expect(result[0].thymianReq.method).toBe('get');
-      expect(result[0].thymianRes.statusCode).toBe(200);
+      expect(result[0]?.thymianReq.method).toBe('get');
+      expect(result[0]?.thymianRes.statusCode).toBe(200);
     });
 
     it('should handle OR logic', () => {
