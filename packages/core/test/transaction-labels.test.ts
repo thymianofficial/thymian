@@ -14,6 +14,7 @@ function request(
   return {
     type: 'http-request',
     label: 'unused',
+    sourceName: 'unused',
     host: 'api.example.com',
     port: 443,
     protocol: 'https',
@@ -34,6 +35,7 @@ function response(
   return {
     type: 'http-response',
     label: 'unused',
+    sourceName: 'unused',
     statusCode: 201,
     mediaType: 'application/json',
     headers: {},

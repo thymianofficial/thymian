@@ -1,19 +1,36 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  HttpRequest,
-  HttpResponse,
-  PartialBy,
+  type ApiKeySecurityScheme,
+  type HttpRequest,
+  type HttpResponse,
+  type PartialBy,
+  type SerializedThymianFormat,
   ThymianFormat,
   type ThymianHttpRequest,
-  ThymianHttpResponse,
-} from '../../src';
+  type ThymianHttpResponse,
+} from '../../src/index.js';
+
+function setSourceOnAllElements(
+  exported: SerializedThymianFormat,
+  path: string,
+) {
+  for (const element of [...exported.nodes, ...exported.edges]) {
+    if (!element.attributes) {
+      throw new Error('exported element has no attributes');
+    }
+    element.attributes.sourceName = path;
+    element.attributes.sourceLocation = { path };
+  }
+}
+
+type TransactionFixture = [
+  PartialBy<ThymianHttpRequest, 'label' | 'sourceName'>,
+  PartialBy<ThymianHttpResponse, 'label' | 'sourceName'>,
+];
 
 describe('ThymianFormat', () => {
-  const transactions: [
-    PartialBy<ThymianHttpRequest, 'label' | 'sourceName'>,
-    PartialBy<ThymianHttpResponse, 'label' | 'sourceName'>,
-  ][] = [
+  const transactions: [TransactionFixture, ...TransactionFixture[]] = [
     [
       {
         type: 'http-request',
@@ -180,11 +197,13 @@ describe('ThymianFormat', () => {
           cookies: {},
           pathParameters: {
             id: {
-              name: 'id',
-              in: 'path',
               required: true,
               schema: {
                 type: 'integer',
+              },
+              style: {
+                explode: false,
+                style: 'simple',
               },
             },
           },
@@ -820,7 +839,7 @@ describe('ThymianFormat', () => {
 
       expect(filtered).toBeInstanceOf(ThymianFormat);
       expect(filtered.getThymianHttpTransactions().length).toBe(1);
-      expect(filtered.getThymianHttpTransactions()[0].thymianReq.method).toBe(
+      expect(filtered.getThymianHttpTransactions()[0]?.thymianReq.method).toBe(
         'get',
       );
     });
@@ -916,11 +935,11 @@ describe('ThymianFormat', () => {
       const result = format.getThymianHttpRequestsWithResponses();
 
       expect(result.length).toBe(1);
-      expect(result[0][0]).toMatchObject(
+      expect(result[0]?.[0]).toMatchObject(
         expect.objectContaining({ type: 'http-request' }),
       );
-      expect(result[0][1].length).toBe(1);
-      expect(result[0][1][0]).toMatchObject(
+      expect(result[0]?.[1].length).toBe(1);
+      expect(result[0]?.[1][0]).toMatchObject(
         expect.objectContaining({ type: 'http-response' }),
       );
     });
@@ -935,10 +954,10 @@ describe('ThymianFormat', () => {
 
       const result = format.getThymianHttpRequestsWithResponses();
 
-      expect(result[0][2]).toBeDefined();
-      expect(result[0][3]).toHaveLength(1);
-      expect(typeof result[0][2]).toBe('string');
-      expect(typeof result[0][3][0]).toBe('string');
+      expect(result[0]?.[2]).toBeDefined();
+      expect(result[0]?.[3]).toHaveLength(1);
+      expect(typeof result[0]?.[2]).toBe('string');
+      expect(typeof result[0]?.[3][0]).toBe('string');
     });
 
     it('should return empty array for empty format', () => {
@@ -961,10 +980,10 @@ describe('ThymianFormat', () => {
       const result = format.getThymianHttpRequestsWithIds();
 
       expect(result.length).toBe(1);
-      expect(result[0][0]).toMatchObject(
+      expect(result[0]?.[0]).toMatchObject(
         expect.objectContaining({ type: 'http-request' }),
       );
-      expect(typeof result[0][1]).toBe('string');
+      expect(typeof result[0]?.[1]).toBe('string');
     });
 
     it('should return empty array for empty format', () => {
@@ -1199,31 +1218,11 @@ describe('ThymianFormat', () => {
       const exported1 = format.export();
       const exported2 = structuredClone(exported1);
 
-      exported1.nodes.forEach((node) => {
-        node.attributes.sourceName = '/Users/alice/project/openapi.yaml';
-        node.attributes.sourceLocation = {
-          path: '/Users/alice/project/openapi.yaml',
-        };
-      });
-      exported1.edges.forEach((edge) => {
-        edge.attributes.sourceName = '/Users/alice/project/openapi.yaml';
-        edge.attributes.sourceLocation = {
-          path: '/Users/alice/project/openapi.yaml',
-        };
-      });
-
-      exported2.nodes.forEach((node) => {
-        node.attributes.sourceName = 'C:\\Users\\bob\\project\\openapi.yaml';
-        node.attributes.sourceLocation = {
-          path: 'C:\\Users\\bob\\project\\openapi.yaml',
-        };
-      });
-      exported2.edges.forEach((edge) => {
-        edge.attributes.sourceName = 'C:\\Users\\bob\\project\\openapi.yaml';
-        edge.attributes.sourceLocation = {
-          path: 'C:\\Users\\bob\\project\\openapi.yaml',
-        };
-      });
+      setSourceOnAllElements(exported1, '/Users/alice/project/openapi.yaml');
+      setSourceOnAllElements(
+        exported2,
+        'C:\\Users\\bob\\project\\openapi.yaml',
+      );
 
       expect(ThymianFormat.import(exported1).toHash()).toBe(
         ThymianFormat.import(exported2).toHash(),
@@ -1237,12 +1236,14 @@ describe('ThymianFormat', () => {
         transactions[0][1],
         '/Users/alice/project/openapi.yaml',
       );
-      const securityId1 = format1.addSecurityScheme({
+      const scheme1: PartialBy<ApiKeySecurityScheme, 'label'> = {
+        type: 'security-scheme',
         scheme: 'api-key',
         in: 'header',
         sourceName: '/Users/alice/project/openapi.yaml',
         sourceLocation: { path: '/Users/alice/project/openapi.yaml' },
-      });
+      };
+      const securityId1 = format1.addSecurityScheme(scheme1);
       format1.addEdge(reqId1, securityId1, {
         type: 'is-secured',
         sourceName: '/Users/alice/project/openapi.yaml',
@@ -1259,12 +1260,14 @@ describe('ThymianFormat', () => {
         transactions[0][1],
         'C:\\Users\\bob\\project\\openapi.yaml',
       );
-      const securityId2 = format2.addSecurityScheme({
+      const scheme2: PartialBy<ApiKeySecurityScheme, 'label'> = {
+        type: 'security-scheme',
         scheme: 'api-key',
         in: 'header',
         sourceName: 'C:\\Users\\bob\\project\\openapi.yaml',
         sourceLocation: { path: 'C:\\Users\\bob\\project\\openapi.yaml' },
-      });
+      };
+      const securityId2 = format2.addSecurityScheme(scheme2);
       format2.addEdge(reqId2, securityId2, {
         type: 'is-secured',
         sourceName: 'C:\\Users\\bob\\project\\openapi.yaml',
@@ -1283,11 +1286,13 @@ describe('ThymianFormat', () => {
         transactions[0][1],
         '/Users/alice/project/openapi.yaml',
       );
-      const securityId3 = format3.addSecurityScheme({
+      const scheme3: PartialBy<ApiKeySecurityScheme, 'label'> = {
+        type: 'security-scheme',
         scheme: 'api-key',
         in: 'query',
         sourceName: '/Users/alice/project/openapi.yaml',
-      });
+      };
+      const securityId3 = format3.addSecurityScheme(scheme3);
       format3.addEdge(reqId3, securityId3, {
         type: 'is-secured',
         sourceName: '/Users/alice/project/openapi.yaml',

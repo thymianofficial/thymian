@@ -39,8 +39,8 @@ describe('rule-set glob loading (mocked tinyglobby)', () => {
   it('passes the node_modules ignore option to tinyglobby', async () => {
     const actual =
       await vi.importActual<typeof import('tinyglobby')>('tinyglobby');
-    globImpl.mockImplementation((pattern: string, options: unknown) =>
-      actual.glob(pattern, options),
+    globImpl.mockImplementation((...args: Parameters<typeof actual.glob>) =>
+      actual.glob(...args),
     );
 
     const { loadRules } = await import('../../src/rules/rule-loader.js');

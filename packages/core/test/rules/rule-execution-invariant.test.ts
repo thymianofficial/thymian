@@ -5,11 +5,12 @@ import {
   checkRuleExecutionInvariant,
   checkRuleTypeDeclaration,
   describeRuleExecutionInvariantViolation,
+  type RuleExecutionInvariantViolation,
 } from '../../src/rules/rule-execution-invariant.js';
 import type { RuleMeta } from '../../src/rules/rule-meta.js';
 
 function makeRule(
-  overrides: Partial<Rule> & { meta?: Partial<RuleMeta> },
+  overrides: Omit<Partial<Rule>, 'meta'> & { meta?: Partial<RuleMeta> },
 ): Rule {
   const { meta, ...rest } = overrides;
 
@@ -153,14 +154,14 @@ describe('checkRuleExecutionInvariant', () => {
 
 describe('describeRuleExecutionInvariantViolation', () => {
   it('produces a message and suggestions for every reason', () => {
-    const violations = [
+    const violations: RuleExecutionInvariantViolation[] = [
       { reason: 'invalid-type-declaration' },
       { reason: 'unknown-rule-types', unknownTypes: ['staticc'] },
       { reason: 'informational-mixed-with-executable-types' },
       { reason: 'informational-rule-with-execution-function' },
       { reason: 'impossibility-reason-on-executable-type' },
       { reason: 'missing-execution-function', missingTypes: ['static'] },
-    ] as const;
+    ];
 
     for (const violation of violations) {
       const { message, suggestions } = describeRuleExecutionInvariantViolation(

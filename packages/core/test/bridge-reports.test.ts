@@ -28,7 +28,9 @@ describe('report assembly', () => {
     });
 
     const emitted: Report[] = [];
-    thymian.emitter.on('core.report', (report) => emitted.push(report));
+    thymian.emitter.on('core.report', (report) => {
+      emitted.push(report);
+    });
 
     const report = await thymian.lint({ specification: [], rules: [] });
 

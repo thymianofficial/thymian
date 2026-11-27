@@ -13,6 +13,6 @@
     "types": ["node"]
   },
   "include": ["src/**/*.ts"],
-  "exclude": ["dist", "test"],
+  "exclude": ["dist"],
   "references": []
 }

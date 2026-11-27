@@ -8,6 +8,7 @@ function responseWithHeaderSchema(schema: unknown): ThymianHttpResponse {
   return {
     type: 'http-response',
     label: '200 OK',
+    sourceName: 'test-source',
     mediaType: 'application/json',
     statusCode: 200,
     headers: {
@@ -53,6 +54,7 @@ describe('validateExistingHeader', () => {
     const response: ThymianHttpResponse = {
       type: 'http-response',
       label: '200 OK',
+      sourceName: 'test-source',
       mediaType: 'application/json',
       statusCode: 200,
       headers: {

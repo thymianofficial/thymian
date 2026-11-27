@@ -31,7 +31,11 @@ describe('load rules', () => {
         () => true,
         {},
         fixtures.projectDir,
-      ).catch((err: unknown) => err as Error);
+      ).catch((err: unknown) => err);
+
+      if (!(error instanceof Error)) {
+        throw new Error('expected loadRules to reject with an Error');
+      }
 
       expect(error.message).toMatch(
         /Cannot load rule source unbuilt-ts-pkg: "unbuilt-ts-pkg" ships unbuilt TypeScript source/,

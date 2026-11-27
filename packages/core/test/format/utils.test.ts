@@ -1,15 +1,17 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  httpRequestToThymianHttpRequest,
+  httpResponseToThymianHttpResponse,
+} from '../../src/format/utils.js';
+import type {
   HttpRequest,
   HttpResponse,
   ThymianHttpRequest,
   ThymianHttpResponse,
-} from '../../src';
-import {
-  httpRequestToThymianHttpRequest,
-  httpResponseToThymianHttpResponse,
-} from '../../src/format/utils';
+} from '../../src/index.js';
+
+const sourceName = 'test-source';
 
 describe('httpRequestToThymianHttpRequest', () => {
   it('should convert a basic HttpRequest to ThymianHttpRequest', () => {
@@ -22,7 +24,7 @@ describe('httpRequestToThymianHttpRequest', () => {
       },
     };
 
-    const result = httpRequestToThymianHttpRequest(request);
+    const result = httpRequestToThymianHttpRequest(request, sourceName);
 
     expect(result).toEqual<Partial<ThymianHttpRequest>>({
       host: 'example.com',
@@ -36,6 +38,7 @@ describe('httpRequestToThymianHttpRequest', () => {
       headers: {},
       pathParameters: {},
       queryParameters: {},
+      sourceName,
     });
   });
 
@@ -46,7 +49,7 @@ describe('httpRequestToThymianHttpRequest', () => {
       method: 'POST',
     };
 
-    const result = httpRequestToThymianHttpRequest(request);
+    const result = httpRequestToThymianHttpRequest(request, sourceName);
 
     expect(result).toEqual<Partial<ThymianHttpRequest>>({
       host: 'example.com',
@@ -60,6 +63,7 @@ describe('httpRequestToThymianHttpRequest', () => {
       headers: {},
       pathParameters: {},
       queryParameters: {},
+      sourceName,
     });
   });
 
@@ -73,7 +77,7 @@ describe('httpRequestToThymianHttpRequest', () => {
       },
     };
 
-    const result = httpRequestToThymianHttpRequest(request);
+    const result = httpRequestToThymianHttpRequest(request, sourceName);
 
     expect(result.headers).toEqual({
       'x-custom-header': {
@@ -97,7 +101,7 @@ describe('httpRequestToThymianHttpRequest', () => {
       method: 'GET',
     };
 
-    const result = httpRequestToThymianHttpRequest(request);
+    const result = httpRequestToThymianHttpRequest(request, sourceName);
 
     expect(result.port).toBe(3000);
   });
@@ -115,8 +119,11 @@ describe('httpRequestToThymianHttpRequest', () => {
       method: 'GET',
     };
 
-    const httpResult = httpRequestToThymianHttpRequest(httpRequest);
-    const httpsResult = httpRequestToThymianHttpRequest(httpsRequest);
+    const httpResult = httpRequestToThymianHttpRequest(httpRequest, sourceName);
+    const httpsResult = httpRequestToThymianHttpRequest(
+      httpsRequest,
+      sourceName,
+    );
 
     expect(httpResult.port).toBe(80);
     expect(httpsResult.port).toBe(443);
@@ -135,7 +142,7 @@ describe('httpResponseToThymianHttpResponse', () => {
       duration: 50,
     };
 
-    const result = httpResponseToThymianHttpResponse(response);
+    const result = httpResponseToThymianHttpResponse(response, sourceName);
 
     expect(result).toEqual<Partial<ThymianHttpResponse>>({
       type: 'http-response',
@@ -147,6 +154,7 @@ describe('httpResponseToThymianHttpResponse', () => {
         examples: ['{"key":"value"}'],
       },
       headers: {},
+      sourceName,
     });
   });
 
@@ -158,7 +166,7 @@ describe('httpResponseToThymianHttpResponse', () => {
       duration: 100,
     };
 
-    const result = httpResponseToThymianHttpResponse(response);
+    const result = httpResponseToThymianHttpResponse(response, sourceName);
 
     expect(result).toEqual<Partial<ThymianHttpResponse>>({
       type: 'http-response',
@@ -166,6 +174,7 @@ describe('httpResponseToThymianHttpResponse', () => {
       mediaType: '',
       label: '',
       headers: {},
+      sourceName,
     });
   });
 
@@ -179,7 +188,7 @@ describe('httpResponseToThymianHttpResponse', () => {
       duration: 30,
     };
 
-    const result = httpResponseToThymianHttpResponse(response);
+    const result = httpResponseToThymianHttpResponse(response, sourceName);
 
     expect(result.headers).toEqual({
       'x-multiple-values': {
@@ -207,7 +216,7 @@ describe('httpResponseToThymianHttpResponse', () => {
       duration: 500,
     };
 
-    const result = httpResponseToThymianHttpResponse(response);
+    const result = httpResponseToThymianHttpResponse(response, sourceName);
 
     expect(result.schema).toEqual({
       type: 'string',

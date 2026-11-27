@@ -6,7 +6,9 @@ export default [
     // Deliberately, genuinely invalid JavaScript (a real SyntaxError fixture,
     // not a mislabeled-but-valid file) — ESLint cannot parse it, and it must
     // never pass lint.
-    ignores: ['test/rules/fixtures/rule-sets/glob-syntax-error/broken.rule.mjs'],
+    ignores: [
+      'test/rules/fixtures/rule-sets/glob-syntax-error/broken.rule.mjs',
+    ],
   },
   {
     files: ['**/*.json'],
@@ -32,5 +34,8 @@ export default [
     languageOptions: {
       parser: await import('jsonc-eslint-parser'),
     },
+  },
+  {
+    ignores: ['**/out-tsc'],
   },
 ];

@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { serializeRequest } from '../src/http-testing/serialize-request.js';
 import {
   DEFAULT_PATH_SERIALIZATION_STYLE,
-  HttpRequestTemplate,
+  type HttpRequestTemplate,
   QuerySerializationStyleBuilder,
   type ThymianHttpTransaction,
 } from '../src/index.js';
@@ -70,7 +70,7 @@ describe('serializeRequest', () => {
         },
         thymianResId: '',
         transactionId: '',
-        transaction: undefined,
+        transaction: { type: 'http-transaction', label: '', sourceName: '' },
       },
     });
 
@@ -145,7 +145,7 @@ describe('serializeRequest', () => {
       },
       thymianResId: '',
       transactionId: '',
-      transaction: undefined,
+      transaction: { type: 'http-transaction', label: '', sourceName: '' },
     };
 
     console.log(serializeRequest({ requestTemplate: template, source }));

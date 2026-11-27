@@ -50,6 +50,7 @@ describe('har-schema', () => {
 
   it('validateHar should allow entries without a response', () => {
     const har = createValidHar();
+    // @ts-expect-error test payload without a response
     delete har.log.entries[0]!.response;
 
     expect(validateHar(har)).toBe(true);
