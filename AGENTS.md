@@ -127,6 +127,17 @@ Invoke the `add-http-rule-set` skill to do the work — it carries the procedure
 `generate-rfc-rule` and `extract-rules-from-rfc-chapter` skills contradict all four points
 above and are superseded.
 
+## Type-level tests
+
+Compile-refusal tests (`// @ts-expect-error` in `test/**`) and `expectTypeOf` assertions in
+`*.test-d.ts` are enforced by `nx run core:typecheck`, not by `nx test`. Vitest transpiles
+without type-checking, so `nx test` is runtime only. `core:typecheck` builds `test/**/*.ts`
+through `tsconfig.spec.json` against the **emitted `.d.ts`** of `tsconfig.lib.json`, which is
+what an external consumer of `@thymian/core` sees, and CI runs it via `nx affected -t typecheck`.
+
+To check one by hand, run `nx run core:typecheck`. Never use a flat `tsc -p` over `src` and
+`test` together: it reads source instead of declarations and can pass where the real check fails.
+
 ---
 
 ## Deployment & Release
