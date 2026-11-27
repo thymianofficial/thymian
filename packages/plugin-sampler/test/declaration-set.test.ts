@@ -13,7 +13,9 @@ import {
 const parses = vi.hoisted(() => ({ count: 0 }));
 
 vi.mock('typescript', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('typescript')>();
+  const actual = await importOriginal<{
+    default: typeof import('typescript');
+  }>();
   const ts = actual.default;
 
   return {

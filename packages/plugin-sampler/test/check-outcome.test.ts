@@ -2,8 +2,8 @@ import {
   type HttpTestCase,
   type HttpTestCaseResult,
   type HttpTestCaseStep,
+  type TestableThymianHttpTransaction,
   ThymianBaseError,
-  type ThymianHttpTransaction,
 } from '@thymian/core';
 import {
   createHttpRequest,
@@ -51,8 +51,8 @@ const FORMAT = createThymianFormatWithTransactions([
 ]);
 
 const [CHECKED, SEED] = FORMAT.getThymianHttpTransactions() as [
-  ThymianHttpTransaction,
-  ThymianHttpTransaction,
+  TestableThymianHttpTransaction,
+  TestableThymianHttpTransaction,
 ];
 
 const CHECKED_SELECTOR = 'GET /launches/{id} -> 200 (application/json)';
@@ -357,7 +357,7 @@ describe('a declared Transaction sampler check never attempts', () => {
       ],
     ]);
     const [redirect] = format.getThymianHttpTransactions() as [
-      ThymianHttpTransaction,
+      TestableThymianHttpTransaction,
     ];
 
     expect(checkedAsUncheckable(redirect)).toEqual({
@@ -377,7 +377,7 @@ describe('a declared Transaction sampler check never attempts', () => {
       ],
     ]);
     const [serverError] = format.getThymianHttpTransactions() as [
-      ThymianHttpTransaction,
+      TestableThymianHttpTransaction,
     ];
 
     expect(checkedAsUncheckable(serverError)).toMatchObject({
@@ -398,7 +398,7 @@ describe('a declared Transaction sampler check never attempts', () => {
       ],
     ]);
     const [interim] = format.getThymianHttpTransactions() as [
-      ThymianHttpTransaction,
+      TestableThymianHttpTransaction,
     ];
 
     expect(checkedAsUncheckable(interim)).toMatchObject({
