@@ -698,9 +698,10 @@ export class HttpTestApiContext<
       const assertionFailure =
         assertionFailures.find((r) => !!r.transaction) ?? assertionFailures[0];
 
-      // No assertion failed ⇒ the case could not be executed (an HTTP-level
-      // failure); computeTestCaseStatus intentionally surfaces that as skipped,
-      // so leave it unplaced.
+      // No assertion failed ⇒ a defect in the rule or the framework ended the
+      // case (a hook's fail verdict is recorded as an assertion failure, see
+      // ADR-0031); computeTestCaseStatus surfaces it as skipped with its
+      // reason, so leave it unplaced.
       if (assertionFailure === undefined) {
         return;
       }

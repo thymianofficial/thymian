@@ -57,7 +57,11 @@ const isFinding = options.isFinding ?? ((execution: Execution) => execution.stat
   does not gate whether the run is considered clean.
 - **`tool-error` is currently unreachable by default** (`isToolError = () =>
 false`): there is no distinct "the tool itself couldn't run" signal in the
-  v4 model, so every technical failure surfaces as a `failed` execution today.
+  v4 model.
+  _Amended 2026-11-27: this used to read "so every technical failure surfaces as a `failed`
+  execution today", which was never true of `Test`. There, a technical failure surfaces as a
+  `skipped` execution, or ends the rule when it throws. A hook's fail verdict is a `failed`
+  execution ([ADR-0031](0031-a-hook-fail-verdict-is-a-violation-in-test.md))._
   Callers may still opt in to a custom `isToolError`/`isFinding` predicate via
   `ReportClassificationOptions` (e.g. to restore severity-gating for a
   specific workflow) — the default is what's being decided here, not the only
@@ -116,3 +120,4 @@ false`): there is no distinct "the tool itself couldn't run" signal in the
 | ---------- | -------- | ------------------------------------------------------------------------------- |
 | 2026-07-07 | Accepted | Document severity-independent exit-code classification (Story 5, #334)          |
 | 2026-11-24 | Amended  | Note: ADR-0030 adds the notApplicable status kind; the v4 list stays as written |
+| 2026-11-27 | Amended  | Correct the technical-failure claim; hook fail verdicts are failed (ADR-0031)   |

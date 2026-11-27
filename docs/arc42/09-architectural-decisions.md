@@ -38,6 +38,7 @@ This chapter documents the significant architectural decisions made for Thymian.
 | [ADR-0028](adr/0028-rule-context-calls-judge-the-live-status.md)                  | Rule-context calls judge the response the server actually sent            | Accepted | 2026-11-18 | —                                                                                                                      |
 | [ADR-0029](adr/0029-capture-gaps-are-marked-on-the-captured-message.md)           | Capture Gaps are marked on the captured message; rules ask per field      | Accepted | 2026-11-16 | —                                                                                                                      |
 | [ADR-0030](adr/0030-a-rule-that-applies-to-nothing-is-reported-not-applicable.md) | A rule that applies to nothing is reported `notApplicable`                | Accepted | 2026-11-23 | —                                                                                                                      |
+| [ADR-0031](adr/0031-a-hook-fail-verdict-is-a-violation-in-test.md)                | A hook's fail verdict is a violation in `Test`                            | Accepted | 2026-11-27 | —                                                                                                                      |
 
 ## Creating New ADRs
 

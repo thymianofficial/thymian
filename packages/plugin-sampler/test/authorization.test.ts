@@ -1,4 +1,13 @@
-import { ThymianFormat } from '@thymian/core';
+import {
+  filterHttpTransactions,
+  generateRequests,
+  httpTest,
+  mapToTestCase,
+  NoopLogger,
+  runRequests,
+  type TestableThymianHttpTransaction,
+  ThymianFormat,
+} from '@thymian/core';
 import {
   createHttpRequest,
   createHttpResponse,
@@ -6,6 +15,8 @@ import {
 } from '@thymian/core-testing';
 import { afterEach, describe, expect, it } from 'vitest';
 
+import { checkedFromTestCase } from '../src/cli/check-result.js';
+import { createContext } from '../src/cli/create-context.js';
 import { selectorForTransaction } from '../src/selectors/selector.js';
 import { type SamplerHarness, startSampler } from './plugin-harness.js';
 
@@ -169,6 +180,53 @@ export const second = authorize((request) => {
     const { result } = await harness.authorize(secured200, format);
 
     expect(result.headers['authorization']).toBeUndefined();
+  });
+
+  /**
+   * ADR-0031: an authorize hook's `utils.fail` is a verdict like any other
+   * hook's. Core used to read only the template back from the authorize seam,
+   * so the verdict was dropped and the request sent anyway; `sampler check`
+   * now reports it as `failed`, the same pipeline `check` runs.
+   */
+  it("reports an authorize hook's utils.fail as a failed check, without sending the request", async () => {
+    const { format, secured200 } = securedFormat();
+    const harness = await sampler();
+
+    await harness.writeHook(
+      'auth.ts',
+      `import { authorize } from '@thymian/hooks';
+
+export const denied = authorize((request, ctx, utils) => {
+  utils.fail('no credentials for this user');
+});
+`,
+    );
+
+    await harness.loadFormat(format);
+
+    const transaction = format.getThymianHttpTransactionById(
+      secured200,
+    ) as TestableThymianHttpTransaction;
+    const test = httpTest('check', (transactions) =>
+      transactions.pipe(
+        filterHttpTransactions(
+          (_req, reqId) => reqId === transaction.thymianReqId,
+          (_res, resId) => resId === transaction.thymianResId,
+        ),
+        mapToTestCase(),
+        generateRequests(),
+        runRequests({ checkResponse: false }),
+      ),
+    );
+    const {
+      cases: [testCase],
+    } = await test(createContext(format, new NoopLogger(), harness.emitter));
+
+    expect(checkedFromTestCase(testCase!, transaction)).toMatchObject({
+      outcome: 'failed',
+      reason: 'no credentials for this user',
+    });
+    expect(harness.dispatched).toEqual([]);
   });
 
   describe('overriding the flag', () => {
