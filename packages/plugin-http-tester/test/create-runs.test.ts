@@ -1,6 +1,10 @@
+import assert from 'node:assert';
+
 import {
   and,
   createHttpTestContext,
+  expect as expectCase,
+  generateRequests,
   type HttpRequestTemplate,
   type HttpResponse,
   httpRule,
@@ -9,6 +13,7 @@ import {
   type HttpTestContext,
   locateOnGroup,
   type Logger,
+  mapToTestCase,
   method,
   NoopLogger,
   responseHeader,
@@ -17,6 +22,7 @@ import {
   type RuleRunnerAdapter,
   type RuleViolationGroupLocation,
   type RuleViolationLocation,
+  runRequests,
   runRules,
   singleTestCase,
   statusCode,
@@ -1331,6 +1337,34 @@ describe("createRuns: a hook's fail verdict and a rule defect", () => {
         transactionIndex: 0,
       }),
     );
+  });
+
+  it("reports a failed top-level expect with the assertion's message as reason", async () => {
+    const executions = await executionsOf(
+      httpRule('test/expect')
+        .severity('error')
+        .type('test')
+        .rule(async (ctx) =>
+          ctx.httpTest((transactions) =>
+            transactions.pipe(
+              mapToTestCase(),
+              generateRequests(),
+              runRequests({ checkStatusCode: false }),
+              expectCase(() => {
+                assert.fail('the body should name the user');
+              }),
+            ),
+          ),
+        )
+        .done(),
+    );
+
+    expect(executions.map(({ status }) => status)).toEqual([
+      expect.objectContaining({
+        kind: 'failed',
+        reason: 'the body should name the user',
+      }),
+    ]);
   });
 
   it('reports a .transactions() callback that throws a TypeError as skipped with its reason', async () => {
