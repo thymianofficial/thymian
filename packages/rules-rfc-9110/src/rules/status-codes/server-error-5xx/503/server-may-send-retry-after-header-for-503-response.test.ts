@@ -55,7 +55,7 @@ describe(rule.meta.name, () => {
           headers: { 'Retry-After': createOptionalParameter() },
         }),
       );
-      const without = addTransaction(
+      const withoutRetryAfter = addTransaction(
         format,
         createGetRequest({ path: '/rockets' }),
         createHttpResponse({ statusCode: 503 }),
@@ -71,7 +71,11 @@ describe(rule.meta.name, () => {
       expect(await ruleTester[METHOD[context]](format)).toMatchObject([
         { location: { elementId: required }, ...retryAfterInUse },
         { location: { elementId: optional }, ...retryAfterInUse },
-        { location: { elementId: without }, status: 'passed', findings: [] },
+        {
+          location: { elementId: withoutRetryAfter },
+          status: 'passed',
+          findings: [],
+        },
         { location: { elementId: notA503 }, status: 'notApplicable' },
       ]);
     },
