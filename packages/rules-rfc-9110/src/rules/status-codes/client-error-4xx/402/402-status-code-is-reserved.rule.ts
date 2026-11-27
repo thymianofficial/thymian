@@ -1,4 +1,4 @@
-import { constant, statusCode } from '@thymian/core';
+import { and, constant, explicitlyDocumented, statusCode } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
 // eslint-disable-next-line thymian-internal/require-rule-tags -- no concern-tag member fits this rule's topic
@@ -15,7 +15,9 @@ export default httpRule('rfc9110/402-status-code-is-reserved')
   .appliesTo('server')
   .rule((ctx) =>
     ctx.validateCommonHttpTransactions({
-      appliesTo: statusCode(402),
+      // A 402 only a `4XX` range implies was never chosen by the author
+      // (ADR-0031).
+      appliesTo: and(statusCode(402), explicitlyDocumented()),
       violatedWhen: constant(true),
     }),
   )

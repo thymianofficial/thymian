@@ -287,7 +287,7 @@ None.
 
 | Rule                                                                                                             | static                           | analytics                        | test                                   |
 | ---------------------------------------------------------------------------------------------------------------- | -------------------------------- | -------------------------------- | -------------------------------------- |
-| rfc9110/general-purpose-servers-must-support-get-and-head                                                        | impossible (not-representable)   | observable                       | observable                             |
+| rfc9110/general-purpose-servers-must-support-get-and-head                                                        | observable                       | observable                       | observable                             |
 | rfc9110/client-must-ignore-content-length-or-transfer-encoding-headers-in-response-to-connect                    | impossible (peer-not-observable) | impossible (peer-not-observable) | impossible (peer-not-observable)       |
 | rfc9110/client-must-send-port-number-for-connect-request                                                         | impossible (tool-limitation)     | impossible (tool-limitation)     | impossible (tool-limitation)           |
 | rfc9110/intermediary-must-attempt-to-send-outstanding-data-coming-from-closed-side-for-connect-request           | impossible (unknown)             | impossible (unknown)             | impossible (unknown)                   |

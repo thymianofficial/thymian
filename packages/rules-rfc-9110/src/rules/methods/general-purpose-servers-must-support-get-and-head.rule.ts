@@ -1,4 +1,11 @@
-import { method, not, or, statusCode } from '@thymian/core';
+import {
+  and,
+  explicitlyDocumented,
+  method,
+  not,
+  or,
+  statusCode,
+} from '@thymian/core';
 import { httpRule, singleTestCase } from '@thymian/core';
 
 // eslint-disable-next-line thymian-internal/require-rule-tags -- no concern-tag member fits this rule's topic
@@ -6,7 +13,7 @@ export default httpRule(
   'rfc9110/general-purpose-servers-must-support-get-and-head',
 )
   .severity('error')
-  .type('test', 'analytics')
+  .type('static', 'test', 'analytics')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-overview')
   .description(
     'All general-purpose servers MUST support the methods GET and HEAD.',
@@ -17,7 +24,9 @@ export default httpRule(
   .appliesTo('server')
   .rule((ctx) =>
     ctx.validateCommonHttpTransactions({
-      appliesTo: or(method('get'), method('head')),
+      // A 501 only a `5XX` range implies is generic boilerplate, not a claim
+      // that GET or HEAD is unimplemented (ADR-0031).
+      appliesTo: and(or(method('get'), method('head')), explicitlyDocumented()),
       violatedWhen: statusCode(501),
     }),
   )
